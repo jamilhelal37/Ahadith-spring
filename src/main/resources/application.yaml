@@ -1,3 +1,6 @@
-spring:
-  application:
-    name: ahadith
+
+  spring:
+    application:
+      name: ahadith
+    profiles:
+     active: ${SPRING_PROFILES_ACTIVE:dev}
