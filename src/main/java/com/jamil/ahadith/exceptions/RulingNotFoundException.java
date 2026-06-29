@@ -1,4 +1,4 @@
 package com.jamil.ahadith.exceptions;
 
-public class RulingNotFoundException {
+public class RulingNotFoundException  extends RuntimeException{
 }

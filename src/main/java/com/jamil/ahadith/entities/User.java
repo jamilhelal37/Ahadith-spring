@@ -1,5 +1,7 @@
 package com.jamil.ahadith.entities;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -38,8 +40,9 @@ public class User {
     @Column(name = "status", columnDefinition = "user_status not null")
     private Object status;
 
-    @Column(name = "gender", columnDefinition = "gender")
-    private Object gender;
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "gender")
+    private Gender gender;
 
     @ColumnDefault("'member'")
     @Column(name = "type", columnDefinition = "user_type not null")

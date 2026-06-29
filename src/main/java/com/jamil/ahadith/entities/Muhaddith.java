@@ -1,5 +1,7 @@
 package com.jamil.ahadith.entities;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -27,8 +29,9 @@ public class Muhaddith {
     @Column(name = "name", nullable = false, length = Integer.MAX_VALUE)
     private String name;
 
-    @Column(name = "gender", columnDefinition = "gender not null")
-    private Object gender;
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "gender", nullable = false)
+    private Gender gender;
 
     @NotNull
     @Column(name = "about", nullable = false, length = Integer.MAX_VALUE)

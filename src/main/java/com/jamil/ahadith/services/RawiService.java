@@ -1,52 +1,52 @@
 package com.jamil.ahadith.services;
 
-import com.jamil.ahadith.dtos.requests.RulingRequestDto;
-import com.jamil.ahadith.dtos.responses.RulingResponseDto;
-import com.jamil.ahadith.dtos.updates.RulingUpdateDto;
-import com.jamil.ahadith.exceptions.RulingNotFoundException;
-import com.jamil.ahadith.mappers.RulingMapper;
-import com.jamil.ahadith.repositories.RulingRepository;
-import org.springframework.stereotype.Service;
+import com.jamil.ahadith.dtos.requests.RawiRequestDto;
+import com.jamil.ahadith.dtos.responses.RawiResponseDto;
+import com.jamil.ahadith.dtos.updates.RawiUpdateDto;
+import com.jamil.ahadith.exceptions.RawiNotFoundException;
+import com.jamil.ahadith.mappers.RawiMapper;
+import com.jamil.ahadith.repositories.RawiRepository;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.UUID;
 
 @Transactional
 @AllArgsConstructor
 @Service
-public class RulingService {
-    private final RulingRepository rulingRepository;
-    private final RulingMapper rulingMapper;
+public class RawiService {
+    private final RawiRepository rawiRepository;
+    private final RawiMapper rawiMapper;
     private final EntityManager entityManager;
 
-    public List<RulingResponseDto> getRulings() {
-        return rulingRepository.findAll().stream()
-                .map(rulingMapper::toResponseDto)
+    public List<RawiResponseDto> getRawies() {
+        return rawiRepository.findAll().stream()
+                .map(rawiMapper::toResponseDto)
                 .toList();
     }
 
-    public RulingResponseDto getRulingById(UUID id) {
-        return rulingRepository.findById(id)
-                .map(rulingMapper::toResponseDto)
-                .orElseThrow(RulingNotFoundException::new);
+    public RawiResponseDto getRawiById(UUID id) {
+        return rawiRepository.findById(id)
+                .map(rawiMapper::toResponseDto)
+                .orElseThrow(RawiNotFoundException::new);
     }
 
-    public RulingResponseDto createRuling(RulingRequestDto request) {
-        var ruling = rulingRepository.saveAndFlush(rulingMapper.toEntity(request));
-        entityManager.refresh(ruling);
-        return rulingMapper.toResponseDto(ruling);
+    public RawiResponseDto createRawi(RawiRequestDto request) {
+        var rawi = rawiRepository.saveAndFlush(rawiMapper.toEntity(request));
+        entityManager.refresh(rawi);
+        return rawiMapper.toResponseDto(rawi);
     }
 
-    public RulingResponseDto updateRuling(UUID id, RulingUpdateDto request) {
-        var ruling = rulingRepository.findById(id).orElseThrow(RulingNotFoundException::new);
-        rulingMapper.updateEntity(request, ruling);
-        var savedRuling = rulingRepository.saveAndFlush(ruling);
-        entityManager.refresh(savedRuling);
-        return rulingMapper.toResponseDto(savedRuling);
+    public RawiResponseDto updateRawi(UUID id, RawiUpdateDto request) {
+        var rawi = rawiRepository.findById(id).orElseThrow(RawiNotFoundException::new);
+        rawiMapper.updateEntity(request, rawi);
+        var savedRawi = rawiRepository.saveAndFlush(rawi);
+        entityManager.refresh(savedRawi);
+        return rawiMapper.toResponseDto(savedRawi);
     }
+
 
 }
 

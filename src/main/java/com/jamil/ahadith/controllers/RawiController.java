@@ -1,53 +1,50 @@
 package com.jamil.ahadith.controllers;
-import java.util.List;
 
-import java.util.UUID;
+import com.jamil.ahadith.dtos.requests.RawiRequestDto;
 import com.jamil.ahadith.dtos.requests.RulingRequestDto;
+import com.jamil.ahadith.dtos.responses.RawiResponseDto;
 import com.jamil.ahadith.dtos.responses.RulingResponseDto;
+import com.jamil.ahadith.dtos.updates.RawiUpdateDto;
 import com.jamil.ahadith.dtos.updates.RulingUpdateDto;
+import com.jamil.ahadith.services.RawiService;
 import com.jamil.ahadith.services.RulingService;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.RequestMapping;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/rulings")
-class RulingController {
-        private final RulingService rulingService;
+@RequestMapping("/rawies")
+class RawiController {
+        private final RawiService rawiService;
 
         @GetMapping
-        public List<RulingResponseDto> getRulings() {
-            return rulingService.getRulings();
+        public List<RawiResponseDto> getRawies() {
+            return rawiService.getRawies();
         }
 
         @GetMapping("/{id}")
-        public RulingResponseDto getRulingById(@PathVariable UUID id) {
-            return rulingService.getRulingById(id);
+        public RawiResponseDto getRawiById(@PathVariable UUID id) {
+            return rawiService.getRawiById(id);
         }
 
         @PostMapping
-        public ResponseEntity<RulingResponseDto> createRuling(@Valid @RequestBody RulingRequestDto rulingRequest,
+        public ResponseEntity<RawiResponseDto> createRawi(@Valid @RequestBody RawiRequestDto rawiRequest,
                                                           UriComponentsBuilder uriBuilder) {
-            var ruling = rulingService.createRuling(rulingRequest);
-            var uri = uriBuilder.path("/rulings/{id}").buildAndExpand(ruling.getId()).toUri();
-            return ResponseEntity.created(uri).body(ruling);
+            var rawi = rawiService.createRawi(rawiRequest);
+            var uri = uriBuilder.path("/rawies/{id}").buildAndExpand(rawi.getId()).toUri();
+            return ResponseEntity.created(uri).body(rawi);
         }
 
         @PutMapping("/{id}")
-        public RulingResponseDto updateRuling(@PathVariable UUID id,
-                                          @Valid @RequestBody RulingUpdateDto rulingUpdate) {
-            return rulingService.updateRuling(id, rulingUpdate);
+        public RawiResponseDto updateRawi(@PathVariable UUID id,
+                                          @Valid @RequestBody RawiUpdateDto rawiUpdate) {
+            return rawiService.updateRawi(id, rawiUpdate);
         }
-
 
     }
