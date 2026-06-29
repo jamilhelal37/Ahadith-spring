@@ -2,7 +2,9 @@ package com.jamil.ahadith.entities;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.OnDelete;
@@ -13,6 +15,8 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 
+@AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Setter
 @Entity
@@ -20,41 +24,34 @@ import java.util.UUID;
 public class Explaining {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", nullable = false)
+    @Column(name = "id")
     private UUID id;
 
-    @NotNull
-    @Column(name = "text", nullable = false, length = Integer.MAX_VALUE)
+    @Column(name = "text")
     private String text;
 
-    @Column(name = "normal_text", length = Integer.MAX_VALUE)
+    @Column(name = "normal_text")
     private String normalText;
 
-    @Column(name = "search_text", length = Integer.MAX_VALUE)
+    @Column(name = "search_text")
     private String searchText;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.SET_NULL)
+    @ManyToOne
     @JoinColumn(name = "created_by")
     private User createdBy;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.SET_NULL)
+    @ManyToOne
     @JoinColumn(name = "updated_by")
     private User updatedBy;
 
-    @NotNull
-    @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", insertable = false,updatable = false)
     private LocalDateTime createdAt;
 
-    @NotNull
-    @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at", insertable = false,updatable = false)
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "explaining")
-    private Set<Ahadith> ahadiths = new LinkedHashSet<>();
+    private Set<Hadith> ahadiths = new LinkedHashSet<>();
 
 
 }

@@ -2,15 +2,21 @@ package com.jamil.ahadith.entities;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Setter
 @Entity
@@ -18,31 +24,26 @@ import java.util.UUID;
 public class SearchHistory {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", nullable = false)
+    @Column(name = "id")
     private UUID id;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "user_id", nullable = false)
+    @ManyToOne(cascade = CascadeType.MERGE)
+    @JoinColumn(name = "user_id")
     private User user;
 
-    @NotNull
-    @Column(name = "search_text", nullable = false, length = Integer.MAX_VALUE)
+    @Column(name = "search_text")
     private String searchText;
 
-    @ColumnDefault("'hadith'")
-    @Column(name = "search_source", columnDefinition = "search_source not null")
-    private Object searchSource;
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "search_source")
+    private SearchSource searchSource;
 
-    @NotNull
-    @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "created_at", nullable = false)
+
+    @Column(name = "created_at", updatable = false,insertable = false)
     private LocalDateTime createdAt;
 
-    @NotNull
-    @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "updated_at", nullable = false)
+
+    @Column(name = "updated_at",insertable = false, updatable = false)
     private LocalDateTime updatedAt;
 
 

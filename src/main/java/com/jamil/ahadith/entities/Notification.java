@@ -35,12 +35,12 @@ public class Notification {
     @ManyToOne(fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.SET_NULL)
     @JoinColumn(name = "hadith_id")
-    private Ahadith hadith;
+    private Hadith hadith;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.SET_NULL)
     @JoinColumn(name = "fake_hadith_id")
-    private FakeAhadith fakeHadith;
+    private FakeHadith fakeHadith;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.SET_NULL)

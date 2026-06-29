@@ -19,26 +19,25 @@ import java.util.UUID;
 public class ActivityLog {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", nullable = false)
+    @Column(name = "id")
     private UUID id;
 
     @Column(name = "actor_user_id")
     private UUID actorUserId;
 
-    @Column(name = "actor_name", length = Integer.MAX_VALUE)
+    @Column(name = "actor_name")
     private String actorName;
 
-    @Column(name = "actor_email", length = Integer.MAX_VALUE)
+    @Column(name = "actor_email")
     private String actorEmail;
 
-    @Column(name = "actor_avatar_url", length = Integer.MAX_VALUE)
+    @Column(name = "actor_avatar_url")
     private String actorAvatarUrl;
 
-    @NotNull
-    @Column(name = "message", nullable = false, length = Integer.MAX_VALUE)
+    @Column(name = "message")
     private String message;
 
-    @Column(name = "table_name", length = Integer.MAX_VALUE)
+    @Column(name = "table_name")
     private String tableName;
 
     @Column(name = "record_id")
@@ -52,10 +51,6 @@ public class ActivityLog {
     @Column(name = "new_data")
     private Map<String, Object> newData;
 
-    @NotNull
-    @ColumnDefault("now()")
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at",insertable = false, updatable = false)
     private LocalDateTime createdAt;
-
-
 }

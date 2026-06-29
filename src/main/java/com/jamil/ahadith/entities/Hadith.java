@@ -2,7 +2,9 @@ package com.jamil.ahadith.entities;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.OnDelete;
@@ -13,11 +15,13 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 
+@AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Setter
 @Entity
 @Table(name = "ahadith")
-public class Ahadith {
+public class Hadith {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
@@ -26,7 +30,7 @@ public class Ahadith {
     @ManyToOne(fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.SET_NULL)
     @JoinColumn(name = "sub_valid")
-    private Ahadith subValid;
+    private Hadith subValid;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.SET_NULL)
@@ -54,52 +58,43 @@ public class Ahadith {
     @Column(name = "hadith_number", nullable = false)
     private Integer hadithNumber;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.SET_NULL)
+    @ManyToOne
     @JoinColumn(name = "ruling")
     private Ruling ruling;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.SET_NULL)
+    @ManyToOne
     @JoinColumn(name = "rawi")
     private Rawi rawi;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.SET_NULL)
+    @ManyToOne
     @JoinColumn(name = "book")
     private Book book;
 
-    @Column(name = "sanad", length = Integer.MAX_VALUE)
+    @Column(name = "sanad")
     private String sanad;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.SET_NULL)
+    @ManyToOne
     @JoinColumn(name = "created_by")
     private User createdBy;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.SET_NULL)
+    @ManyToOne
     @JoinColumn(name = "updated_by")
     private User updatedBy;
 
-    @NotNull
-    @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", insertable = false,updatable = false)
     private LocalDateTime createdAt;
 
-    @NotNull
-    @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at", insertable = false,updatable = false)
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "subValid")
-    private Set<Ahadith> ahadiths = new LinkedHashSet<>();
+    private Set<Hadith> ahadiths = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "hadith")
     private Set<Comment> comments = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "subValid")
-    private Set<FakeAhadith> fakeAhadiths = new LinkedHashSet<>();
+    private Set<FakeHadith> fakeHadiths = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "hadith")
     private Set<Favorite> favorites = new LinkedHashSet<>();
@@ -111,7 +106,7 @@ public class Ahadith {
     private Set<Question> questions = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "mainHadith")
-    private Set<SimilarAhadith> MainAhadiths = new LinkedHashSet<>();
+    private Set<SimilarAhadith> mainAhadiths = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "simHadith")
     private Set<SimilarAhadith> similarAhadiths = new LinkedHashSet<>();

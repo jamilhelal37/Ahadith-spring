@@ -2,7 +2,9 @@ package com.jamil.ahadith.entities;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.OnDelete;
@@ -11,6 +13,8 @@ import org.hibernate.annotations.OnDeleteAction;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Setter
 @Entity
@@ -31,15 +35,13 @@ public class UserFcmToken {
     @Column(name = "fcm_token", nullable = false, length = Integer.MAX_VALUE)
     private String fcmToken;
 
-    @NotNull
-    @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", updatable = false,insertable = false)
     private LocalDateTime createdAt;
 
-    @NotNull
-    @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "updated_at", nullable = false)
+
+    @Column(name = "updated_at",insertable = false, updatable = false)
     private LocalDateTime updatedAt;
+
 
     @NotNull
     @ColumnDefault("CURRENT_TIMESTAMP")

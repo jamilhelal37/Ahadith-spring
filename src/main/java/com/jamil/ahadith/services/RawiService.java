@@ -21,7 +21,7 @@ public class RawiService {
     private final RawiMapper rawiMapper;
     private final EntityManager entityManager;
 
-    public List<RawiResponseDto> getRawies() {
+    public List<RawiResponseDto> getRawis() {
         return rawiRepository.findAll().stream()
                 .map(rawiMapper::toResponseDto)
                 .toList();

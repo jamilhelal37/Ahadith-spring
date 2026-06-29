@@ -1,5 +1,7 @@
 package com.jamil.ahadith.entities;
 
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import jakarta.persistence.*;
@@ -12,6 +14,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Setter
 @Entity
@@ -19,47 +23,40 @@ import java.util.UUID;
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", nullable = false)
+    @Column(name = "id")
     private UUID id;
 
-    @Column(name = "name", length = Integer.MAX_VALUE)
+    @Column(name = "name")
     private String name;
 
-    @NotNull
-    @Column(name = "email", nullable = false, length = Integer.MAX_VALUE)
+    @Column(name = "email")
     private String email;
 
-    @NotNull
-    @Column(name = "password", nullable = false, length = Integer.MAX_VALUE)
+    @Column(name = "password")
     private String password;
 
-    @Column(name = "avatar_url", length = Integer.MAX_VALUE)
+    @Column(name = "avatar_url")
     private String avatarUrl;
 
-    @ColumnDefault("'pending_confirmation'")
-    @Column(name = "status", columnDefinition = "user_status not null")
-    private Object status;
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "status")
+    private UserStatus status;
 
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "gender")
     private Gender gender;
 
-    @ColumnDefault("'member'")
-    @Column(name = "type", columnDefinition = "user_type not null")
-    private Object type;
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "type")
+    private UserType type;
 
     @Column(name = "birth_date")
     private LocalDate birthDate;
 
-    @NotNull
-    @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", updatable = false,insertable = false)
     private LocalDateTime createdAt;
 
-    @NotNull
-    @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "updated_at", nullable = false)
+
+    @Column(name = "updated_at",insertable = false, updatable = false)
     private LocalDateTime updatedAt;
-
-
 }

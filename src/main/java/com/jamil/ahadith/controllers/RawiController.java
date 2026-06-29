@@ -19,13 +19,13 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/rawies")
+@RequestMapping("/rawis")
 class RawiController {
         private final RawiService rawiService;
 
         @GetMapping
-        public List<RawiResponseDto> getRawies() {
-            return rawiService.getRawies();
+        public List<RawiResponseDto> getRawis() {
+            return rawiService.getRawis();
         }
 
         @GetMapping("/{id}")
@@ -37,7 +37,7 @@ class RawiController {
         public ResponseEntity<RawiResponseDto> createRawi(@Valid @RequestBody RawiRequestDto rawiRequest,
                                                           UriComponentsBuilder uriBuilder) {
             var rawi = rawiService.createRawi(rawiRequest);
-            var uri = uriBuilder.path("/rawies/{id}").buildAndExpand(rawi.getId()).toUri();
+            var uri = uriBuilder.path("/rawis/{id}").buildAndExpand(rawi.getId()).toUri();
             return ResponseEntity.created(uri).body(rawi);
         }
 

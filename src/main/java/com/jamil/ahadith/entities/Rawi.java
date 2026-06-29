@@ -51,11 +51,11 @@ public class Rawi {
     private LocalDateTime createdAt;
 
 
-    @Column(name = "updated_at", insertable = false)
+    @Column(name = "updated_at", insertable = false, updatable = false)
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "rawi")
-    private Set<Ahadith> ahadiths = new LinkedHashSet<>();
+    private Set<Hadith> ahadiths = new LinkedHashSet<>();
 
 
 }

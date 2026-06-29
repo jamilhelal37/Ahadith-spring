@@ -4,7 +4,7 @@ create extension if not exists pgcrypto;
 create type public.gender as enum ('male', 'female');
 create type public.user_type as enum ('admin', 'member', 'scholar');
 create type public.hadith_type as enum ('marfu', 'mawquf', 'qudsi', 'atharSahaba');
-create type public.search_source as enum ('hadith', 'fake_hadith');
+create type public.search_source as enum ('Hadith', 'fake_hadith');
 create type public.pro_upgrade_status as enum (
   'pending_documents',
   'under_review',
@@ -362,7 +362,7 @@ create table if not exists public.search_history (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null,
   search_text text not null,
-  search_source public.search_source not null default 'hadith',
+  search_source public.search_source not null default 'Hadith',
   created_at timestamptz not null default current_timestamp,
   updated_at timestamptz not null default current_timestamp,
 
