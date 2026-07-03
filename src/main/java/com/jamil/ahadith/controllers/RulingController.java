@@ -49,5 +49,10 @@ class RulingController {
             return rulingService.updateRuling(id, rulingUpdate);
         }
 
+        @DeleteMapping("/{id}")
+        public ResponseEntity<Void> deleteRuling(@PathVariable UUID id) {
+            rulingService.deleteRuling(id);
+            return ResponseEntity.noContent().build();
+        }
 
     }

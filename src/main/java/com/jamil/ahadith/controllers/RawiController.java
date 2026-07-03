@@ -47,4 +47,10 @@ class RawiController {
             return rawiService.updateRawi(id, rawiUpdate);
         }
 
+        @DeleteMapping("/{id}")
+        public ResponseEntity<Void> deleteRawi(@PathVariable UUID id) {
+            rawiService.deleteRawi(id);
+            return ResponseEntity.noContent().build();
+        }
+
     }

@@ -26,11 +26,27 @@ class GlobalExceptionHandler {
             MuhaddithNotFoundException.class,
             TopicNotFoundException.class,
             CommentNotFoundException.class,
-            SimilarAhadithNotFoundException.class
+            SimilarAhadithNotFoundException.class,
+            UpgradeRequestNotFoundException.class
     })
     public ResponseEntity<ErrorResponseDto> handleNotFound(RuntimeException ex,
                                                            HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponseDto> handleConflict(RuntimeException ex,
+                                                           HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler({
+            org.springframework.security.authentication.BadCredentialsException.class,
+            org.springframework.security.core.userdetails.UsernameNotFoundException.class
+    })
+    public ResponseEntity<ErrorResponseDto> handleUnauthorized(RuntimeException ex,
+                                                               HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Unauthorized", ex.getMessage(), request);
     }
 
     private ResponseEntity<ErrorResponseDto> buildErrorResponse(HttpStatus status, String error, String message,
