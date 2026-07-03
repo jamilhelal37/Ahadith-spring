@@ -48,6 +48,13 @@ public class RulingService {
         return rulingMapper.toResponseDto(savedRuling);
     }
 
+    public void deleteRuling(UUID id) {
+        if (!rulingRepository.existsById(id)) {
+            throw new RulingNotFoundException();
+        }
+        rulingRepository.deleteById(id);
+    }
+
 }
 
 

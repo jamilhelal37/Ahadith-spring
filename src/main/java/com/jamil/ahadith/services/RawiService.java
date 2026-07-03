@@ -47,6 +47,12 @@ public class RawiService {
         return rawiMapper.toResponseDto(savedRawi);
     }
 
+    public void deleteRawi(UUID id) {
+        if (!rawiRepository.existsById(id)) {
+            throw new RawiNotFoundException();
+        }
+        rawiRepository.deleteById(id);
+    }
 
 }
 
