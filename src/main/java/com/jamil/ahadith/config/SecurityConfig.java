@@ -41,11 +41,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login", "/auth/refresh")
                         .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/ahadith/search", "/ahadith/search").permitAll()
                         .requestMatchers(
                                 "/auth/**",
                                 "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, "/ahadith/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/ahadith/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/rawis/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/rulings/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/books/**").permitAll()

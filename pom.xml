@@ -27,6 +27,17 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.cloudinary</groupId>
+            <artifactId>cloudinary-http44</artifactId>
+            <version>1.38.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
 
         <!-- JPA -->
         <dependency>
@@ -133,6 +144,27 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <!-- FLYWAY -->
+            <plugin>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-maven-plugin</artifactId>
+                <version>${flyway.version}</version>
+            </plugin>
+
+            <!-- TESTS -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludedEnvironmentVariables>
+                        <excludedEnvironmentVariable>JWT_SECRET</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>JWT_EXPIRATION</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>JWT_REFRESH_EXPIRATION</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>SPRING_PROFILES_ACTIVE</excludedEnvironmentVariable>
+                    </excludedEnvironmentVariables>
+                </configuration>
             </plugin>
 
             <!-- COMPILER + ANNOTATION PROCESSORS -->
