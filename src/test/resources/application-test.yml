@@ -5,6 +5,7 @@ spring:
     password:
     driver-class-name: org.h2.Driver
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: none
     show-sql: false
@@ -17,3 +18,8 @@ spring:
     init:
       mode: always
       schema-locations: classpath:schema.sql
+
+jwt:
+  secret: test-secret-key-test-secret-key-test-secret-key-test-secret-key
+  expiration: 86400000
+  refresh-expiration: 604800000

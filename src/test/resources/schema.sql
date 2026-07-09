@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS "users" (
     email VARCHAR(255),
     password VARCHAR(255),
     avatar_url VARCHAR(255),
+    avatar_public_id VARCHAR(255),
     status VARCHAR(50),
     gender VARCHAR(50),
     type VARCHAR(50),

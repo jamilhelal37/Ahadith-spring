@@ -1,8 +1,10 @@
 package com.jamil.ahadith.services;
 
 import com.jamil.ahadith.dtos.requests.HadithRequestDto;
+import com.jamil.ahadith.dtos.responses.HadithDto;
 import com.jamil.ahadith.dtos.responses.HadithResponseDto;
 import com.jamil.ahadith.dtos.updates.HadithUpdateDto;
+import com.jamil.ahadith.entities.Hadith;
 import com.jamil.ahadith.exceptions.HadithNotFoundException;
 import com.jamil.ahadith.mappers.HadithMapper;
 import com.jamil.ahadith.repositories.HadithRepository;
@@ -22,9 +24,9 @@ public class HadithService {
     private final HadithMapper hadithMapper;
     private final EntityManager entityManager;
 
-    public List<HadithResponseDto> getAhadith() {
-        return hadithRepository.findAll().stream()
-                .map(hadithMapper::toResponseDto)
+    public List<HadithDto> getAhadith() {
+        return hadithRepository.findAllWithRelations().stream()
+                .map(this::toHadithDto)
                 .toList();
     }
 
@@ -53,5 +55,17 @@ public class HadithService {
             throw new HadithNotFoundException();
         }
         hadithRepository.deleteById(id);
+    }
+
+    private HadithDto toHadithDto(Hadith hadith) {
+        HadithDto dto = new HadithDto();
+        dto.setId(hadith.getId());
+        dto.setText(hadith.getText());
+        dto.setHadithNumber(hadith.getHadithNumber());
+        dto.setBookName(hadith.getBook() != null ? hadith.getBook().getName() : null);
+        dto.setRawiName(hadith.getRawi() != null ? hadith.getRawi().getName() : null);
+        dto.setRulingName(hadith.getRuling() != null ? hadith.getRuling().getName() : null);
+        dto.setExplainingText(hadith.getExplaining() != null ? hadith.getExplaining().getText() : null);
+        return dto;
     }
 }

@@ -1,6 +1,7 @@
 package com.jamil.ahadith.controllers;
 
 import com.jamil.ahadith.dtos.requests.HadithRequestDto;
+import com.jamil.ahadith.dtos.responses.HadithDto;
 import com.jamil.ahadith.dtos.responses.HadithResponseDto;
 import com.jamil.ahadith.dtos.updates.HadithUpdateDto;
 import com.jamil.ahadith.services.HadithService;
@@ -20,7 +21,7 @@ public class HadithController {
     private final HadithService hadithService;
 
     @GetMapping
-    public List<HadithResponseDto> getAhadith() {
+    public List<HadithDto> getAhadith() {
         return hadithService.getAhadith();
     }
 

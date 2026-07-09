@@ -217,16 +217,15 @@ create or replace function public.arab_norm(p_text text)
 returns text
 language plpgsql
 immutable
-strict
 as $$
 declare
   v_text text;
 begin
-  v_text := translate(
-    p_text,
-    'ًٌٍَُِّْٰٱـۖۗۘۙۚۛۜ۝۞ۣ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬ۮۯ',
-    ''
-  );
+  if p_text is null then
+    return null;
+  end if;
+
+  v_text := p_text;
 
   v_text := replace(v_text, 'أ', 'ا');
   v_text := replace(v_text, 'إ', 'ا');
@@ -236,13 +235,12 @@ begin
   v_text := replace(v_text, 'ة', 'ه');
   v_text := replace(v_text, 'ؤ', 'و');
   v_text := replace(v_text, 'ئ', 'ي');
-  v_text := replace(v_text, 'ء', '');
 
-  v_text := regexp_replace(v_text, '[^\p{L}\p{N}\s]', ' ', 'g');
-  v_text := regexp_replace(v_text, '\s+', ' ', 'g');
-  v_text := btrim(v_text);
+  v_text := regexp_replace(v_text, $re$[ًٌٍَُِّْٰـۖۗۘۙۚۛۜ۝۞ۣ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬ۮۯ]$re$, '', 'g');
+  v_text := regexp_replace(v_text, $re$[^[:alnum:]ء-ي ]$re$, ' ', 'g');
+  v_text := regexp_replace(v_text, $re$[[:space:]]+$re$, ' ', 'g');
 
-  return v_text;
+  return btrim(v_text);
 end;
 $$;
 
