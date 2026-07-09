@@ -15,7 +15,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/muhaddiths")
+@RequestMapping("/admin/muhaddiths")
 public class MuhaddithController {
     private final MuhaddithService muhaddithService;
 
@@ -33,7 +33,7 @@ public class MuhaddithController {
     public ResponseEntity<MuhaddithResponseDto> createMuhaddith(@Valid @RequestBody MuhaddithRequestDto request,
                                                                UriComponentsBuilder uriBuilder) {
         var muhaddith = muhaddithService.createMuhaddith(request);
-        var uri = uriBuilder.path("/muhaddiths/{id}").buildAndExpand(muhaddith.getId()).toUri();
+        var uri = uriBuilder.path("/admin/muhaddiths/{id}").buildAndExpand(muhaddith.getId()).toUri();
         return ResponseEntity.created(uri).body(muhaddith);
     }
 

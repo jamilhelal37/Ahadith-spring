@@ -3,6 +3,7 @@ package com.jamil.ahadith.services;
 import com.jamil.ahadith.dtos.requests.LoginRequestDto;
 import com.jamil.ahadith.dtos.requests.RegisterRequestDto;
 import com.jamil.ahadith.dtos.responses.AuthResponseDto;
+import com.jamil.ahadith.dtos.responses.AuthUserDto;
 import com.jamil.ahadith.entities.User;
 import com.jamil.ahadith.entities.UserStatus;
 import com.jamil.ahadith.entities.UserType;
@@ -56,7 +57,7 @@ public class AuthService {
 
     public AuthResponseDto refreshToken(String refreshToken) {
         if (!jwtService.isValid(refreshToken) || !jwtService.isRefreshToken(refreshToken)) {
-            throw new BadCredentialsException("Invalid refresh token");
+            throw new BadCredentialsException("Invalid or expired refresh token");
         }
 
         String email = jwtService.getSubject(refreshToken);
@@ -75,6 +76,20 @@ public class AuthService {
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .expiresIn(jwtService.getAccessTokenExpirationSeconds())
+                .user(toAuthUserDto(user))
+                .build();
+    }
+
+    private AuthUserDto toAuthUserDto(User user) {
+        return AuthUserDto.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .avatarUrl(user.getAvatarUrl())
+                .status(user.getStatus() == null ? null : user.getStatus().name())
+                .gender(user.getGender() == null ? null : user.getGender().name())
+                .type(user.getType() == null ? null : user.getType().name())
+                .birthDate(user.getBirthDate())
                 .build();
     }
 }

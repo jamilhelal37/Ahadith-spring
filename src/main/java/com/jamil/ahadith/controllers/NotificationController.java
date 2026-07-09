@@ -14,7 +14,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/notifications")
+@RequestMapping("/admin/notifications")
 public class NotificationController {
     private final NotificationService notificationService;
 
@@ -32,7 +32,7 @@ public class NotificationController {
     public ResponseEntity<NotificationResponseDto> createNotification(@Valid @RequestBody NotificationRequestDto request,
                                                                       UriComponentsBuilder uriBuilder) {
         var notification = notificationService.createNotification(request);
-        var uri = uriBuilder.path("/notifications/{id}").buildAndExpand(notification.getId()).toUri();
+        var uri = uriBuilder.path("/admin/notifications/{id}").buildAndExpand(notification.getId()).toUri();
         return ResponseEntity.created(uri).body(notification);
     }
 

@@ -21,6 +21,7 @@ public class BookService {
     private final BookRepository bookRepository;
     private final BookMapper bookMapper;
     private final EntityManager entityManager;
+    private final CurrentUserService currentUserService;
 
     public List<BookResponseDto> getBooks() {
         return bookRepository.findAll().stream()
@@ -35,7 +36,9 @@ public class BookService {
     }
 
     public BookResponseDto createBook(BookRequestDto request) {
-        var book = bookRepository.saveAndFlush(bookMapper.toEntity(request));
+        var book = bookMapper.toEntity(request);
+        currentUserService.getCurrentUser().ifPresent(book::setCreatedBy);
+        book = bookRepository.saveAndFlush(book);
         entityManager.refresh(book);
         return bookMapper.toResponseDto(book);
     }
@@ -43,6 +46,7 @@ public class BookService {
     public BookResponseDto updateBook(UUID id, BookUpdateDto request) {
         var book = bookRepository.findById(id).orElseThrow(BookNotFoundException::new);
         bookMapper.updateEntity(request, book);
+        currentUserService.getCurrentUser().ifPresent(book::setUpdatedBy);
         var savedBook = bookRepository.saveAndFlush(book);
         entityManager.refresh(savedBook);
         return bookMapper.toResponseDto(savedBook);

@@ -14,7 +14,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/search")
+@RequestMapping({"/search", "/me/search"})
 public class SearchController {
     private final SearchService searchService;
 

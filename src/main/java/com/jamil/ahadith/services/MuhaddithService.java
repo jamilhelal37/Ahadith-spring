@@ -21,6 +21,7 @@ public class MuhaddithService {
     private final MuhaddithRepository muhaddithRepository;
     private final MuhaddithMapper muhaddithMapper;
     private final EntityManager entityManager;
+    private final CurrentUserService currentUserService;
 
     public List<MuhaddithResponseDto> getMuhaddiths() {
         return muhaddithRepository.findAll().stream()
@@ -35,7 +36,9 @@ public class MuhaddithService {
     }
 
     public MuhaddithResponseDto createMuhaddith(MuhaddithRequestDto request) {
-        var muhaddith = muhaddithRepository.saveAndFlush(muhaddithMapper.toEntity(request));
+        var muhaddith = muhaddithMapper.toEntity(request);
+        currentUserService.getCurrentUser().ifPresent(muhaddith::setCreatedBy);
+        muhaddith = muhaddithRepository.saveAndFlush(muhaddith);
         entityManager.refresh(muhaddith);
         return muhaddithMapper.toResponseDto(muhaddith);
     }
@@ -43,6 +46,7 @@ public class MuhaddithService {
     public MuhaddithResponseDto updateMuhaddith(UUID id, MuhaddithUpdateDto request) {
         var muhaddith = muhaddithRepository.findById(id).orElseThrow(MuhaddithNotFoundException::new);
         muhaddithMapper.updateEntity(request, muhaddith);
+        currentUserService.getCurrentUser().ifPresent(muhaddith::setUpdatedBy);
         var savedMuhaddith = muhaddithRepository.saveAndFlush(muhaddith);
         entityManager.refresh(savedMuhaddith);
         return muhaddithMapper.toResponseDto(savedMuhaddith);

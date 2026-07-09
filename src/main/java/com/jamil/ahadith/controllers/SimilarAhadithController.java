@@ -15,7 +15,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/similar-ahadith")
+@RequestMapping("/admin/similar-ahadith")
 public class SimilarAhadithController {
     private final SimilarAhadithService similarAhadithService;
 
@@ -33,7 +33,7 @@ public class SimilarAhadithController {
     public ResponseEntity<SimilarAhadithResponseDto> createSimilarAhadith(@Valid @RequestBody SimilarAhadithRequestDto request,
                                                                           UriComponentsBuilder uriBuilder) {
         var similar = similarAhadithService.createSimilarAhadith(request);
-        var uri = uriBuilder.path("/similar-ahadith/{id}").buildAndExpand(similar.getId()).toUri();
+        var uri = uriBuilder.path("/admin/similar-ahadith/{id}").buildAndExpand(similar.getId()).toUri();
         return ResponseEntity.created(uri).body(similar);
     }
 

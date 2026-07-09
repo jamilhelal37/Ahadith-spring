@@ -15,7 +15,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/explaining")
+@RequestMapping("/admin/explaining")
 public class ExplainingController {
     private final ExplainingService explainingService;
 
@@ -33,7 +33,7 @@ public class ExplainingController {
     public ResponseEntity<ExplainingResponseDto> createExplaining(@Valid @RequestBody ExplainingRequestDto request,
                                                                  UriComponentsBuilder uriBuilder) {
         var explaining = explainingService.createExplaining(request);
-        var uri = uriBuilder.path("/explaining/{id}").buildAndExpand(explaining.getId()).toUri();
+        var uri = uriBuilder.path("/admin/explaining/{id}").buildAndExpand(explaining.getId()).toUri();
         return ResponseEntity.created(uri).body(explaining);
     }
 

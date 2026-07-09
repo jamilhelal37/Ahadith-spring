@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/activity-logs")
+@RequestMapping("/admin/activity-logs")
 public class ActivityLogController {
     private final ActivityLogService activityLogService;
 

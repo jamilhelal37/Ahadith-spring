@@ -7,7 +7,7 @@ import com.jamil.ahadith.entities.Ruling;
 import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
-public interface RulingMapper {
+public interface RulingMapper extends AuditMapping {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)

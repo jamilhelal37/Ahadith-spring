@@ -20,6 +20,7 @@ public class RawiService {
     private final RawiRepository rawiRepository;
     private final RawiMapper rawiMapper;
     private final EntityManager entityManager;
+    private final CurrentUserService currentUserService;
 
     public List<RawiResponseDto> getRawis() {
         return rawiRepository.findAll().stream()
@@ -34,7 +35,9 @@ public class RawiService {
     }
 
     public RawiResponseDto createRawi(RawiRequestDto request) {
-        var rawi = rawiRepository.saveAndFlush(rawiMapper.toEntity(request));
+        var rawi = rawiMapper.toEntity(request);
+        currentUserService.getCurrentUser().ifPresent(rawi::setCreatedBy);
+        rawi = rawiRepository.saveAndFlush(rawi);
         entityManager.refresh(rawi);
         return rawiMapper.toResponseDto(rawi);
     }
@@ -42,6 +45,7 @@ public class RawiService {
     public RawiResponseDto updateRawi(UUID id, RawiUpdateDto request) {
         var rawi = rawiRepository.findById(id).orElseThrow(RawiNotFoundException::new);
         rawiMapper.updateEntity(request, rawi);
+        currentUserService.getCurrentUser().ifPresent(rawi::setUpdatedBy);
         var savedRawi = rawiRepository.saveAndFlush(rawi);
         entityManager.refresh(savedRawi);
         return rawiMapper.toResponseDto(savedRawi);

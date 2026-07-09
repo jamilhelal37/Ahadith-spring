@@ -15,7 +15,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/fake-ahadith")
+@RequestMapping("/admin/fake-ahadith")
 public class FakeHadithController {
     private final FakeHadithService fakeHadithService;
 
@@ -33,7 +33,7 @@ public class FakeHadithController {
     public ResponseEntity<FakeHadithResponseDto> createFakeHadith(@Valid @RequestBody FakeHadithRequestDto request,
                                                                  UriComponentsBuilder uriBuilder) {
         var fakeHadith = fakeHadithService.createFakeHadith(request);
-        var uri = uriBuilder.path("/fake-ahadith/{id}").buildAndExpand(fakeHadith.getId()).toUri();
+        var uri = uriBuilder.path("/admin/fake-ahadith/{id}").buildAndExpand(fakeHadith.getId()).toUri();
         return ResponseEntity.created(uri).body(fakeHadith);
     }
 

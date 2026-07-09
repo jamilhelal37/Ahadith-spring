@@ -21,6 +21,7 @@ public class RulingService {
     private final RulingRepository rulingRepository;
     private final RulingMapper rulingMapper;
     private final EntityManager entityManager;
+    private final CurrentUserService currentUserService;
 
     public List<RulingResponseDto> getRulings() {
         return rulingRepository.findAll().stream()
@@ -35,7 +36,9 @@ public class RulingService {
     }
 
     public RulingResponseDto createRuling(RulingRequestDto request) {
-        var ruling = rulingRepository.saveAndFlush(rulingMapper.toEntity(request));
+        var ruling = rulingMapper.toEntity(request);
+        currentUserService.getCurrentUser().ifPresent(ruling::setCreatedBy);
+        ruling = rulingRepository.saveAndFlush(ruling);
         entityManager.refresh(ruling);
         return rulingMapper.toResponseDto(ruling);
     }
@@ -43,6 +46,7 @@ public class RulingService {
     public RulingResponseDto updateRuling(UUID id, RulingUpdateDto request) {
         var ruling = rulingRepository.findById(id).orElseThrow(RulingNotFoundException::new);
         rulingMapper.updateEntity(request, ruling);
+        currentUserService.getCurrentUser().ifPresent(ruling::setUpdatedBy);
         var savedRuling = rulingRepository.saveAndFlush(ruling);
         entityManager.refresh(savedRuling);
         return rulingMapper.toResponseDto(savedRuling);

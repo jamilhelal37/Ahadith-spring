@@ -1,5 +1,6 @@
 package com.jamil.ahadith.config;
 
+import com.jamil.ahadith.entities.UserType;
 import com.jamil.ahadith.filters.JwtAuthenticationFilter;
 import com.jamil.ahadith.repositories.UserRepository;
 import com.jamil.ahadith.services.SecurityRoleUtils;
@@ -41,20 +42,47 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login", "/auth/refresh")
                         .permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/ahadith/search", "/ahadith/search").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/ahadith/search").permitAll()
                         .requestMatchers(
                                 "/auth/**",
                                 "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()
+                        .requestMatchers("/admin/**")
+                        .hasAuthority(SecurityRoleUtils.authority(UserType.admin))
+                        .requestMatchers("/scholar/**")
+                        .hasAnyAuthority(
+                                SecurityRoleUtils.authority(UserType.supervisor),
+                                SecurityRoleUtils.authority(UserType.admin))
+                        .requestMatchers(HttpMethod.POST,
+                                "/ahadith/**", "/books/**", "/rawis/**", "/rulings/**", "/topics/**", "/muhaddiths/**",
+                                "/explaining/**", "/fake-ahadith/**", "/similar-ahadith/**",
+                                "/notifications/**", "/upgrade-requests/**")
+                        .hasAuthority(SecurityRoleUtils.authority(UserType.admin))
+                        .requestMatchers(HttpMethod.PUT,
+                                "/ahadith/**", "/books/**", "/rawis/**", "/rulings/**", "/topics/**", "/muhaddiths/**",
+                                "/explaining/**", "/fake-ahadith/**", "/similar-ahadith/**",
+                                "/notifications/**", "/upgrade-requests/**")
+                        .hasAuthority(SecurityRoleUtils.authority(UserType.admin))
+                        .requestMatchers(HttpMethod.PATCH,
+                                "/ahadith/**", "/books/**", "/rawis/**", "/rulings/**", "/topics/**", "/muhaddiths/**",
+                                "/explaining/**", "/fake-ahadith/**", "/similar-ahadith/**",
+                                "/notifications/**", "/upgrade-requests/**")
+                        .hasAuthority(SecurityRoleUtils.authority(UserType.admin))
+                        .requestMatchers(HttpMethod.DELETE,
+                                "/ahadith/**", "/books/**", "/rawis/**", "/rulings/**", "/topics/**", "/muhaddiths/**",
+                                "/explaining/**", "/fake-ahadith/**", "/similar-ahadith/**",
+                                "/notifications/**", "/upgrade-requests/**")
+                        .hasAuthority(SecurityRoleUtils.authority(UserType.admin))
+                        .requestMatchers("/me/**", "/favorites/**", "/search/history/**")
+                        .authenticated()
                         .requestMatchers(HttpMethod.GET, "/ahadith/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/ahadith/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/books/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/rawis/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/rulings/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/books/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/topics/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/muhaddiths/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/explaining/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/fake-ahadith/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/comments/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {

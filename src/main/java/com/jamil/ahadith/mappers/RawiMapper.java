@@ -8,7 +8,7 @@ import com.jamil.ahadith.entities.Rawi;
 import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
-public interface RawiMapper {
+public interface RawiMapper extends AuditMapping {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)

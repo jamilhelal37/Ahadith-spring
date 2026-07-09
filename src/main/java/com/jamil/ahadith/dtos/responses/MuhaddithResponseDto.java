@@ -1,7 +1,6 @@
 package com.jamil.ahadith.dtos.responses;
 
 import com.jamil.ahadith.entities.Gender;
-import com.jamil.ahadith.entities.User;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -13,8 +12,8 @@ public class MuhaddithResponseDto {
     private String name;
     private Gender gender;
     private String about;
-    private User createdBy;
-    private User updatedBy;
+    private AdminUserReferenceDto createdBy;
+    private AdminUserReferenceDto updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

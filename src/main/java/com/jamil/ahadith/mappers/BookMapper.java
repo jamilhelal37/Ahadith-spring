@@ -7,7 +7,7 @@ import com.jamil.ahadith.entities.Book;
 import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
-public interface BookMapper {
+public interface BookMapper extends AuditMapping {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "muhaddith", source = "muhaddith")
     @Mapping(target = "createdBy", ignore = true)

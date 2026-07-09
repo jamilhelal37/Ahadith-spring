@@ -15,7 +15,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/topics")
+@RequestMapping("/admin/topics")
 public class TopicController {
     private final TopicService topicService;
 
@@ -33,7 +33,7 @@ public class TopicController {
     public ResponseEntity<TopicResponseDto> createTopic(@Valid @RequestBody TopicRequestDto request,
                                                        UriComponentsBuilder uriBuilder) {
         var topic = topicService.createTopic(request);
-        var uri = uriBuilder.path("/topics/{id}").buildAndExpand(topic.getId()).toUri();
+        var uri = uriBuilder.path("/admin/topics/{id}").buildAndExpand(topic.getId()).toUri();
         return ResponseEntity.created(uri).body(topic);
     }
 

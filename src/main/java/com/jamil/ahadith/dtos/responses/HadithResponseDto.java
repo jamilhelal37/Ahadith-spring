@@ -20,8 +20,8 @@ public class HadithResponseDto {
     private Rawi rawi;
     private Book book;
     private String sanad;
-    private User createdBy;
-    private User updatedBy;
+    private AdminUserReferenceDto createdBy;
+    private AdminUserReferenceDto updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
