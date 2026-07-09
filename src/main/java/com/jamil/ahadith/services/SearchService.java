@@ -75,6 +75,14 @@ public class SearchService {
                 .toList();
     }
 
+    @Transactional
+    public void deleteCurrentUserSearchHistory() {
+        User user = getCurrentUser();
+        if (user != null) {
+            searchHistoryRepository.deleteByUser(user);
+        }
+    }
+
     public void saveSearchHistory(String query, String generalQuery, UUID rawiId, UUID rulingId,
                                   String hadithType, UUID topicId, UUID muhaddithId, UUID bookId) {
         String combined = Stream.of(query, generalQuery, toString(rawiId), toString(rulingId), hadithType,

@@ -1,6 +1,8 @@
 package com.jamil.ahadith.controllers;
 
+import com.jamil.ahadith.dtos.responses.AuthUserDto;
 import com.jamil.ahadith.dtos.responses.ProfileImageResponse;
+import com.jamil.ahadith.entities.User;
 import com.jamil.ahadith.exceptions.UserNotFoundException;
 import com.jamil.ahadith.repositories.UserRepository;
 import com.jamil.ahadith.services.UserProfileService;
@@ -9,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,10 +25,16 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/api/users/me")
+@RequestMapping("/me")
 public class UserProfileController {
     private final UserProfileService userProfileService;
     private final UserRepository userRepository;
+
+    @GetMapping
+    public AuthUserDto getMe() {
+        User user = getCurrentUser();
+        return toAuthUserDto(user);
+    }
 
     @PostMapping("/profile-image")
     public ProfileImageResponse uploadProfileImage(@RequestParam("file") MultipartFile file) {
@@ -39,6 +48,10 @@ public class UserProfileController {
     }
 
     private UUID getCurrentUserId() {
+        return getCurrentUser().getId();
+    }
+
+    private User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()
                 || authentication.getName() == null || "anonymousUser".equals(authentication.getName())) {
@@ -46,7 +59,19 @@ public class UserProfileController {
         }
 
         return userRepository.findByEmail(authentication.getName())
-                .map(user -> user.getId())
                 .orElseThrow(UserNotFoundException::new);
+    }
+
+    private AuthUserDto toAuthUserDto(User user) {
+        return AuthUserDto.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .avatarUrl(user.getAvatarUrl())
+                .status(user.getStatus() == null ? null : user.getStatus().name())
+                .gender(user.getGender() == null ? null : user.getGender().name())
+                .type(user.getType() == null ? null : user.getType().name())
+                .birthDate(user.getBirthDate())
+                .build();
     }
 }

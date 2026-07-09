@@ -18,7 +18,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/api/ahadith")
+@RequestMapping("/ahadith")
 public class PublicHadithController {
     private final HadithSearchService hadithSearchService;
 

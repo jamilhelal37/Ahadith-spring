@@ -14,7 +14,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/upgrade-requests")
+@RequestMapping("/admin/upgrade-requests")
 public class UpgradeRequestController {
     private final UpgradeRequestService upgradeRequestService;
 
@@ -32,11 +32,11 @@ public class UpgradeRequestController {
     public ResponseEntity<UpgradeRequestResponseDto> createUpgradeRequest(@Valid @RequestBody UpgradeRequestDto request,
                                                                           UriComponentsBuilder uriBuilder) {
         var upgradeRequest = upgradeRequestService.createUpgradeRequest(request);
-        var uri = uriBuilder.path("/upgrade-requests/{id}").buildAndExpand(upgradeRequest.getId()).toUri();
+        var uri = uriBuilder.path("/me/upgrade-requests/{id}").buildAndExpand(upgradeRequest.getId()).toUri();
         return ResponseEntity.created(uri).body(upgradeRequest);
     }
 
-    @PutMapping("/{id}")
+    @RequestMapping(value = {"/{id}", "/{id}/status"}, method = {RequestMethod.PUT, RequestMethod.PATCH})
     public UpgradeRequestResponseDto updateUpgradeRequest(@PathVariable UUID id,
                                                           @Valid @RequestBody UpgradeRequestDto request) {
         return upgradeRequestService.updateUpgradeRequest(id, request);

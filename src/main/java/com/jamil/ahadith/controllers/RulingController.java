@@ -21,7 +21,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/rulings")
+@RequestMapping("/admin/rulings")
 class RulingController {
         private final RulingService rulingService;
 
@@ -39,7 +39,7 @@ class RulingController {
         public ResponseEntity<RulingResponseDto> createRuling(@Valid @RequestBody RulingRequestDto rulingRequest,
                                                           UriComponentsBuilder uriBuilder) {
             var ruling = rulingService.createRuling(rulingRequest);
-            var uri = uriBuilder.path("/rulings/{id}").buildAndExpand(ruling.getId()).toUri();
+            var uri = uriBuilder.path("/admin/rulings/{id}").buildAndExpand(ruling.getId()).toUri();
             return ResponseEntity.created(uri).body(ruling);
         }
 

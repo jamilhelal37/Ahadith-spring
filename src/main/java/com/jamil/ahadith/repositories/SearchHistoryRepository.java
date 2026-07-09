@@ -11,4 +11,6 @@ public interface SearchHistoryRepository extends JpaRepository<SearchHistory, UU
     List<SearchHistory> findByUserOrderByCreatedAtDesc(User user);
 
     List<SearchHistory> findByUserAndSearchTextContainingIgnoreCaseOrderByCreatedAtDesc(User user, String searchText);
+
+    void deleteByUser(User user);
 }

@@ -1,6 +1,7 @@
 package com.jamil.ahadith.controllers;
 
 import com.jamil.ahadith.dtos.requests.LoginRequestDto;
+import com.jamil.ahadith.dtos.requests.RefreshTokenRequestDto;
 import com.jamil.ahadith.dtos.requests.RegisterRequestDto;
 import com.jamil.ahadith.dtos.responses.AuthResponseDto;
 import com.jamil.ahadith.services.AuthService;
@@ -26,7 +27,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponseDto> refresh(@RequestParam String refreshToken) {
-        return ResponseEntity.ok(authService.refreshToken(refreshToken));
+    public ResponseEntity<AuthResponseDto> refresh(@Valid @RequestBody RefreshTokenRequestDto request) {
+        return ResponseEntity.ok(authService.refreshToken(request.getRefreshToken()));
     }
 }

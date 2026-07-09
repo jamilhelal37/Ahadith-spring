@@ -23,6 +23,7 @@ public class HadithService {
     private final HadithRepository hadithRepository;
     private final HadithMapper hadithMapper;
     private final EntityManager entityManager;
+    private final CurrentUserService currentUserService;
 
     public List<HadithDto> getAhadith() {
         return hadithRepository.findAllWithRelations().stream()
@@ -37,7 +38,9 @@ public class HadithService {
     }
 
     public HadithResponseDto createHadith(HadithRequestDto request) {
-        var hadith = hadithRepository.saveAndFlush(hadithMapper.toEntity(request));
+        var hadith = hadithMapper.toEntity(request);
+        currentUserService.getCurrentUser().ifPresent(hadith::setCreatedBy);
+        hadith = hadithRepository.saveAndFlush(hadith);
         entityManager.refresh(hadith);
         return hadithMapper.toResponseDto(hadith);
     }
@@ -45,6 +48,7 @@ public class HadithService {
     public HadithResponseDto updateHadith(UUID id, HadithUpdateDto request) {
         var hadith = hadithRepository.findById(id).orElseThrow(HadithNotFoundException::new);
         hadithMapper.updateEntity(request, hadith);
+        currentUserService.getCurrentUser().ifPresent(hadith::setUpdatedBy);
         var savedHadith = hadithRepository.saveAndFlush(hadith);
         entityManager.refresh(savedHadith);
         return hadithMapper.toResponseDto(savedHadith);

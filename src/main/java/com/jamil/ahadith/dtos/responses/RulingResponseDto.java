@@ -9,6 +9,8 @@ import java.util.UUID;
 public class RulingResponseDto {
     private UUID id;
     private String name;
+    private AdminUserReferenceDto createdBy;
+    private AdminUserReferenceDto updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

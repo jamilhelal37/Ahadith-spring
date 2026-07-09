@@ -21,6 +21,7 @@ public class TopicService {
     private final TopicRepository topicRepository;
     private final TopicMapper topicMapper;
     private final EntityManager entityManager;
+    private final CurrentUserService currentUserService;
 
     public List<TopicResponseDto> getTopics() {
         return topicRepository.findAll().stream()
@@ -35,7 +36,9 @@ public class TopicService {
     }
 
     public TopicResponseDto createTopic(TopicRequestDto request) {
-        var topic = topicRepository.saveAndFlush(topicMapper.toEntity(request));
+        var topic = topicMapper.toEntity(request);
+        currentUserService.getCurrentUser().ifPresent(topic::setCreatedBy);
+        topic = topicRepository.saveAndFlush(topic);
         entityManager.refresh(topic);
         return topicMapper.toResponseDto(topic);
     }
@@ -43,6 +46,7 @@ public class TopicService {
     public TopicResponseDto updateTopic(UUID id, TopicUpdateDto request) {
         var topic = topicRepository.findById(id).orElseThrow(TopicNotFoundException::new);
         topicMapper.updateEntity(request, topic);
+        currentUserService.getCurrentUser().ifPresent(topic::setUpdatedBy);
         var savedTopic = topicRepository.saveAndFlush(topic);
         entityManager.refresh(savedTopic);
         return topicMapper.toResponseDto(savedTopic);

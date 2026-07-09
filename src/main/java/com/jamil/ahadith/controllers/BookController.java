@@ -15,7 +15,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/books")
+@RequestMapping("/admin/books")
 public class BookController {
     private final BookService bookService;
 
@@ -33,7 +33,7 @@ public class BookController {
     public ResponseEntity<BookResponseDto> createBook(@Valid @RequestBody BookRequestDto request,
                                                      UriComponentsBuilder uriBuilder) {
         var book = bookService.createBook(request);
-        var uri = uriBuilder.path("/books/{id}").buildAndExpand(book.getId()).toUri();
+        var uri = uriBuilder.path("/admin/books/{id}").buildAndExpand(book.getId()).toUri();
         return ResponseEntity.created(uri).body(book);
     }
 

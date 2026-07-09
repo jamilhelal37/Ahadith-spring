@@ -7,7 +7,7 @@ import com.jamil.ahadith.entities.Muhaddith;
 import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
-public interface MuhaddithMapper {
+public interface MuhaddithMapper extends AuditMapping {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)

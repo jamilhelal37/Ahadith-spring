@@ -7,7 +7,7 @@ import com.jamil.ahadith.entities.Topic;
 import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
-public interface TopicMapper {
+public interface TopicMapper extends AuditMapping {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)
