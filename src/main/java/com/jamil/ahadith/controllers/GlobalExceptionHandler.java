@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
@@ -49,6 +50,13 @@ class GlobalExceptionHandler {
                 "Profile image size must not exceed 2MB", request);
     }
 
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ErrorResponseDto> handleMultipart(MultipartException ex,
+                                                            HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Bad Request",
+                "Request must be multipart/form-data with a file field named 'file'", request);
+    }
+
     @ExceptionHandler(ProfileImageStorageException.class)
     public ResponseEntity<ErrorResponseDto> handleStorage(RuntimeException ex,
                                                           HttpServletRequest request) {
@@ -80,7 +88,4 @@ class GlobalExceptionHandler {
                 LocalDateTime.now());
         return ResponseEntity.status(status).body(response);
     }
-
-
-
 }

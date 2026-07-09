@@ -1,4 +1,4 @@
 package com.jamil.ahadith.exceptions;
 
-public class FakeHadithNotFoundException extends RuntimeException{
+public class FakeHadithNotFoundException extends RuntimeException {
 }

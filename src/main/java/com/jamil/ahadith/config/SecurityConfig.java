@@ -1,5 +1,6 @@
 package com.jamil.ahadith.config;
 
+import com.jamil.ahadith.entities.UserType;
 import com.jamil.ahadith.filters.JwtAuthenticationFilter;
 import com.jamil.ahadith.repositories.UserRepository;
 import com.jamil.ahadith.services.SecurityRoleUtils;
@@ -46,6 +47,8 @@ public class SecurityConfig {
                                 "/auth/**",
                                 "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()
+                        .requestMatchers("/api/admin/**", "/admin/**")
+                        .hasAuthority(SecurityRoleUtils.authority(UserType.admin))
                         .requestMatchers(HttpMethod.GET, "/ahadith/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/ahadith/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/rawis/**").permitAll()

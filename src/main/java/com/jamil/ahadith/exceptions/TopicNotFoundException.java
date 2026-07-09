@@ -1,4 +1,4 @@
 package com.jamil.ahadith.exceptions;
 
-public class TopicNotFoundException extends RuntimeException{
+public class TopicNotFoundException extends RuntimeException {
 }
