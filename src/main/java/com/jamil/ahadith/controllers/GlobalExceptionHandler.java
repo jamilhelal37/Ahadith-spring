@@ -5,11 +5,14 @@ import com.jamil.ahadith.exceptions.*;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @ControllerAdvice
 class GlobalExceptionHandler {
@@ -40,6 +43,24 @@ class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponseDto> handleBadRequest(RuntimeException ex,
                                                              HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ValidationErrorResponseDto> handleValidationError(MethodArgumentNotValidException ex,
+                                                                            HttpServletRequest request) {
+        Map<String, String> fields = new LinkedHashMap<>();
+        ex.getBindingResult().getFieldErrors().forEach(error ->
+                fields.putIfAbsent(error.getField(), error.getDefaultMessage()));
+
+        ValidationErrorResponseDto response = new ValidationErrorResponseDto(
+                HttpStatus.BAD_REQUEST.value(),
+                "Bad Request",
+                "Validation failed",
+                request.getRequestURI(),
+                LocalDateTime.now(),
+                fields);
+
+        return ResponseEntity.badRequest().body(response);
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
@@ -81,6 +102,13 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(status).body(response);
     }
 
-
+    private record ValidationErrorResponseDto(
+            int status,
+            String error,
+            String message,
+            String path,
+            LocalDateTime timestamp,
+            Map<String, String> fields) {
+    }
 
 }
