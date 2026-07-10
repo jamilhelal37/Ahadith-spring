@@ -5,6 +5,7 @@ import com.jamil.ahadith.repositories.SearchHistoryRepository;
 import com.jamil.ahadith.repositories.UserRepository;
 import com.jamil.ahadith.services.SearchService;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,6 +33,11 @@ class SearchHistoryTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @BeforeEach
+    void setUp() {
+        searchHistoryRepository.deleteAll();
+    }
 
     @AfterEach
     void tearDown() {

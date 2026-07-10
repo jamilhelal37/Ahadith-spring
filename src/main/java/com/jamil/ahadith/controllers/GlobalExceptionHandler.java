@@ -39,7 +39,7 @@ class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), request);
     }
 
-    @ExceptionHandler(ProfileImageValidationException.class)
+    @ExceptionHandler({ProfileImageValidationException.class, InvalidRequestException.class})
     public ResponseEntity<ErrorResponseDto> handleBadRequest(RuntimeException ex,
                                                              HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage(), request);
@@ -76,10 +76,29 @@ class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", ex.getMessage(), request);
     }
 
-    @ExceptionHandler(UserAlreadyExistsException.class)
+    @ExceptionHandler(EmailDeliveryException.class)
+    public ResponseEntity<ErrorResponseDto> handleEmailDelivery(RuntimeException ex,
+                                                                HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error",
+                "Email delivery failed", request);
+    }
+
+    @ExceptionHandler({UserAlreadyExistsException.class, ConflictException.class})
     public ResponseEntity<ErrorResponseDto> handleConflict(RuntimeException ex,
                                                            HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ErrorResponseDto> handleForbidden(RuntimeException ex,
+                                                            HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(RateLimitException.class)
+    public ResponseEntity<ErrorResponseDto> handleRateLimited(RuntimeException ex,
+                                                              HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", ex.getMessage(), request);
     }
 
     @ExceptionHandler({

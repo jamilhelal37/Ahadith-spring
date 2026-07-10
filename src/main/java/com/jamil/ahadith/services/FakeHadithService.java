@@ -2,6 +2,7 @@ package com.jamil.ahadith.services;
 
 import com.jamil.ahadith.dtos.requests.FakeHadithRequestDto;
 import com.jamil.ahadith.dtos.responses.FakeHadithResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.dtos.updates.FakeHadithUpdateDto;
 import com.jamil.ahadith.exceptions.FakeHadithNotFoundException;
 import com.jamil.ahadith.mappers.FakeHadithMapper;
@@ -10,6 +11,7 @@ import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,11 +23,10 @@ public class FakeHadithService {
     private final FakeHadithRepository fakeHadithRepository;
     private final FakeHadithMapper fakeHadithMapper;
     private final EntityManager entityManager;
+    private final AdminPageService adminPageService;
 
-    public List<FakeHadithResponseDto> getFakeAhadith() {
-        return fakeHadithRepository.findAll().stream()
-                .map(fakeHadithMapper::toResponseDto)
-                .toList();
+    public SearchResponse<FakeHadithResponseDto> getFakeAhadith(Pageable pageable) {
+        return adminPageService.response(fakeHadithRepository.findAll(pageable).map(fakeHadithMapper::toResponseDto));
     }
 
     public FakeHadithResponseDto getFakeHadithById(UUID id) {

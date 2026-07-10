@@ -3,6 +3,7 @@ package com.jamil.ahadith.filters;
 import com.jamil.ahadith.repositories.UserRepository;
 import com.jamil.ahadith.services.JwtService;
 import com.jamil.ahadith.services.SecurityRoleUtils;
+import com.jamil.ahadith.entities.UserStatus;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -69,6 +70,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String email = jwtService.getSubject(token);
         userRepository.findByEmail(email).ifPresent(user -> {
+            if (user.getStatus() != UserStatus.active) {
+                return;
+            }
             var authorities = List.of(new SimpleGrantedAuthority(SecurityRoleUtils.authority(user.getType())));
             var authentication = new UsernamePasswordAuthenticationToken(user.getEmail(), null, authorities);
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

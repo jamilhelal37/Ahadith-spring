@@ -2,6 +2,7 @@ package com.jamil.ahadith.services;
 
 import com.jamil.ahadith.dtos.requests.RulingRequestDto;
 import com.jamil.ahadith.dtos.responses.RulingResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.dtos.updates.RulingUpdateDto;
 import com.jamil.ahadith.exceptions.RulingNotFoundException;
 import com.jamil.ahadith.mappers.RulingMapper;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,11 +24,10 @@ public class RulingService {
     private final RulingMapper rulingMapper;
     private final EntityManager entityManager;
     private final CurrentUserService currentUserService;
+    private final AdminPageService adminPageService;
 
-    public List<RulingResponseDto> getRulings() {
-        return rulingRepository.findAll().stream()
-                .map(rulingMapper::toResponseDto)
-                .toList();
+    public SearchResponse<RulingResponseDto> getRulings(Pageable pageable) {
+        return adminPageService.response(rulingRepository.findAll(pageable).map(rulingMapper::toResponseDto));
     }
 
     public RulingResponseDto getRulingById(UUID id) {

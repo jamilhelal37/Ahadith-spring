@@ -1,14 +1,17 @@
 package com.jamil.ahadith.controllers;
 
 import com.jamil.ahadith.dtos.responses.ActivityLogResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
+import com.jamil.ahadith.services.AdminPageService;
 import com.jamil.ahadith.services.ActivityLogService;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -16,12 +19,19 @@ import java.util.UUID;
 @RequestMapping("/admin/activity-logs")
 public class ActivityLogController {
     private final ActivityLogService activityLogService;
+    private final AdminPageService adminPageService;
 
     @GetMapping
-    public List<ActivityLogResponseDto> getActivityLogs(
+    public SearchResponse<ActivityLogResponseDto> getActivityLogs(
             @RequestParam(required = false) UUID actorUserId,
             @RequestParam(required = false) String tableName,
-            @RequestParam(required = false) String message) {
-        return activityLogService.getActivityLogs(actorUserId, tableName, message);
+            @RequestParam(required = false) String message,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String sort) {
+        return activityLogService.getActivityLogs(actorUserId, tableName, message,
+                adminPageService.pageable(page, size, sort,
+                        Set.of("createdAt", "id"),
+                        Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id"))));
     }
 }

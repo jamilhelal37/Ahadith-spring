@@ -24,16 +24,20 @@ public class JwtService {
     private final JwtConfig jwtConfig;
 
     public String generateAccessToken(User user) {
-        return generateToken(user, getAccessTokenExpirationSeconds(), ACCESS_TOKEN_TYPE, true);
+        return generateToken(user, jwtConfig.getExpiration(), ACCESS_TOKEN_TYPE, true, null);
     }
 
     public String generateRefreshToken(User user) {
-        return generateToken(user, getRefreshTokenExpirationSeconds(), REFRESH_TOKEN_TYPE, false);
+        return generateRefreshToken(user, UUID.randomUUID());
     }
 
-    private String generateToken(User user, long expiresInSeconds, String tokenType, boolean includeRole) {
+    public String generateRefreshToken(User user, UUID familyId) {
+        return generateToken(user, jwtConfig.getRefreshExpiration(), REFRESH_TOKEN_TYPE, false, familyId);
+    }
+
+    private String generateToken(User user, java.time.Duration lifetime, String tokenType, boolean includeRole, UUID familyId) {
         Instant now = Instant.now();
-        Instant expiration = now.plusSeconds(expiresInSeconds);
+        Instant expiration = now.plus(lifetime);
 
         var builder = Jwts.builder()
                 .id(UUID.randomUUID().toString())
@@ -41,6 +45,7 @@ public class JwtService {
                 .claim("userId", user.getId().toString())
                 .claim("email", user.getEmail())
                 .claim("tokenType", tokenType)
+                .claim("familyId", familyId == null ? null : familyId.toString())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration));
 
@@ -82,11 +87,24 @@ public class JwtService {
     }
 
     public long getAccessTokenExpirationSeconds() {
-        return jwtConfig.getExpiration() > 0 ? jwtConfig.getExpiration() : 3600L; // 1 hour default
+        return jwtConfig.getExpiration().toSeconds();
     }
 
     public long getRefreshTokenExpirationSeconds() {
-        return jwtConfig.getRefreshExpiration() > 0 ? jwtConfig.getRefreshExpiration() : 604800L; // 7 days default
+        return jwtConfig.getRefreshExpiration().toSeconds();
+    }
+
+    public String getTokenId(String token) {
+        return parseClaims(token).getId();
+    }
+
+    public UUID getFamilyId(String token) {
+        String familyId = parseClaims(token).get("familyId", String.class);
+        return familyId == null ? null : UUID.fromString(familyId);
+    }
+
+    public Instant getExpiresAt(String token) {
+        return parseClaims(token).getExpiration().toInstant();
     }
 
     public Claims parseClaims(String token) {
@@ -113,8 +131,7 @@ public class JwtService {
         }
 
         if (secret.length() < 64) {
-             // For development, we might want to pad it, but it's better to enforce a strong secret.
-             // I'll assume the user will provide a strong secret in application.properties.
+            throw new IllegalStateException("JWT secret must be at least 64 characters");
         }
 
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));

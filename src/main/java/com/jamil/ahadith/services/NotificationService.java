@@ -2,6 +2,7 @@ package com.jamil.ahadith.services;
 
 import com.jamil.ahadith.dtos.requests.NotificationRequestDto;
 import com.jamil.ahadith.dtos.responses.NotificationResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.exceptions.NotificationNotFoundException;
 import com.jamil.ahadith.mappers.NotificationMapper;
 import com.jamil.ahadith.repositories.NotificationRepository;
@@ -9,6 +10,7 @@ import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -20,11 +22,10 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
     private final EntityManager entityManager;
+    private final AdminPageService adminPageService;
 
-    public List<NotificationResponseDto> getNotifications() {
-        return notificationRepository.findAll().stream()
-                .map(notificationMapper::toResponseDto)
-                .toList();
+    public SearchResponse<NotificationResponseDto> getNotifications(Pageable pageable) {
+        return adminPageService.response(notificationRepository.findAll(pageable).map(notificationMapper::toResponseDto));
     }
 
     public NotificationResponseDto getNotificationById(UUID id) {

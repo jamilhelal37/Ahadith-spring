@@ -7,10 +7,12 @@ import com.jamil.ahadith.entities.Question;
 import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
-public interface QuestionMapper {
+public interface QuestionMapper extends AuditMapping {
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "hadith", source = "hadith")
-    @Mapping(target = "asker", source = "asker")
+    @Mapping(target = "hadith", ignore = true)
+    @Mapping(target = "asker", ignore = true)
+    @Mapping(target = "isActive", ignore = true)
+    @Mapping(target = "answerText", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
@@ -20,7 +22,7 @@ public interface QuestionMapper {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "hadith", source = "hadith")
+    @Mapping(target = "hadith", ignore = true)
     @Mapping(target = "asker", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "createdAt", ignore = true)

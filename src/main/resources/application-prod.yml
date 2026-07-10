@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -12,14 +12,47 @@ spring:
     properties:
       hibernate:
         format_sql: false
+  flyway:
+    enabled: true
+  mail:
+    host: ${SPRING_MAIL_HOST}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME}
+    password: ${SPRING_MAIL_PASSWORD}
+    test-connection: ${SPRING_MAIL_TEST_CONNECTION:false}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 jwt:
   secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION}
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION}
+  expiration: ${JWT_ACCESS_EXPIRATION:1h}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:7d}
 server:
-  port: ${PORT}
+  port: ${PORT:8080}
+  address: 0.0.0.0
 app:
   cloudinary:
     cloud-name: ${CLOUDINARY_CLOUD_NAME}
     api-key: ${CLOUDINARY_API_KEY}
     api-secret: ${CLOUDINARY_API_SECRET}
+  mail:
+    enabled: ${APP_MAIL_ENABLED:true}
+    from: ${APP_MAIL_FROM}
+    frontend-base-url: ${APP_MAIL_FRONTEND_BASE_URL}
+    verification-base-url: ${APP_MAIL_VERIFICATION_BASE_URL:${RENDER_EXTERNAL_URL:}}
+    verification-path: ${APP_MAIL_VERIFICATION_PATH:/verify-email}
+    verification-token-ttl: ${APP_MAIL_VERIFICATION_TOKEN_TTL:24h}
+    reset-token-ttl: ${APP_MAIL_RESET_TOKEN_TTL:30m}
+    resend-throttle: ${APP_MAIL_RESEND_THROTTLE:5m}
+  security:
+    search-history-max-per-user: ${SEARCH_HISTORY_MAX_PER_USER:50}
+    login-max-failures: ${LOGIN_MAX_FAILURES:5}
+    login-lock-duration: ${LOGIN_LOCK_DURATION:15m}
+    trusted-proxy-headers: ${TRUSTED_PROXY_HEADERS:false}

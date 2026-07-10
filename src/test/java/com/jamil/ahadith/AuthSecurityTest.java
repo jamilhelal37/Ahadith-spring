@@ -3,6 +3,7 @@ package com.jamil.ahadith;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jamil.ahadith.dtos.responses.AuthResponseDto;
 import com.jamil.ahadith.entities.User;
+import com.jamil.ahadith.entities.UserStatus;
 import com.jamil.ahadith.entities.UserType;
 import com.jamil.ahadith.repositories.UserRepository;
 import com.jamil.ahadith.services.JwtService;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -36,23 +38,36 @@ class AuthSecurityTest {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @Test
     void registerAndLoginShouldBeAccessibleWithoutAuthentication() throws Exception {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Test User\",\"email\":\"test@example.com\",\"password\":\"123456\"}"))
+                        .content("{\"name\":\"Test User\",\"email\":\"test@example.com\",\"password\":\"12345678\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.email").value("test@example.com"))
                 .andExpect(jsonPath("$.user.type").value("member"))
+                .andExpect(jsonPath("$.user.status").value("pending_confirmation"))
+                .andExpect(jsonPath("$.accessToken").doesNotExist())
                 .andExpect(jsonPath("$.user.password").doesNotExist())
                 .andExpect(jsonPath("$.user.avatarPublicId").doesNotExist());
 
+        User loginUser = new User();
+        loginUser.setName("Login User");
+        loginUser.setEmail("login@example.com");
+        loginUser.setPassword(passwordEncoder.encode("12345678"));
+        loginUser.setType(UserType.member);
+        loginUser.setStatus(UserStatus.active);
+        userRepository.save(loginUser);
+
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"test@example.com\",\"password\":\"123456\"}"))
+                        .content("{\"email\":\"login@example.com\",\"password\":\"12345678\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.user.email").value("test@example.com"))
-                .andExpect(jsonPath("$.user.name").value("Test User"))
+                .andExpect(jsonPath("$.user.email").value("login@example.com"))
+                .andExpect(jsonPath("$.user.name").value("Login User"))
                 .andExpect(jsonPath("$.user.password").doesNotExist())
                 .andExpect(jsonPath("$.user.avatarPublicId").doesNotExist());
     }
@@ -61,7 +76,7 @@ class AuthSecurityTest {
     void registerShouldAcceptBirthDateInDdMmYyyyFormat() throws Exception {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Jamil helal\",\"email\":\"jam@gmail.com\",\"password\":\"123456\",\"gender\":\"male\",\"birthDate\":\"01/01/1994\"}"))
+                        .content("{\"name\":\"Jamil helal\",\"email\":\"jam@gmail.com\",\"password\":\"12345678\",\"gender\":\"male\",\"birthDate\":\"01/01/1994\"}"))
                 .andExpect(status().isOk());
     }
 
@@ -70,7 +85,7 @@ class AuthSecurityTest {
         mockMvc.perform(post("/auth/register")
                         .header("Authorization", "Bearer invalid-token")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Auth Header User\",\"email\":\"auth-header@example.com\",\"password\":\"123456\",\"gender\":\"male\",\"birthDate\":\"01-01-1994\"}"))
+                        .content("{\"name\":\"Auth Header User\",\"email\":\"auth-header@example.com\",\"password\":\"12345678\",\"gender\":\"male\",\"birthDate\":\"01-01-1994\"}"))
                 .andExpect(status().isOk());
     }
 
@@ -78,15 +93,23 @@ class AuthSecurityTest {
     void registerShouldAcceptUppercaseGenderAndIsoBirthDate() throws Exception {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Iso User\",\"email\":\"iso@example.com\",\"password\":\"123456\",\"gender\":\"MALE\",\"birthDate\":\"1994-01-01\"}"))
+                        .content("{\"name\":\"Iso User\",\"email\":\"iso@example.com\",\"password\":\"12345678\",\"gender\":\"MALE\",\"birthDate\":\"1994-01-01\"}"))
                 .andExpect(status().isOk());
     }
 
     @Test
     void refreshShouldUseBodyRefreshTokenWithoutAuthorizationHeader() throws Exception {
-        var loginResult = mockMvc.perform(post("/auth/register")
+        User user = new User();
+        user.setName("Refresh User");
+        user.setEmail("refresh@example.com");
+        user.setPassword(passwordEncoder.encode("12345678"));
+        user.setType(UserType.member);
+        user.setStatus(UserStatus.active);
+        userRepository.save(user);
+
+        var loginResult = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Refresh User\",\"email\":\"refresh@example.com\",\"password\":\"123456\"}"))
+                        .content("{\"email\":\"refresh@example.com\",\"password\":\"12345678\"}"))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -103,7 +126,7 @@ class AuthSecurityTest {
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.refreshToken").isNotEmpty())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                .andExpect(jsonPath("$.expiresIn").value(86400000))
+                .andExpect(jsonPath("$.expiresIn").value(3600))
                 .andExpect(jsonPath("$.user.email").value("refresh@example.com"))
                 .andExpect(jsonPath("$.user.type").value("member"))
                 .andExpect(jsonPath("$.user.password").doesNotExist())
@@ -129,6 +152,15 @@ class AuthSecurityTest {
     }
 
     @Test
+    void adminEndpointsShouldRejectScholar() throws Exception {
+        String token = accessTokenFor("scholar-admin-check@example.com", UserType.scholar);
+
+        mockMvc.perform(get("/admin/security-check")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void adminEndpointsShouldAllowAdminThroughSecurity() throws Exception {
         String token = accessTokenFor("admin-security-check@example.com", UserType.admin);
 
@@ -143,6 +175,7 @@ class AuthSecurityTest {
         user.setEmail(email);
         user.setPassword("encoded-password");
         user.setType(type);
+        user.setStatus(UserStatus.active);
         user = userRepository.save(user);
         return jwtService.generateAccessToken(user);
     }

@@ -2,28 +2,47 @@ package com.jamil.ahadith.controllers;
 
 import com.jamil.ahadith.dtos.requests.QuestionRequestDto;
 import com.jamil.ahadith.dtos.responses.QuestionResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.dtos.updates.QuestionUpdateDto;
+import com.jamil.ahadith.services.AdminPageService;
 import com.jamil.ahadith.services.QuestionService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
 public class QuestionController {
     private final QuestionService questionService;
+    private final AdminPageService adminPageService;
 
-    @GetMapping({"/me/questions", "/scholar/questions", "/admin/questions"})
-    public List<QuestionResponseDto> getQuestions() {
-        return questionService.getQuestions();
+    @GetMapping("/me/questions")
+    public List<QuestionResponseDto> getMyQuestions() {
+        return questionService.getCurrentUserQuestions();
     }
 
-    @GetMapping({"/me/questions/{id}", "/scholar/questions/{id}", "/admin/questions/{id}"})
+    @GetMapping({"/scholar/questions", "/admin/questions"})
+    public SearchResponse<QuestionResponseDto> getQuestions(@RequestParam(defaultValue = "0") int page,
+                                                            @RequestParam(defaultValue = "20") int size,
+                                                            @RequestParam(required = false) String sort) {
+        return questionService.getQuestions(adminPageService.pageable(page, size, sort,
+                Set.of("createdAt", "updatedAt", "id"),
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id"))));
+    }
+
+    @GetMapping("/me/questions/{id}")
+    public QuestionResponseDto getMyQuestionById(@PathVariable UUID id) {
+        return questionService.getCurrentUserQuestionById(id);
+    }
+
+    @GetMapping({"/scholar/questions/{id}", "/admin/questions/{id}"})
     public QuestionResponseDto getQuestionById(@PathVariable UUID id) {
         return questionService.getQuestionById(id);
     }
@@ -44,6 +63,12 @@ public class QuestionController {
         return questionService.updateQuestion(id, request);
     }
 
+    @RequestMapping(value = "/me/questions/{id}", method = {RequestMethod.PUT, RequestMethod.PATCH})
+    public QuestionResponseDto updateMyQuestion(@PathVariable UUID id,
+                                                @Valid @RequestBody QuestionUpdateDto request) {
+        return questionService.updateCurrentUserQuestion(id, request);
+    }
+
     @PostMapping("/scholar/questions/{id}/answers")
     public QuestionResponseDto answerQuestion(@PathVariable UUID id,
                                               @Valid @RequestBody QuestionUpdateDto request) {
@@ -53,6 +78,12 @@ public class QuestionController {
     @DeleteMapping("/admin/questions/{id}")
     public ResponseEntity<Void> deleteQuestion(@PathVariable UUID id) {
         questionService.deleteQuestion(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/me/questions/{id}")
+    public ResponseEntity<Void> deleteMyQuestion(@PathVariable UUID id) {
+        questionService.deleteCurrentUserQuestion(id);
         return ResponseEntity.noContent().build();
     }
 }

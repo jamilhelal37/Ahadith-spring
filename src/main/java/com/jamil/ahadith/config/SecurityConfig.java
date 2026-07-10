@@ -40,18 +40,23 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login", "/auth/refresh")
+                        .requestMatchers(HttpMethod.GET,
+                                "/verify-email", "/verify-email.html", "/verify-email.css", "/verify-email.js")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/auth/register", "/auth/login", "/auth/refresh", "/auth/logout",
+                                "/auth/verify-email", "/auth/resend-verification",
+                                "/auth/forgot-password", "/auth/reset-password")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/ahadith/search").permitAll()
                         .requestMatchers(
-                                "/auth/**",
                                 "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()
                         .requestMatchers("/admin/**")
                         .hasAuthority(SecurityRoleUtils.authority(UserType.admin))
                         .requestMatchers("/scholar/**")
                         .hasAnyAuthority(
-                                SecurityRoleUtils.authority(UserType.supervisor),
+                                SecurityRoleUtils.authority(UserType.scholar),
                                 SecurityRoleUtils.authority(UserType.admin))
                         .requestMatchers(HttpMethod.POST,
                                 "/ahadith/**", "/books/**", "/rawis/**", "/rulings/**", "/topics/**", "/muhaddiths/**",
@@ -73,7 +78,7 @@ public class SecurityConfig {
                                 "/explaining/**", "/fake-ahadith/**", "/similar-ahadith/**",
                                 "/notifications/**", "/upgrade-requests/**")
                         .hasAuthority(SecurityRoleUtils.authority(UserType.admin))
-                        .requestMatchers("/me/**", "/favorites/**", "/search/history/**")
+                        .requestMatchers("/me/**", "/search/history/**")
                         .authenticated()
                         .requestMatchers(HttpMethod.GET, "/ahadith/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/books/**").permitAll()
@@ -108,6 +113,10 @@ public class SecurityConfig {
                 .map(user -> new org.springframework.security.core.userdetails.User(
                         user.getEmail(),
                         user.getPassword(),
+                        user.getStatus() == com.jamil.ahadith.entities.UserStatus.active,
+                        true,
+                        true,
+                        user.getStatus() != com.jamil.ahadith.entities.UserStatus.disabled,
                         List.of(new SimpleGrantedAuthority(SecurityRoleUtils.authority(user.getType())))))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
     }

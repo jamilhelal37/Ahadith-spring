@@ -1,20 +1,23 @@
 package com.jamil.ahadith.config;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
-@Configuration
 @Getter
 @Setter
+@Validated
+@ConfigurationProperties(prefix = "jwt")
 public class JwtConfig {
-    @Value("${jwt.secret}")
+    @NotBlank
     private String secret;
 
-    @Value("${jwt.expiration}")
-    private long expiration;
+    @NotNull
+    private java.time.Duration expiration = java.time.Duration.ofHours(1);
 
-    @Value("${jwt.refresh-expiration}")
-    private long refreshExpiration;
+    @NotNull
+    private java.time.Duration refreshExpiration = java.time.Duration.ofDays(7);
 }

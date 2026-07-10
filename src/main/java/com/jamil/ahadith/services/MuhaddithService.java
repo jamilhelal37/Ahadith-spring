@@ -2,6 +2,7 @@ package com.jamil.ahadith.services;
 
 import com.jamil.ahadith.dtos.requests.MuhaddithRequestDto;
 import com.jamil.ahadith.dtos.responses.MuhaddithResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.dtos.updates.MuhaddithUpdateDto;
 import com.jamil.ahadith.exceptions.MuhaddithNotFoundException;
 import com.jamil.ahadith.mappers.MuhaddithMapper;
@@ -10,6 +11,7 @@ import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,11 +24,10 @@ public class MuhaddithService {
     private final MuhaddithMapper muhaddithMapper;
     private final EntityManager entityManager;
     private final CurrentUserService currentUserService;
+    private final AdminPageService adminPageService;
 
-    public List<MuhaddithResponseDto> getMuhaddiths() {
-        return muhaddithRepository.findAll().stream()
-                .map(muhaddithMapper::toResponseDto)
-                .toList();
+    public SearchResponse<MuhaddithResponseDto> getMuhaddiths(Pageable pageable) {
+        return adminPageService.response(muhaddithRepository.findAll(pageable).map(muhaddithMapper::toResponseDto));
     }
 
     public MuhaddithResponseDto getMuhaddithById(UUID id) {

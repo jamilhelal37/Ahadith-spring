@@ -1,10 +1,12 @@
 package com.jamil.ahadith.controllers;
 
 import com.jamil.ahadith.dtos.responses.AuthUserDto;
+import com.jamil.ahadith.dtos.responses.MessageResponseDto;
 import com.jamil.ahadith.dtos.responses.ProfileImageResponse;
 import com.jamil.ahadith.entities.User;
 import com.jamil.ahadith.exceptions.UserNotFoundException;
 import com.jamil.ahadith.repositories.UserRepository;
+import com.jamil.ahadith.services.AuthService;
 import com.jamil.ahadith.services.UserProfileService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +31,7 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 public class UserProfileController {
     private final UserProfileService userProfileService;
     private final UserRepository userRepository;
+    private final AuthService authService;
 
     @GetMapping
     public AuthUserDto getMe() {
@@ -45,6 +48,12 @@ public class UserProfileController {
     public ResponseEntity<Void> deleteProfileImage() {
         userProfileService.deleteProfileImage(getCurrentUserId());
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/logout-all")
+    public MessageResponseDto logoutAll() {
+        authService.logoutAll(getCurrentUser());
+        return new MessageResponseDto("All sessions logged out");
     }
 
     private UUID getCurrentUserId() {

@@ -10,18 +10,12 @@ public final class SecurityRoleUtils {
         if (type == null) {
             return "ROLE_MEMBER";
         }
-        if (type == UserType.scholar) {
-            return "ROLE_ADMIN";
-        }
         return "ROLE_" + type.name().toUpperCase();
     }
 
     public static String tokenRole(UserType type) {
         if (type == null) {
             return UserType.member.name().toUpperCase();
-        }
-        if (type == UserType.scholar) {
-            return UserType.admin.name().toUpperCase();
         }
         return type.name().toUpperCase();
     }
@@ -30,8 +24,8 @@ public final class SecurityRoleUtils {
         return authority(UserType.admin).equals(authority);
     }
 
-    public static boolean isSupervisorAuthority(String authority) {
-        return authority(UserType.supervisor).equals(authority);
+    public static boolean isScholarAuthority(String authority) {
+        return authority(UserType.scholar).equals(authority);
     }
 
     public static boolean isMemberAuthority(String authority) {

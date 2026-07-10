@@ -1,6 +1,8 @@
 package com.jamil.ahadith.services;
 
 import com.jamil.ahadith.dtos.responses.HadithResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchHistoryResponseDto;
+import com.jamil.ahadith.config.SecurityProperties;
 import com.jamil.ahadith.entities.*;
 import com.jamil.ahadith.mappers.HadithMapper;
 import com.jamil.ahadith.repositories.*;
@@ -9,6 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -22,6 +25,7 @@ public class SearchService {
     private final HadithMapper hadithMapper;
     private final SearchHistoryRepository searchHistoryRepository;
     private final UserRepository userRepository;
+    private final SecurityProperties securityProperties;
 
     @Transactional
     public List<HadithResponseDto> searchHadiths(String query, String generalQuery, UUID rawiId, UUID rulingId,
@@ -51,17 +55,17 @@ public class SearchService {
     }
 
     @Transactional
-    public List<SearchHistory> getRecentSearchHistory(int limit) {
+    public List<SearchHistoryResponseDto> getRecentSearchHistory(int limit) {
         User user = getCurrentUser();
         if (user == null) {
             return List.of();
         }
-        return searchHistoryRepository.findByUserOrderByCreatedAtDesc(user).stream()
-                .limit(limit)
+        return searchHistoryRepository.findByUserOrderByCreatedAtDesc(user, PageRequest.of(0, normalizeLimit(limit))).stream()
+                .map(this::toHistoryResponse)
                 .toList();
     }
 
-    public List<SearchHistory> searchSearchHistory(String keyword, int limit) {
+    public List<SearchHistoryResponseDto> searchSearchHistory(String keyword, int limit) {
         User user = getCurrentUser();
         if (user == null) {
             return List.of();
@@ -69,9 +73,9 @@ public class SearchService {
         if (keyword == null || keyword.isBlank()) {
             return getRecentSearchHistory(limit);
         }
-        return searchHistoryRepository.findByUserAndSearchTextContainingIgnoreCaseOrderByCreatedAtDesc(user, keyword)
+        return searchHistoryRepository.findByUserAndSearchTextContainingIgnoreCaseOrderByCreatedAtDesc(user, keyword, PageRequest.of(0, normalizeLimit(limit)))
                 .stream()
-                .limit(limit)
+                .map(this::toHistoryResponse)
                 .toList();
     }
 
@@ -80,6 +84,14 @@ public class SearchService {
         User user = getCurrentUser();
         if (user != null) {
             searchHistoryRepository.deleteByUser(user);
+        }
+    }
+
+    @Transactional
+    public void deleteCurrentUserSearchHistoryItem(UUID id) {
+        User user = getCurrentUser();
+        if (user != null) {
+            searchHistoryRepository.deleteByIdAndUserId(id, user.getId());
         }
     }
 
@@ -96,12 +108,26 @@ public class SearchService {
         }
 
         User user = getCurrentUser();
+        if (user == null) {
+            return;
+        }
 
         SearchHistory history = new SearchHistory();
         history.setUser(user);
         history.setSearchText(combined);
         history.setSearchSource(SearchSource.Hadith);
         searchHistoryRepository.save(history);
+        pruneHistory(user);
+    }
+
+    private void pruneHistory(User user) {
+        if (user == null) {
+            return;
+        }
+        long excess = searchHistoryRepository.countByUser(user) - securityProperties.getSearchHistoryMaxPerUser();
+        if (excess > 0) {
+            searchHistoryRepository.deleteOldestForUser(user.getId(), excess);
+        }
     }
 
     private User getCurrentUser() {
@@ -166,5 +192,20 @@ public class SearchService {
 
     private String safe(Object value) {
         return value == null ? "" : String.valueOf(value);
+    }
+
+    private int normalizeLimit(int limit) {
+        if (limit < 1) {
+            return 10;
+        }
+        return Math.min(limit, securityProperties.getSearchHistoryMaxPerUser());
+    }
+
+    private SearchHistoryResponseDto toHistoryResponse(SearchHistory history) {
+        return new SearchHistoryResponseDto(
+                history.getId(),
+                history.getSearchText(),
+                history.getSearchSource(),
+                history.getCreatedAt());
     }
 }

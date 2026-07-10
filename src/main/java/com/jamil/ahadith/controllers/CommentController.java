@@ -2,29 +2,47 @@ package com.jamil.ahadith.controllers;
 
 import com.jamil.ahadith.dtos.requests.CommentRequestDto;
 import com.jamil.ahadith.dtos.responses.CommentResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.dtos.updates.CommentUpdateDto;
-import com.jamil.ahadith.entities.Hadith;
+import com.jamil.ahadith.services.AdminPageService;
 import com.jamil.ahadith.services.CommentService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
 public class CommentController {
     private final CommentService commentService;
+    private final AdminPageService adminPageService;
 
-    @GetMapping({"/me/comments", "/scholar/comments", "/admin/comments"})
-    public List<CommentResponseDto> getComments() {
-        return commentService.getComments();
+    @GetMapping("/me/comments")
+    public List<CommentResponseDto> getMyComments() {
+        return commentService.getCurrentUserComments();
     }
 
-    @GetMapping({"/me/comments/{id}", "/scholar/comments/{id}", "/admin/comments/{id}"})
+    @GetMapping({"/scholar/comments", "/admin/comments"})
+    public SearchResponse<CommentResponseDto> getComments(@RequestParam(defaultValue = "0") int page,
+                                                          @RequestParam(defaultValue = "20") int size,
+                                                          @RequestParam(required = false) String sort) {
+        return commentService.getComments(adminPageService.pageable(page, size, sort,
+                Set.of("createdAt", "updatedAt", "id"),
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id"))));
+    }
+
+    @GetMapping("/me/comments/{id}")
+    public CommentResponseDto getMyCommentById(@PathVariable UUID id) {
+        return commentService.getCurrentUserCommentById(id);
+    }
+
+    @GetMapping({"/scholar/comments/{id}", "/admin/comments/{id}"})
     public CommentResponseDto getCommentById(@PathVariable UUID id) {
         return commentService.getCommentById(id);
     }
@@ -41,9 +59,7 @@ public class CommentController {
     public ResponseEntity<CommentResponseDto> createHadithComment(@PathVariable UUID hadithId,
                                                                   @Valid @RequestBody CommentRequestDto request,
                                                                   UriComponentsBuilder uriBuilder) {
-        Hadith hadith = new Hadith();
-        hadith.setId(hadithId);
-        request.setHadith(hadith);
+        request.setHadithId(hadithId);
         var comment = commentService.createComment(request);
         var uri = uriBuilder.path("/me/comments/{id}").buildAndExpand(comment.getId()).toUri();
         return ResponseEntity.created(uri).body(comment);
@@ -54,10 +70,16 @@ public class CommentController {
             method = {RequestMethod.PUT, RequestMethod.PATCH})
     public CommentResponseDto updateComment(@PathVariable UUID id,
                                            @Valid @RequestBody CommentUpdateDto request) {
-        return commentService.updateComment(id, request);
+        return commentService.updateCurrentUserComment(id, request);
     }
 
-    @DeleteMapping({"/me/comments/{id}", "/scholar/comments/{id}", "/admin/comments/{id}"})
+    @DeleteMapping({"/me/comments/{id}", "/scholar/comments/{id}"})
+    public ResponseEntity<Void> deleteMyComment(@PathVariable UUID id) {
+        commentService.deleteCurrentUserComment(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/admin/comments/{id}")
     public ResponseEntity<Void> deleteComment(@PathVariable UUID id) {
         commentService.deleteComment(id);
         return ResponseEntity.noContent().build();

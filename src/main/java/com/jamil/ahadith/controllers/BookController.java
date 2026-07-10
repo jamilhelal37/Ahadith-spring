@@ -2,15 +2,18 @@ package com.jamil.ahadith.controllers;
 
 import com.jamil.ahadith.dtos.requests.BookRequestDto;
 import com.jamil.ahadith.dtos.responses.BookResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.dtos.updates.BookUpdateDto;
+import com.jamil.ahadith.services.AdminPageService;
 import com.jamil.ahadith.services.BookService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -18,10 +21,15 @@ import java.util.UUID;
 @RequestMapping("/admin/books")
 public class BookController {
     private final BookService bookService;
+    private final AdminPageService adminPageService;
 
     @GetMapping
-    public List<BookResponseDto> getBooks() {
-        return bookService.getBooks();
+    public SearchResponse<BookResponseDto> getBooks(@RequestParam(defaultValue = "0") int page,
+                                                    @RequestParam(defaultValue = "20") int size,
+                                                    @RequestParam(required = false) String sort) {
+        return bookService.getBooks(adminPageService.pageable(page, size, sort,
+                Set.of("name", "createdAt", "updatedAt", "id"),
+                Sort.by(Sort.Direction.ASC, "name").and(Sort.by("id"))));
     }
 
     @GetMapping("/{id}")

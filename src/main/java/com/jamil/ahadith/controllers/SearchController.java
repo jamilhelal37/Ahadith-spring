@@ -1,7 +1,7 @@
 package com.jamil.ahadith.controllers;
 
 import com.jamil.ahadith.dtos.responses.HadithResponseDto;
-import com.jamil.ahadith.entities.SearchHistory;
+import com.jamil.ahadith.dtos.responses.SearchHistoryResponseDto;
 import com.jamil.ahadith.services.SearchService;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,12 +34,12 @@ public class SearchController {
     }
 
     @GetMapping("/history")
-    public List<SearchHistory> getRecentSearchHistory(@RequestParam(defaultValue = "10") int limit) {
+    public List<SearchHistoryResponseDto> getRecentSearchHistory(@RequestParam(defaultValue = "10") int limit) {
         return searchService.getRecentSearchHistory(limit);
     }
 
     @GetMapping("/history/search")
-    public List<SearchHistory> searchSearchHistory(@RequestParam(required = false) String keyword,
+    public List<SearchHistoryResponseDto> searchSearchHistory(@RequestParam(required = false) String keyword,
                                                   @RequestParam(defaultValue = "10") int limit) {
         return searchService.searchSearchHistory(keyword, limit);
     }

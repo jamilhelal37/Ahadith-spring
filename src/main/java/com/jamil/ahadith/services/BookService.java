@@ -2,6 +2,7 @@ package com.jamil.ahadith.services;
 
 import com.jamil.ahadith.dtos.requests.BookRequestDto;
 import com.jamil.ahadith.dtos.responses.BookResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.dtos.updates.BookUpdateDto;
 import com.jamil.ahadith.exceptions.BookNotFoundException;
 import com.jamil.ahadith.mappers.BookMapper;
@@ -10,6 +11,7 @@ import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,11 +24,10 @@ public class BookService {
     private final BookMapper bookMapper;
     private final EntityManager entityManager;
     private final CurrentUserService currentUserService;
+    private final AdminPageService adminPageService;
 
-    public List<BookResponseDto> getBooks() {
-        return bookRepository.findAll().stream()
-                .map(bookMapper::toResponseDto)
-                .toList();
+    public SearchResponse<BookResponseDto> getBooks(Pageable pageable) {
+        return adminPageService.response(bookRepository.findAll(pageable).map(bookMapper::toResponseDto));
     }
 
     public BookResponseDto getBookById(UUID id) {

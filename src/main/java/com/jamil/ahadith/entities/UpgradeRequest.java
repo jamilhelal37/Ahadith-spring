@@ -32,6 +32,7 @@ public class UpgradeRequest {
     private User user;
 
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Enumerated(EnumType.STRING)
     @Column(name = "status")
     private UpgradeStatus status;
 
@@ -44,6 +45,15 @@ public class UpgradeRequest {
 
     @Column(name = "notes")
     private String notes;
+
+    @Column(name = "review_notes")
+    private String reviewNotes;
+
+    @Column(name = "rejection_reason")
+    private String rejectionReason;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
 
     @Column(name = "created_at", updatable = false,insertable = false)
     private LocalDateTime createdAt;

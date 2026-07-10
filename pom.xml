@@ -57,6 +57,12 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- MAIL -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- POSTGRESQL (Neon ready) -->
         <dependency>
             <groupId>org.postgresql</groupId>

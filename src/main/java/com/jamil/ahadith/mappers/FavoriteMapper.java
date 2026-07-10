@@ -6,13 +6,15 @@ import com.jamil.ahadith.entities.Favorite;
 import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
-public interface FavoriteMapper {
+public interface FavoriteMapper extends AuditMapping {
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "user", source = "user")
-    @Mapping(target = "hadith", source = "hadith")
+    @Mapping(target = "user", ignore = true)
+    @Mapping(target = "hadith", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     Favorite toEntity(FavoriteRequestDto dto);
 
+    @Mapping(target = "hadith.id", source = "hadith.id")
+    @Mapping(target = "hadith.name", source = "hadith.text")
     FavoriteResponseDto toResponseDto(Favorite entity);
 }

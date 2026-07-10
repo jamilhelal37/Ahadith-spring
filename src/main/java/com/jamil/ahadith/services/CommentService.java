@@ -2,14 +2,19 @@ package com.jamil.ahadith.services;
 
 import com.jamil.ahadith.dtos.requests.CommentRequestDto;
 import com.jamil.ahadith.dtos.responses.CommentResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.dtos.updates.CommentUpdateDto;
+import com.jamil.ahadith.entities.User;
 import com.jamil.ahadith.exceptions.CommentNotFoundException;
+import com.jamil.ahadith.exceptions.HadithNotFoundException;
 import com.jamil.ahadith.mappers.CommentMapper;
 import com.jamil.ahadith.repositories.CommentRepository;
+import com.jamil.ahadith.repositories.HadithRepository;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,9 +26,17 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final CommentMapper commentMapper;
     private final EntityManager entityManager;
+    private final CurrentUserService currentUserService;
+    private final HadithRepository hadithRepository;
+    private final AdminPageService adminPageService;
 
-    public List<CommentResponseDto> getComments() {
-        return commentRepository.findAll().stream()
+    public SearchResponse<CommentResponseDto> getComments(Pageable pageable) {
+        return adminPageService.response(commentRepository.findAll(pageable).map(commentMapper::toResponseDto));
+    }
+
+    public List<CommentResponseDto> getCurrentUserComments() {
+        User user = currentUserService.requireCurrentUser();
+        return commentRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
                 .map(commentMapper::toResponseDto)
                 .toList();
     }
@@ -34,8 +47,21 @@ public class CommentService {
                 .orElseThrow(CommentNotFoundException::new);
     }
 
+    public CommentResponseDto getCurrentUserCommentById(UUID id) {
+        User user = currentUserService.requireCurrentUser();
+        return commentRepository.findByIdAndUserId(id, user.getId())
+                .map(commentMapper::toResponseDto)
+                .orElseThrow(CommentNotFoundException::new);
+    }
+
     public CommentResponseDto createComment(CommentRequestDto request) {
-        var comment = commentRepository.saveAndFlush(commentMapper.toEntity(request));
+        if (request.getHadithId() == null) {
+            throw new HadithNotFoundException();
+        }
+        var comment = commentMapper.toEntity(request);
+        comment.setUser(currentUserService.requireCurrentUser());
+        comment.setHadith(hadithRepository.findById(request.getHadithId()).orElseThrow(HadithNotFoundException::new));
+        comment = commentRepository.saveAndFlush(comment);
         entityManager.refresh(comment);
         return commentMapper.toResponseDto(comment);
     }
@@ -48,10 +74,25 @@ public class CommentService {
         return commentMapper.toResponseDto(savedComment);
     }
 
+    public CommentResponseDto updateCurrentUserComment(UUID id, CommentUpdateDto request) {
+        User user = currentUserService.requireCurrentUser();
+        var comment = commentRepository.findByIdAndUserId(id, user.getId()).orElseThrow(CommentNotFoundException::new);
+        commentMapper.updateEntity(request, comment);
+        var savedComment = commentRepository.saveAndFlush(comment);
+        entityManager.refresh(savedComment);
+        return commentMapper.toResponseDto(savedComment);
+    }
+
     public void deleteComment(UUID id) {
         if (!commentRepository.existsById(id)) {
             throw new CommentNotFoundException();
         }
         commentRepository.deleteById(id);
+    }
+
+    public void deleteCurrentUserComment(UUID id) {
+        User user = currentUserService.requireCurrentUser();
+        var comment = commentRepository.findByIdAndUserId(id, user.getId()).orElseThrow(CommentNotFoundException::new);
+        commentRepository.delete(comment);
     }
 }

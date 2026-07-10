@@ -2,6 +2,7 @@ package com.jamil.ahadith.services;
 
 import com.jamil.ahadith.dtos.requests.ExplainingRequestDto;
 import com.jamil.ahadith.dtos.responses.ExplainingResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.dtos.updates.ExplainingUpdateDto;
 import com.jamil.ahadith.exceptions.ExplainingNotFoundException;
 import com.jamil.ahadith.mappers.ExplainingMapper;
@@ -10,6 +11,7 @@ import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,11 +23,10 @@ public class ExplainingService {
     private final ExplainingRepository explainingRepository;
     private final ExplainingMapper explainingMapper;
     private final EntityManager entityManager;
+    private final AdminPageService adminPageService;
 
-    public List<ExplainingResponseDto> getExplainings() {
-        return explainingRepository.findAll().stream()
-                .map(explainingMapper::toResponseDto)
-                .toList();
+    public SearchResponse<ExplainingResponseDto> getExplainings(Pageable pageable) {
+        return adminPageService.response(explainingRepository.findAll(pageable).map(explainingMapper::toResponseDto));
     }
 
     public ExplainingResponseDto getExplainingById(UUID id) {

@@ -1,11 +1,12 @@
 package com.jamil.ahadith.controllers;
-import java.util.List;
-
 import java.util.UUID;
 import com.jamil.ahadith.dtos.requests.RulingRequestDto;
 import com.jamil.ahadith.dtos.responses.RulingResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.dtos.updates.RulingUpdateDto;
+import com.jamil.ahadith.services.AdminPageService;
 import com.jamil.ahadith.services.RulingService;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import jakarta.validation.Valid;
@@ -17,17 +18,25 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import java.util.Set;
 
 @RestController
 @AllArgsConstructor
 @RequestMapping("/admin/rulings")
 class RulingController {
         private final RulingService rulingService;
+        private final AdminPageService adminPageService;
 
         @GetMapping
-        public List<RulingResponseDto> getRulings() {
-            return rulingService.getRulings();
+        public SearchResponse<RulingResponseDto> getRulings(@RequestParam(defaultValue = "0") int page,
+                                                            @RequestParam(defaultValue = "20") int size,
+                                                            @RequestParam(required = false) String sort) {
+            return rulingService.getRulings(adminPageService.pageable(page, size, sort,
+                    Set.of("name", "createdAt", "updatedAt", "id"),
+                    Sort.by(Sort.Direction.ASC, "name").and(Sort.by("id"))));
         }
 
         @GetMapping("/{id}")

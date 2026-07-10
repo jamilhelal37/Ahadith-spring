@@ -1,6 +1,7 @@
 package com.jamil.ahadith.services;
 
 import com.jamil.ahadith.entities.User;
+import com.jamil.ahadith.exceptions.UserNotFoundException;
 import com.jamil.ahadith.repositories.UserRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -21,5 +22,9 @@ public class CurrentUserService {
             return Optional.empty();
         }
         return userRepository.findByEmail(authentication.getName());
+    }
+
+    public User requireCurrentUser() {
+        return getCurrentUser().orElseThrow(UserNotFoundException::new);
     }
 }

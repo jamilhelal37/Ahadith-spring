@@ -2,6 +2,7 @@ package com.jamil.ahadith.services;
 
 import com.jamil.ahadith.dtos.requests.RawiRequestDto;
 import com.jamil.ahadith.dtos.responses.RawiResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.dtos.updates.RawiUpdateDto;
 import com.jamil.ahadith.exceptions.RawiNotFoundException;
 import com.jamil.ahadith.mappers.RawiMapper;
@@ -10,6 +11,7 @@ import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,11 +23,10 @@ public class RawiService {
     private final RawiMapper rawiMapper;
     private final EntityManager entityManager;
     private final CurrentUserService currentUserService;
+    private final AdminPageService adminPageService;
 
-    public List<RawiResponseDto> getRawis() {
-        return rawiRepository.findAll().stream()
-                .map(rawiMapper::toResponseDto)
-                .toList();
+    public SearchResponse<RawiResponseDto> getRawis(Pageable pageable) {
+        return adminPageService.response(rawiRepository.findAll(pageable).map(rawiMapper::toResponseDto));
     }
 
     public RawiResponseDto getRawiById(UUID id) {

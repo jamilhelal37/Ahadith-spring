@@ -2,15 +2,18 @@ package com.jamil.ahadith.controllers;
 
 import com.jamil.ahadith.dtos.requests.SimilarAhadithRequestDto;
 import com.jamil.ahadith.dtos.responses.SimilarAhadithResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.dtos.updates.SimilarAhadithUpdateDto;
+import com.jamil.ahadith.services.AdminPageService;
 import com.jamil.ahadith.services.SimilarAhadithService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -18,10 +21,15 @@ import java.util.UUID;
 @RequestMapping("/admin/similar-ahadith")
 public class SimilarAhadithController {
     private final SimilarAhadithService similarAhadithService;
+    private final AdminPageService adminPageService;
 
     @GetMapping
-    public List<SimilarAhadithResponseDto> getSimilarAhadiths() {
-        return similarAhadithService.getSimilarAhadiths();
+    public SearchResponse<SimilarAhadithResponseDto> getSimilarAhadiths(@RequestParam(defaultValue = "0") int page,
+                                                                        @RequestParam(defaultValue = "20") int size,
+                                                                        @RequestParam(required = false) String sort) {
+        return similarAhadithService.getSimilarAhadiths(adminPageService.pageable(page, size, sort,
+                Set.of("createdAt", "updatedAt", "id"),
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id"))));
     }
 
     @GetMapping("/{id}")

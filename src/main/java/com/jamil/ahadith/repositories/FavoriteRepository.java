@@ -1,6 +1,8 @@
 package com.jamil.ahadith.repositories;
 
 import com.jamil.ahadith.entities.Favorite;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -11,4 +13,8 @@ public interface FavoriteRepository extends JpaRepository<Favorite, UUID> {
     List<Favorite> findByUserId(UUID userId);
 
     Optional<Favorite> findByUserIdAndHadithId(UUID userId, UUID hadithId);
+
+    boolean existsByUserIdAndHadithId(UUID userId, UUID hadithId);
+
+    Page<Favorite> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }

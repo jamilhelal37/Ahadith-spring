@@ -1,11 +1,12 @@
 package com.jamil.ahadith.dtos.updates;
 
-import com.jamil.ahadith.entities.Hadith;
 import lombok.Data;
+
+import java.util.UUID;
 
 @Data
 public class QuestionUpdateDto {
-    private Hadith hadith;
+    private UUID hadithId;
     private String askerText;
     private Boolean isActive;
     private String answerText;

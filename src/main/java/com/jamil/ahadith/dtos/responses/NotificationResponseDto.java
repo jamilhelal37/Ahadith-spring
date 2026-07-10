@@ -2,7 +2,6 @@ package com.jamil.ahadith.dtos.responses;
 
 import com.jamil.ahadith.entities.FakeHadith;
 import com.jamil.ahadith.entities.Hadith;
-import com.jamil.ahadith.entities.User;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -16,7 +15,8 @@ public class NotificationResponseDto {
     private String type;
     private Hadith hadith;
     private FakeHadith fakeHadith;
-    private User createdBy;
+    private AdminUserReferenceDto createdBy;
+    private AdminUserReferenceDto user;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

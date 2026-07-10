@@ -7,14 +7,16 @@ import com.jamil.ahadith.entities.Comment;
 import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
-public interface CommentMapper {
+public interface CommentMapper extends AuditMapping {
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "user", source = "user")
-    @Mapping(target = "hadith", source = "hadith")
+    @Mapping(target = "user", ignore = true)
+    @Mapping(target = "hadith", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     Comment toEntity(CommentRequestDto dto);
 
+    @Mapping(target = "hadith.id", source = "hadith.id")
+    @Mapping(target = "hadith.name", source = "hadith.text")
     CommentResponseDto toResponseDto(Comment entity);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)

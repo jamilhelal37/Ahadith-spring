@@ -2,6 +2,7 @@ package com.jamil.ahadith.services;
 
 import com.jamil.ahadith.dtos.requests.SimilarAhadithRequestDto;
 import com.jamil.ahadith.dtos.responses.SimilarAhadithResponseDto;
+import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.dtos.updates.SimilarAhadithUpdateDto;
 import com.jamil.ahadith.exceptions.SimilarAhadithNotFoundException;
 import com.jamil.ahadith.mappers.SimilarAhadithMapper;
@@ -10,6 +11,7 @@ import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,11 +23,10 @@ public class SimilarAhadithService {
     private final SimilarAhadithRepository similarAhadithRepository;
     private final SimilarAhadithMapper similarAhadithMapper;
     private final EntityManager entityManager;
+    private final AdminPageService adminPageService;
 
-    public List<SimilarAhadithResponseDto> getSimilarAhadiths() {
-        return similarAhadithRepository.findAll().stream()
-                .map(similarAhadithMapper::toResponseDto)
-                .toList();
+    public SearchResponse<SimilarAhadithResponseDto> getSimilarAhadiths(Pageable pageable) {
+        return adminPageService.response(similarAhadithRepository.findAll(pageable).map(similarAhadithMapper::toResponseDto));
     }
 
     public SimilarAhadithResponseDto getSimilarAhadithById(UUID id) {
