@@ -24,6 +24,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -162,6 +166,71 @@ class AuthWorkflowTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"token\":\"" + token + "\"}"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void expiredEmailVerificationTokenShouldBeRejected() throws Exception {
+        String email = unique("verify-expired");
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Verify Expired\",\"email\":\"" + email + "\",\"password\":\"12345678\"}"))
+                .andExpect(status().isOk());
+
+        String token = testEmailService.verificationTokenFor(email);
+        var verificationToken = emailVerificationTokenRepository.findByUserAndConsumedAtIsNullOrderByCreatedAtDesc(
+                        userRepository.findByEmail(email).orElseThrow())
+                .getFirst();
+        verificationToken.setExpiresAt(Instant.now().minusSeconds(1));
+        emailVerificationTokenRepository.saveAndFlush(verificationToken);
+
+        mockMvc.perform(post("/auth/verify-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"" + token + "\"}"))
+                .andExpect(status().isUnauthorized());
+
+        assertThat(userRepository.findByEmail(email).orElseThrow().getStatus())
+                .isEqualTo(UserStatus.pending_confirmation);
+    }
+
+    @Test
+    void concurrentRefreshRotationShouldOnlyAllowOneSuccessfulReplacement() throws Exception {
+        createUser("refresh-race@example.com", UserStatus.active);
+        JsonNode login = login("refresh-race@example.com");
+        String refreshToken = login.get("refreshToken").asText();
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicInteger successCount = new AtomicInteger();
+        AtomicInteger unauthorizedCount = new AtomicInteger();
+
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            for (int i = 0; i < 2; i++) {
+                executor.submit(() -> {
+                    try {
+                        ready.countDown();
+                        start.await(5, TimeUnit.SECONDS);
+                        int status = mockMvc.perform(post("/auth/refresh")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content("{\"refreshToken\":\"" + refreshToken + "\"}"))
+                                .andReturn().getResponse().getStatus();
+                        if (status == 200) {
+                            successCount.incrementAndGet();
+                        } else if (status == 401) {
+                            unauthorizedCount.incrementAndGet();
+                        }
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                });
+            }
+
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            executor.shutdown();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+
+        assertThat(successCount.get()).isEqualTo(1);
+        assertThat(unauthorizedCount.get()).isEqualTo(1);
     }
 
     @Test

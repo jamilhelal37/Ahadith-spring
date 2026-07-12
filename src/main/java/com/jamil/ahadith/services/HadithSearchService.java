@@ -16,8 +16,11 @@ import com.jamil.ahadith.dtos.responses.SearchResponse;
 import com.jamil.ahadith.dtos.responses.SimpleReferenceDto;
 import com.jamil.ahadith.dtos.responses.TypeOptionDto;
 import com.jamil.ahadith.entities.Book;
+import com.jamil.ahadith.entities.Hadith;
 import com.jamil.ahadith.entities.HadithType;
+import com.jamil.ahadith.exceptions.BookNotFoundException;
 import com.jamil.ahadith.exceptions.HadithNotFoundException;
+import com.jamil.ahadith.exceptions.InvalidRequestException;
 import com.jamil.ahadith.repositories.BookRepository;
 import com.jamil.ahadith.repositories.HadithRepository;
 import com.jamil.ahadith.repositories.MuhaddithRepository;
@@ -43,6 +46,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class HadithSearchService {
     private static final int DEFAULT_SIZE = 20;
+    private static final int DEFAULT_BOOK_AHADITH_SIZE = 50;
     private static final int MAX_SIZE = 50;
 
     private final HadithRepository hadithRepository;
@@ -121,6 +125,25 @@ public class HadithSearchService {
 
         Map<UUID, List<SimpleReferenceDto>> topicsByHadithId = loadTopicsByHadithIds(List.of(id));
         return toDetails(row, topicsByHadithId.getOrDefault(id, List.of()));
+    }
+
+    public SearchResponse<HadithSearchItemDto> getBookAhadith(UUID bookId, Integer page, Integer size) {
+        if (!bookRepository.existsById(bookId)) {
+            throw new BookNotFoundException();
+        }
+
+        int safePage = validateBookAhadithPage(page);
+        int safeSize = validateBookAhadithSize(size);
+        Page<Hadith> hadithPage = hadithRepository.findBookAhadithPage(bookId, PageRequest.of(safePage, safeSize));
+        List<UUID> ids = hadithPage.getContent().stream()
+                .map(Hadith::getId)
+                .toList();
+        Map<UUID, List<SimpleReferenceDto>> topicsByHadithId = loadTopicsByHadithIds(ids);
+        List<HadithSearchItemDto> items = hadithPage.getContent().stream()
+                .map(hadith -> toSearchItem(hadith, topicsByHadithId.getOrDefault(hadith.getId(), List.of())))
+                .toList();
+
+        return new SearchResponse<>(items, buildPaginationMeta(hadithPage));
     }
 
     public SearchResponse<AdminHadithSearchItemDto> adminDashboardSearch(String q, int page, int size) {
@@ -219,7 +242,7 @@ public class HadithSearchService {
             return Map.of();
         }
 
-        Map<UUID, List<SimpleReferenceDto>> grouped = hadithRepository.findTopicsByHadithIds(ids.toArray(UUID[]::new))
+        Map<UUID, List<SimpleReferenceDto>> grouped = hadithRepository.findTopicsByHadithIdsJpa(ids)
                 .stream()
                 .collect(Collectors.groupingBy(
                         HadithTopicRow::getHadithId,
@@ -227,6 +250,26 @@ public class HadithSearchService {
                         Collectors.mapping(row -> new SimpleReferenceDto(row.getId(), row.getName()), Collectors.toList())
                 ));
         return grouped;
+    }
+
+    private int validateBookAhadithPage(Integer page) {
+        if (page == null) {
+            return 0;
+        }
+        if (page < 0) {
+            throw new InvalidRequestException("page must be greater than or equal to 0");
+        }
+        return page;
+    }
+
+    private int validateBookAhadithSize(Integer size) {
+        if (size == null) {
+            return DEFAULT_BOOK_AHADITH_SIZE;
+        }
+        if (size < 1) {
+            throw new InvalidRequestException("size must be greater than 0");
+        }
+        return Math.min(size, MAX_SIZE);
     }
 
     private HadithSearchItemDto toSearchItem(HadithSearchRow row, List<SimpleReferenceDto> topics) {
@@ -241,6 +284,24 @@ public class HadithSearchService {
                 toReference(row.getMuhaddithId(), row.getMuhaddithName()),
                 topics,
                 row.getExplanationId() != null
+        );
+    }
+
+    private HadithSearchItemDto toSearchItem(Hadith hadith, List<SimpleReferenceDto> topics) {
+        Book book = hadith.getBook();
+        return new HadithSearchItemDto(
+                hadith.getId(),
+                hadith.getText(),
+                hadith.getHadithNumber(),
+                hadith.getType() == null ? null : hadith.getType().toString(),
+                book == null ? null : toReference(book.getId(), book.getName()),
+                hadith.getRawi() == null ? null : toReference(hadith.getRawi().getId(), hadith.getRawi().getName()),
+                hadith.getRuling() == null ? null : toReference(hadith.getRuling().getId(), hadith.getRuling().getName()),
+                book == null || book.getMuhaddith() == null
+                        ? null
+                        : toReference(book.getMuhaddith().getId(), book.getMuhaddith().getName()),
+                topics,
+                hadith.getExplaining() != null
         );
     }
 

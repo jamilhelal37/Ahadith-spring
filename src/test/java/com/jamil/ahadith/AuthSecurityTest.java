@@ -98,6 +98,21 @@ class AuthSecurityTest {
     }
 
     @Test
+    void registerShouldRejectDuplicateEmailAfterNormalization() throws Exception {
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"First User\",\"email\":\"Jamil.Case@example.com\",\"password\":\"12345678\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.email").value("jamil.case@example.com"));
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Second User\",\"email\":\"jamil.case@EXAMPLE.com\",\"password\":\"12345678\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Email is already registered"));
+    }
+
+    @Test
     void refreshShouldUseBodyRefreshTokenWithoutAuthorizationHeader() throws Exception {
         User user = new User();
         user.setName("Refresh User");
@@ -166,6 +181,25 @@ class AuthSecurityTest {
 
         mockMvc.perform(get("/admin/security-check")
                         .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void scholarEndpointsShouldRejectMemberAndAllowScholarOrAdminThroughSecurity() throws Exception {
+        String memberToken = accessTokenFor("member-scholar-check@example.com", UserType.member);
+        String scholarToken = accessTokenFor("scholar-scholar-check@example.com", UserType.scholar);
+        String adminToken = accessTokenFor("admin-scholar-check@example.com", UserType.admin);
+
+        mockMvc.perform(get("/scholar/security-check")
+                        .header("Authorization", "Bearer " + memberToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/scholar/security-check")
+                        .header("Authorization", "Bearer " + scholarToken))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/scholar/security-check")
+                        .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isNotFound());
     }
 

@@ -140,6 +140,115 @@ docker compose down -v
 - Use a strong `JWT_SECRET` of at least 64 characters in production.
 - Production SQL logging is disabled in `application-prod.yml`.
 
+## Mobile Public Catalog
+
+These endpoints are public and do not require an `Authorization` header.
+
+### List Muhaddiths
+
+```http
+GET /muhaddiths
+```
+
+```json
+[
+  {
+    "serialNumber": 1,
+    "id": "11111111-1111-1111-1111-111111111111",
+    "name": "الإمام البخاري",
+    "about": "نبذة عن المحدث"
+  }
+]
+```
+
+### List Rawis
+
+```http
+GET /rawis
+```
+
+```json
+[
+  {
+    "serialNumber": 1,
+    "id": "22222222-2222-2222-2222-222222222222",
+    "name": "أبو هريرة",
+    "about": null
+  }
+]
+```
+
+### List Books
+
+```http
+GET /books
+```
+
+```json
+[
+  {
+    "serialNumber": 1,
+    "id": "33333333-3333-3333-3333-333333333333",
+    "name": "صحيح البخاري",
+    "muhaddithId": "11111111-1111-1111-1111-111111111111",
+    "muhaddithName": "الإمام البخاري"
+  },
+  {
+    "serialNumber": 2,
+    "id": "44444444-4444-4444-4444-444444444444",
+    "name": "كتاب بلا محدث",
+    "muhaddithId": null,
+    "muhaddithName": null
+  }
+]
+```
+
+### Browse Book Ahadith
+
+```http
+GET /books/{bookId}/ahadith?page=0&size=50
+```
+
+`page` starts at `0`. The default `size` is `50`, and values larger than `50` are clamped to `50`.
+
+```json
+{
+  "items": [
+    {
+      "id": "55555555-5555-5555-5555-555555555555",
+      "text": "نص الحديث",
+      "hadithNumber": 1,
+      "type": "marfu",
+      "book": {
+        "id": "33333333-3333-3333-3333-333333333333",
+        "name": "صحيح البخاري"
+      },
+      "rawi": {
+        "id": "22222222-2222-2222-2222-222222222222",
+        "name": "أبو هريرة"
+      },
+      "ruling": null,
+      "muhaddith": {
+        "id": "11111111-1111-1111-1111-111111111111",
+        "name": "الإمام البخاري"
+      },
+      "topics": [],
+      "hasExplanation": false
+    }
+  ],
+  "pagination": {
+    "page": 0,
+    "size": 50,
+    "totalItems": 250,
+    "totalPages": 5,
+    "hasNext": true,
+    "hasPrevious": false
+  }
+}
+```
+
+Catalog lists are ordered in the database by name ascending and then `id` ascending. Book ahadith are ordered in the database by `hadithNumber` ascending and then `id` ascending, which keeps pagination stable across mobile infinite-scroll requests.
+
 ## Production Configuration
 
 Production must run with `SPRING_PROFILES_ACTIVE=prod`. `application-prod.yml` uses `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD`; Flyway and JPA share that datasource. Sensitive production values have no safe fallback and startup fails when required JWT, mail, or Cloudinary settings are missing.

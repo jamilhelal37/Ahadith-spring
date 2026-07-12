@@ -15,6 +15,9 @@ import java.util.UUID;
 public interface RefreshTokenSessionRepository extends JpaRepository<RefreshTokenSession, UUID> {
     Optional<RefreshTokenSession> findByTokenHash(String tokenHash);
 
+    @Query(value = "select * from refresh_token_sessions where token_hash = :tokenHash for update", nativeQuery = true)
+    Optional<RefreshTokenSession> findByTokenHashForUpdate(@Param("tokenHash") String tokenHash);
+
     List<RefreshTokenSession> findByFamilyId(UUID familyId);
 
     @Modifying

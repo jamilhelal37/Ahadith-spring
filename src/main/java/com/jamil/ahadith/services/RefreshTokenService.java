@@ -35,7 +35,7 @@ public class RefreshTokenService {
 
         Instant now = Instant.now();
         UUID presentedUserId = jwtService.getUserId(refreshToken);
-        RefreshTokenSession session = refreshTokenSessionRepository.findByTokenHash(tokenHashService.sha256(refreshToken))
+        RefreshTokenSession session = refreshTokenSessionRepository.findByTokenHashForUpdate(tokenHashService.sha256(refreshToken))
                 .orElseThrow(() -> {
                     revokePresentedUserSessions(presentedUserId, now);
                     return new BadCredentialsException("Invalid or expired refresh token");

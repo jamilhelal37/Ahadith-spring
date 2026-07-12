@@ -55,7 +55,8 @@ class MailConfigurationTest {
 
     @Test
     void noOpEmailServiceShouldBeCreatedWhenMailIsDisabledWithoutGmailCredentials() {
-        contextRunner
+        new ApplicationContextRunner()
+                .withUserConfiguration(MailBeans.class)
                 .withPropertyValues("app.mail.enabled=false")
                 .run(context -> {
                     assertThat(context).doesNotHaveBean(JavaMailSender.class);

@@ -115,6 +115,15 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             Pageable pageable
     );
 
+    @EntityGraph(attributePaths = {"book", "book.muhaddith", "rawi", "ruling", "explaining"})
+    @Query("""
+            select h
+            from Hadith h
+            where h.book.id = :bookId
+            order by h.hadithNumber asc, h.createdAt asc, h.id asc
+            """)
+    Page<Hadith> findBookAhadithPage(@Param("bookId") UUID bookId, Pageable pageable);
+
     @Query(
             value = """
                     select
@@ -189,4 +198,15 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             nativeQuery = true
     )
     List<HadithTopicRow> findTopicsByHadithIds(@Param("ids") UUID[] ids);
+
+    @Query("""
+            select tc.hadith.id as hadithId,
+                   t.id as id,
+                   t.name as name
+            from TopicClass tc
+            join tc.topic t
+            where tc.hadith.id in :ids
+            order by t.name asc
+            """)
+    List<HadithTopicRow> findTopicsByHadithIdsJpa(@Param("ids") List<UUID> ids);
 }

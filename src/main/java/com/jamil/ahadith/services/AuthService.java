@@ -50,13 +50,14 @@ public class AuthService {
     @Transactional
     public AuthResponseDto register(RegisterRequestDto request) {
         passwordPolicyService.validate(request.getPassword());
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+        String email = normalizeEmail(request.getEmail());
+        if (userRepository.findByEmail(email).isPresent()) {
             throw new UserAlreadyExistsException("Email is already registered");
         }
 
         User user = new User();
         user.setName(request.getName());
-        user.setEmail(normalizeEmail(request.getEmail()));
+        user.setEmail(email);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setGender(request.getGender());
         user.setBirthDate(request.getBirthDate());

@@ -109,6 +109,17 @@ CREATE TABLE IF NOT EXISTS "ruling" (
     updated_at TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS "explaining" (
+    id UUID PRIMARY KEY,
+    text CLOB,
+    normal_text CLOB,
+    search_text CLOB,
+    created_by UUID,
+    updated_by UUID,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS "ahadith" (
     id UUID PRIMARY KEY,
     sub_valid UUID,
