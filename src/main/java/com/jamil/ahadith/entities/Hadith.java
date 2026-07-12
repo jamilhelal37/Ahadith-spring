@@ -55,7 +55,7 @@ public class Hadith {
     @Column(name = "search_text", length = Integer.MAX_VALUE)
     private String searchText;
 
-    @Column(name = "search_vector", columnDefinition = "tsvector")
+    @Column(name = "search_vector", columnDefinition = "tsvector", insertable = false, updatable = false)
     private Object searchVector;
 
     @NotNull

@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -30,7 +32,8 @@ public class SearchHistory {
     private String searchText;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "search_source")
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "search_source", columnDefinition = "search_source")
     private SearchSource searchSource;
 
 

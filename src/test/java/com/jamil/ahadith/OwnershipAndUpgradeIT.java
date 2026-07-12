@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jamil.ahadith.entities.Favorite;
 import com.jamil.ahadith.entities.Hadith;
+import com.jamil.ahadith.entities.HadithType;
 import com.jamil.ahadith.entities.SearchHistory;
 import com.jamil.ahadith.entities.SearchSource;
 import com.jamil.ahadith.entities.User;
@@ -19,10 +20,8 @@ import com.jamil.ahadith.services.JwtService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
@@ -35,10 +34,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
-class OwnershipAndUpgradeTest {
+class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
     @Autowired
     private MockMvc mockMvc;
     @Autowired
@@ -207,6 +204,7 @@ class OwnershipAndUpgradeTest {
         hadith.setSearchText(hadith.getText());
         hadith.setNormalText(hadith.getText());
         hadith.setHadithNumber(Math.abs(UUID.randomUUID().hashCode()));
+        hadith.setType(HadithType.marfu);
         return hadithRepository.saveAndFlush(hadith);
     }
 
