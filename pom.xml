@@ -182,6 +182,10 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
+                    <systemPropertyVariables>
+                        <jwt.expiration>3600</jwt.expiration>
+                        <jwt.refresh-expiration>604800</jwt.refresh-expiration>
+                    </systemPropertyVariables>
                     <excludedEnvironmentVariables>
                         <excludedEnvironmentVariable>JWT_SECRET</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JWT_EXPIRATION</excludedEnvironmentVariable>

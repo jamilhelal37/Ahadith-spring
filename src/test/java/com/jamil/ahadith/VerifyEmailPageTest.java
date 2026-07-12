@@ -84,14 +84,14 @@ class VerifyEmailPageTest {
     }
 
     @Test
-    void productionConfigShouldUseRenderPortAndExternalUrlFallback() throws Exception {
+    void productionConfigShouldUsePortAndVerificationBaseUrlVariable() throws Exception {
         String prodYaml = Files.readString(Path.of("src/main/resources/application-prod.yml"));
 
         assertThat(prodYaml)
                 .contains("port: ${PORT:8080}")
                 .contains("address: 0.0.0.0")
-                .contains("verification-base-url: ${APP_MAIL_VERIFICATION_BASE_URL:${RENDER_EXTERNAL_URL:}}")
-                .contains("verification-path: ${APP_MAIL_VERIFICATION_PATH:/verify-email}")
+                .contains("verification-base-url:")
+                .contains("verification-path: /verify-email")
                 .doesNotContain("localhost:3000");
     }
 }

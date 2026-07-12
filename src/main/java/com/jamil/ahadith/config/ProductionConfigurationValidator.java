@@ -32,9 +32,9 @@ public class ProductionConfigurationValidator implements ApplicationRunner {
             throw new IllegalStateException("JWT_SECRET must be at least 64 characters in production");
         }
 
-        require("SPRING_DATASOURCE_URL", environment.getProperty("spring.datasource.url"));
-        require("SPRING_DATASOURCE_USERNAME", environment.getProperty("spring.datasource.username"));
-        require("SPRING_DATASOURCE_PASSWORD", environment.getProperty("spring.datasource.password"));
+        require("DB_URL", environment.getProperty("spring.datasource.url"));
+        require("DB_USERNAME", environment.getProperty("spring.datasource.username"));
+        require("DB_PASSWORD", environment.getProperty("spring.datasource.password"));
 
         require("SPRING_MAIL_HOST", environment.getProperty("spring.mail.host"));
         require("SPRING_MAIL_USERNAME", environment.getProperty("spring.mail.username"));
@@ -43,7 +43,7 @@ public class ProductionConfigurationValidator implements ApplicationRunner {
         rejectPlaceholder("SPRING_MAIL_PASSWORD", environment.getProperty("spring.mail.password"));
         requireEmail("APP_MAIL_FROM", mailProperties.getFrom());
         requireUrl("APP_MAIL_FRONTEND_BASE_URL", mailProperties.getFrontendBaseUrl());
-        requireHttpsUrl("APP_MAIL_VERIFICATION_BASE_URL", mailProperties.getVerificationBaseUrl());
+        requireHttpsUrl("APP_MAIL_FRONTEND_BASE_URL", mailProperties.getVerificationBaseUrl());
 
         require("CLOUDINARY_CLOUD_NAME", environment.getProperty("app.cloudinary.cloud-name"));
         require("CLOUDINARY_API_KEY", environment.getProperty("app.cloudinary.api-key"));

@@ -10,7 +10,7 @@ spring:
 
 server:
   port: ${PORT:8080}
-  address: ${SERVER_ADDRESS:0.0.0.0}
+  address: 0.0.0.0
 
 app:
   cloudinary:
@@ -18,16 +18,16 @@ app:
     api-key: ${CLOUDINARY_API_KEY:}
     api-secret: ${CLOUDINARY_API_SECRET:}
   mail:
-    enabled: ${APP_MAIL_ENABLED:false}
+    enabled: false
     from: ${APP_MAIL_FROM:}
     frontend-base-url: ${APP_MAIL_FRONTEND_BASE_URL:http://localhost:8080}
-    verification-base-url: ${APP_MAIL_VERIFICATION_BASE_URL:${APP_MAIL_FRONTEND_BASE_URL:http://localhost:8080}}
-    verification-path: ${APP_MAIL_VERIFICATION_PATH:/verify-email}
-    verification-token-ttl: ${APP_MAIL_VERIFICATION_TOKEN_TTL:24h}
-    reset-token-ttl: ${APP_MAIL_RESET_TOKEN_TTL:30m}
-    resend-throttle: ${APP_MAIL_RESEND_THROTTLE:5m}
+    verification-base-url:
+    verification-path: /verify-email
+    verification-token-ttl: 24h
+    reset-token-ttl: 30m
+    resend-throttle: 5m
   security:
-    search-history-max-per-user: ${SEARCH_HISTORY_MAX_PER_USER:50}
-    login-max-failures: ${LOGIN_MAX_FAILURES:5}
-    login-lock-duration: ${LOGIN_LOCK_DURATION:15m}
-    trusted-proxy-headers: ${TRUSTED_PROXY_HEADERS:false}
+    search-history-max-per-user: 50
+    login-max-failures: 5
+    login-lock-duration: 15m
+    trusted-proxy-headers: false

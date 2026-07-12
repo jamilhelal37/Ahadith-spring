@@ -115,14 +115,15 @@ class MailConfigurationTest {
     }
 
     @Test
-    void renderExternalUrlPlaceholderShouldBindAsVerificationBaseUrl() {
+    void verificationBaseUrlShouldFallBackToFrontendBaseUrl() {
         new ApplicationContextRunner()
                 .withUserConfiguration(MailPropertiesOnly.class)
                 .withPropertyValues(
-                        "RENDER_EXTERNAL_URL=https://example-api.onrender.com",
-                        "app.mail.verification-base-url=${APP_MAIL_VERIFICATION_BASE_URL:${RENDER_EXTERNAL_URL:}}")
+                        "APP_MAIL_FRONTEND_BASE_URL=https://example-api.example.com",
+                        "app.mail.frontend-base-url=${APP_MAIL_FRONTEND_BASE_URL}",
+                        "app.mail.verification-base-url=")
                 .run(context -> assertThat(context.getBean(MailConfigProperties.class).getVerificationBaseUrl())
-                        .isEqualTo("https://example-api.onrender.com"));
+                        .isEqualTo("https://example-api.example.com"));
     }
 
     @Test

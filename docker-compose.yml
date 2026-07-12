@@ -19,26 +19,23 @@ services:
     depends_on:
       - postgres
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ahadith
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_PROFILES_ACTIVE: prod
-      PORT: 8080
-      JWT_SECRET: change-this-secret-to-at-least-64-characters-long-for-hs256-security
-      JWT_ACCESS_EXPIRATION: 1h
-      JWT_REFRESH_EXPIRATION: 7d
-      SPRING_MAIL_HOST: smtp.example.com
-      SPRING_MAIL_PORT: 587
-      SPRING_MAIL_USERNAME: ""
-      SPRING_MAIL_PASSWORD: ""
-      APP_MAIL_ENABLED: "true"
-      APP_MAIL_FROM: no-reply@example.com
-      APP_MAIL_FRONTEND_BASE_URL: http://localhost:8080
-      APP_MAIL_VERIFICATION_BASE_URL: http://localhost:8080
-      APP_MAIL_VERIFICATION_PATH: /verify-email
-      CLOUDINARY_CLOUD_NAME: ""
-      CLOUDINARY_API_KEY: ""
-      CLOUDINARY_API_SECRET: ""
+      DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/ahadith}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      PORT: ${PORT:-8080}
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-to-at-least-64-characters-long-for-hs256-security}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-3600}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-smtp.example.com}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      APP_MAIL_FROM: ${APP_MAIL_FROM:-no-reply@example.com}
+      APP_MAIL_FRONTEND_BASE_URL: ${APP_MAIL_FRONTEND_BASE_URL:-http://localhost:8080}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
     ports:
       - "8080:8080"
 
