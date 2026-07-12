@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: "optional:file:./.env[.properties]"
   application:
     name: ahadith
   profiles:
@@ -12,13 +14,24 @@ server:
   port: ${PORT:8080}
   address: 0.0.0.0
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
 app:
   cloudinary:
     cloud-name: ${CLOUDINARY_CLOUD_NAME:}
     api-key: ${CLOUDINARY_API_KEY:}
     api-secret: ${CLOUDINARY_API_SECRET:}
   mail:
-    enabled: false
+    enabled: ${APP_MAIL_ENABLED:false}
     from: ${APP_MAIL_FROM:}
     frontend-base-url: ${APP_MAIL_FRONTEND_BASE_URL:http://localhost:8080}
     verification-base-url:

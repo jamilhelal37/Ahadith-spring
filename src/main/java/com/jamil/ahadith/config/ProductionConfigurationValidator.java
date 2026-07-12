@@ -23,18 +23,15 @@ public class ProductionConfigurationValidator implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        validateJwtSecret();
+
         if (!Arrays.asList(environment.getActiveProfiles()).contains("prod")) {
             return;
         }
 
-        require("JWT_SECRET", jwtConfig.getSecret());
-        if (jwtConfig.getSecret().length() < 64) {
-            throw new IllegalStateException("JWT_SECRET must be at least 64 characters in production");
-        }
-
-        require("DB_URL", environment.getProperty("spring.datasource.url"));
-        require("DB_USERNAME", environment.getProperty("spring.datasource.username"));
-        require("DB_PASSWORD", environment.getProperty("spring.datasource.password"));
+        require("SPRING_DATASOURCE_URL", environment.getProperty("spring.datasource.url"));
+        require("SPRING_DATASOURCE_USERNAME", environment.getProperty("spring.datasource.username"));
+        require("SPRING_DATASOURCE_PASSWORD", environment.getProperty("spring.datasource.password"));
 
         require("SPRING_MAIL_HOST", environment.getProperty("spring.mail.host"));
         require("SPRING_MAIL_USERNAME", environment.getProperty("spring.mail.username"));
@@ -48,6 +45,16 @@ public class ProductionConfigurationValidator implements ApplicationRunner {
         require("CLOUDINARY_CLOUD_NAME", environment.getProperty("app.cloudinary.cloud-name"));
         require("CLOUDINARY_API_KEY", environment.getProperty("app.cloudinary.api-key"));
         require("CLOUDINARY_API_SECRET", environment.getProperty("app.cloudinary.api-secret"));
+    }
+
+    private void validateJwtSecret() {
+        String secret = jwtConfig.getSecret();
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT_SECRET must be configured");
+        }
+        if (secret.length() < 64) {
+            throw new IllegalStateException("JWT_SECRET must be at least 64 characters");
+        }
     }
 
     private void require(String name, String value) {

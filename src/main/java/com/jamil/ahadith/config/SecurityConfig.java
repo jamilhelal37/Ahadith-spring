@@ -43,6 +43,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/verify-email", "/verify-email.html", "/verify-email.css", "/verify-email.js")
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**")
+                        .permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/auth/register", "/auth/login", "/auth/refresh", "/auth/logout",
                                 "/auth/verify-email", "/auth/resend-verification",

@@ -5,20 +5,19 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
-  jpa:
-    hibernate:
-      ddl-auto: none
-    show-sql: false
-    properties:
-      hibernate:
-        format_sql: false
   flyway:
     enabled: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
   mail:
-    host: ${SPRING_MAIL_HOST}
-    port: ${SPRING_MAIL_PORT:587}
-    username: ${SPRING_MAIL_USERNAME}
-    password: ${SPRING_MAIL_PASSWORD}
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
     test-connection: false
     properties:
       mail:
@@ -30,22 +29,24 @@ spring:
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
+
+server:
+  port: ${PORT:8080}
+
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_ACCESS_EXPIRATION:1h}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:7d}
-server:
-  port: ${PORT:8080}
-  address: 0.0.0.0
+
 app:
   cloudinary:
-    cloud-name: ${CLOUDINARY_CLOUD_NAME}
-    api-key: ${CLOUDINARY_API_KEY}
-    api-secret: ${CLOUDINARY_API_SECRET}
+    cloud-name: ${CLOUDINARY_CLOUD_NAME:}
+    api-key: ${CLOUDINARY_API_KEY:}
+    api-secret: ${CLOUDINARY_API_SECRET:}
   mail:
-    enabled: ${APP_MAIL_ENABLED:true}
-    from: ${APP_MAIL_FROM}
-    frontend-base-url: ${APP_MAIL_FRONTEND_BASE_URL}
+    enabled: ${APP_MAIL_ENABLED:false}
+    from: ${APP_MAIL_FROM:}
+    frontend-base-url: ${APP_MAIL_FRONTEND_BASE_URL:http://localhost:8080}
     verification-base-url:
     verification-path: /verify-email
     verification-token-ttl: 24h

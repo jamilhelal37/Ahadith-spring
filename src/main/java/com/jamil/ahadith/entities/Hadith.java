@@ -7,8 +7,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
@@ -38,8 +40,10 @@ public class Hadith {
     private Explaining explaining;
 
     @ColumnDefault("'marfu'")
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "type", columnDefinition = "hadith_type not null")
-    private Object type;
+    private HadithType type;
 
     @NotNull
     @Column(name = "text", nullable = false, length = Integer.MAX_VALUE)

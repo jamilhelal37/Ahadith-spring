@@ -31,41 +31,41 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
 
     String PUBLIC_SEARCH_WHERE = """
             where (
-                :query is null
+                cast(:query as text) is null
                 or (
-                    :mode = 'EXACT'
+                    cast(:mode as text) = 'EXACT'
                     and (
-                        h.search_text like concat('%', public.arab_norm(:query), '%')
+                        h.search_text like concat('%', public.arab_norm(cast(:query as text)), '%')
                         or (
-                            :includeExplanation = true
-                            and e.search_text like concat('%', public.arab_norm(:query), '%')
+                            cast(:includeExplanation as boolean) = true
+                            and e.search_text like concat('%', public.arab_norm(cast(:query as text)), '%')
                         )
                     )
                 )
                 or (
-                    :mode = 'FLEXIBLE'
+                    cast(:mode as text) = 'FLEXIBLE'
                     and (
-                        h.search_vector @@ plainto_tsquery('arabic', public.arab_norm(:query))
+                        h.search_vector @@ plainto_tsquery('arabic', public.arab_norm(cast(:query as text)))
                         or (
-                            :includeExplanation = true
-                            and to_tsvector('arabic', coalesce(e.search_text, '')) @@ plainto_tsquery('arabic', public.arab_norm(:query))
+                            cast(:includeExplanation as boolean) = true
+                            and to_tsvector('arabic', coalesce(e.search_text, '')) @@ plainto_tsquery('arabic', public.arab_norm(cast(:query as text)))
                         )
                     )
                 )
             )
-            and (:muhaddithIds is null or m.id = any(cast(:muhaddithIds as uuid[])))
-            and (:rawiIds is null or r.id = any(cast(:rawiIds as uuid[])))
-            and (:types is null or cast(h.type as text) = any(cast(:types as text[])))
-            and (:rulingIds is null or ru.id = any(cast(:rulingIds as uuid[])))
-            and (:bookIds is null or b.id = any(cast(:bookIds as uuid[])))
-            and (:topicIds is null or tc.topic = any(cast(:topicIds as uuid[])))
+            and (cast(:muhaddithIds as uuid[]) is null or m.id = any(cast(:muhaddithIds as uuid[])))
+            and (cast(:rawiIds as uuid[]) is null or r.id = any(cast(:rawiIds as uuid[])))
+            and (cast(:types as text[]) is null or cast(h.type as text) = any(cast(:types as text[])))
+            and (cast(:rulingIds as uuid[]) is null or ru.id = any(cast(:rulingIds as uuid[])))
+            and (cast(:bookIds as uuid[]) is null or b.id = any(cast(:bookIds as uuid[])))
+            and (cast(:topicIds as uuid[]) is null or tc.topic = any(cast(:topicIds as uuid[])))
             """;
 
     String ADMIN_SEARCH_WHERE = """
             where (
-                :query is null
-                or h.search_text like concat('%', public.arab_norm(:query), '%')
-                or cast(h.hadith_number as text) = :query
+                cast(:query as text) is null
+                or h.search_text like concat('%', public.arab_norm(cast(:query as text)), '%')
+                or cast(h.hadith_number as text) = cast(:query as text)
             )
             """;
 
@@ -76,11 +76,13 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
                     group by h.id, h.hadith_number, h.search_vector
                     order by
                         case
-                            when :sort = 'RELEVANCE' and :query is not null and :mode = 'FLEXIBLE'
-                            then ts_rank(h.search_vector, plainto_tsquery('arabic', public.arab_norm(:query)))
+                            when cast(:sort as text) = 'RELEVANCE'
+                                and cast(:query as text) is not null
+                                and cast(:mode as text) = 'FLEXIBLE'
+                            then ts_rank(h.search_vector, plainto_tsquery('arabic', public.arab_norm(cast(:query as text))))
                         end desc nulls last,
-                        case when :sort = 'HADITH_NUMBER_DESC' then h.hadith_number end desc nulls last,
-                        case when :sort <> 'HADITH_NUMBER_DESC' then h.hadith_number end asc nulls last,
+                        case when cast(:sort as text) = 'HADITH_NUMBER_DESC' then h.hadith_number end desc nulls last,
+                        case when cast(:sort as text) <> 'HADITH_NUMBER_DESC' then h.hadith_number end asc nulls last,
                         h.id asc
                     """,
             countQuery = "select count(distinct h.id) " + SEARCH_FROM + PUBLIC_SEARCH_WHERE,

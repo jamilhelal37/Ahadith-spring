@@ -22,33 +22,48 @@ Spring Boot API for browsing and managing Hadith content, authentication, user p
 
 ## Environment Variables
 
-Use `.env.example` as the local template:
+Use `.env.example` as the local template. Copy it to `.env` beside `pom.xml`, then replace every placeholder:
 
-```env
-DB_URL=jdbc:postgresql://localhost:5432/ahadith
-DB_USERNAME=postgres
-DB_PASSWORD=postgres
-SPRING_PROFILES_ACTIVE=prod
-PORT=8080
-JWT_SECRET=change-this-secret-to-at-least-64-characters-long-for-hs256-security
-JWT_EXPIRATION=3600
-JWT_REFRESH_EXPIRATION=604800
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
-SPRING_MAIL_HOST=smtp.gmail.com
-SPRING_MAIL_PORT=587
-SPRING_MAIL_USERNAME=your-gmail-address@gmail.com
-SPRING_MAIL_PASSWORD=your-google-app-password
-APP_MAIL_FROM=your-gmail-address@gmail.com
-APP_MAIL_FRONTEND_BASE_URL=https://app.example.com
+```bash
+cp .env.example .env
 ```
 
-Do not commit a real `.env` file or production secrets. Spring Boot does not read `.env` automatically; Docker Compose, your shell, IntelliJ run configuration, or the deployment platform must load those variables into the process environment.
+Required variables:
+
+```text
+SPRING_PROFILES_ACTIVE
+SPRING_DATASOURCE_URL
+SPRING_DATASOURCE_USERNAME
+SPRING_DATASOURCE_PASSWORD
+PORT
+JWT_SECRET
+JWT_ACCESS_EXPIRATION
+JWT_REFRESH_EXPIRATION
+APP_MAIL_ENABLED
+CLOUDINARY_CLOUD_NAME
+CLOUDINARY_API_KEY
+CLOUDINARY_API_SECRET
+SPRING_MAIL_HOST
+SPRING_MAIL_PORT
+SPRING_MAIL_USERNAME
+SPRING_MAIL_PASSWORD
+APP_MAIL_FROM
+APP_MAIL_FRONTEND_BASE_URL
+```
+
+Generate a strong local JWT secret with at least 64 random characters:
+
+```bash
+openssl rand -base64 64
+```
+
+Do not commit a real `.env` file or production secrets. Values should not be wrapped in quotes unless the value itself intentionally contains quote characters.
+
+Docker Compose reads `.env` by itself. Direct IntelliJ and Maven execution load the same root `.env` through `spring.config.import=optional:file:./.env[.properties]` in `application.yml`. In IntelliJ, set the run configuration working directory to `$ProjectFileDir$` so `./.env` resolves beside `pom.xml`.
 
 ## Run Locally
 
-Start PostgreSQL locally, create an `ahadith` database, then run:
+Start PostgreSQL locally, create an `ahadith` database, put the required values in `.env`, then run:
 
 ```bash
 ./mvnw spring-boot:run
@@ -62,6 +77,8 @@ On Windows PowerShell:
 
 ## Run Tests
 
+Fast unit and slice tests run without Docker:
+
 ```bash
 ./mvnw test
 ```
@@ -72,6 +89,20 @@ On Windows PowerShell:
 .\mvnw.cmd test
 ```
 
+The full suite runs unit tests plus PostgreSQL 16 integration tests through Testcontainers:
+
+```bash
+./mvnw verify
+```
+
+On Windows PowerShell:
+
+```powershell
+.\mvnw.cmd verify
+```
+
+H2 is used only for lightweight tests that do not depend on production PostgreSQL behavior. Tests named `*IT.java` run in Maven Failsafe during `verify`, start a PostgreSQL 16 container, apply the real Flyway migrations, and exercise PostgreSQL-specific search SQL, functions, triggers, and indexes. Docker must be running for `./mvnw verify`; if Docker is unavailable, the integration tests fail instead of being skipped.
+
 ## Build
 
 ```bash
@@ -80,22 +111,40 @@ On Windows PowerShell:
 
 The application jar is generated under `target/`.
 
+## CI
+
+GitHub Actions runs `./mvnw --batch-mode verify` first, including PostgreSQL Testcontainers integration tests. The Docker image is built only after Maven verification succeeds, and the image is not pushed to a registry.
+
 ## Docker Compose
 
-Build and run the application with PostgreSQL:
+Build and run the application with PostgreSQL after creating `.env`:
 
 ```bash
 docker compose up --build
 ```
 
-Docker Compose reads `.env` automatically when present. The app container uses `DB_URL=jdbc:postgresql://postgres:5432/ahadith` by default so PostgreSQL is reached through the Compose service name.
+Docker Compose reads `.env` automatically when present. The app service sets `SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/ahadith` inside the container so PostgreSQL is reached through the Compose service name, while local Maven/IntelliJ runs can use `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/ahadith`.
 
 Services:
 
 - App: `http://localhost:8080`
-- PostgreSQL: `localhost:5432`
+- PostgreSQL: `127.0.0.1:5432` for local development only
 - Database: `ahadith`
-- Username/password: `postgres` / `postgres`
+- Username/password: from your untracked `.env`
+
+Useful operations:
+
+```bash
+./mvnw verify
+docker compose config
+docker compose build
+docker compose up -d
+docker compose ps
+docker compose logs
+docker compose down
+```
+
+The PostgreSQL container uses `pg_isready`, and the app container checks `/actuator/health/readiness`. Only health endpoints are exposed through Actuator.
 
 Stop services:
 
@@ -246,14 +295,14 @@ Catalog lists are ordered in the database by name ascending and then `id` ascend
 
 ## Production Configuration
 
-Production must run with `SPRING_PROFILES_ACTIVE=prod`. `application-prod.yml` uses the environment variable names listed above; Flyway and JPA share `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`. Sensitive production values have no safe fallback and startup fails when required JWT, mail, or Cloudinary settings are missing.
+Production must run with `SPRING_PROFILES_ACTIVE=prod`. `application-prod.yml` uses the environment variable names listed above; Flyway and JPA share `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD`. Sensitive production values have no safe fallback and startup fails when required JWT, mail, or Cloudinary settings are missing.
 
-JWT lifetimes are numeric seconds to match the Render variables:
+JWT lifetimes use Spring duration syntax:
 
-- `JWT_EXPIRATION=3600`
-- `JWT_REFRESH_EXPIRATION=604800`
+- `JWT_ACCESS_EXPIRATION=1h`
+- `JWT_REFRESH_EXPIRATION=7d`
 
-The owner may keep direct local development values in an untracked `src/main/resources/application-dev.yml`. Do not commit real `.env` files or secrets.
+Keep direct local development values in the untracked root `.env` file. Do not commit real `.env` files or secrets.
 
 ## Email Configuration
 
@@ -321,4 +370,10 @@ Filtering, sorting, and pagination run in PostgreSQL for the modern search endpo
 
 ## Migrations
 
-`V6__security_sessions_upgrade_review.sql` adds refresh-token sessions, email verification tokens, password-reset tokens, login-attempt tracking, upgrade review fields, notification recipients, and indexes used by ownership and admin pagination queries. Apply it with normal Flyway deployment; existing V1-V5 migrations are unchanged.
+Flyway migrations are consolidated into a fresh-database baseline:
+
+- `V1__Create_Tables.sql`: final table structure, data types, constraints, relationships, account/security tables, review fields, notification recipients, and avatar metadata.
+- `V2__indexes_triggers_functions.sql`: PostgreSQL extensions, Arabic normalization/search functions, triggers, full-text/trigram indexes, functional indexes, session/security indexes, and pagination indexes.
+- `V3__seed_core_hadith_data.sql`: seed/reference data only.
+
+Databases previously initialized with the old V1-V7 history must be recreated before using this consolidated baseline. Do not run `flyway repair`, add placeholder migrations, or configure Flyway to ignore missing migrations for this change.

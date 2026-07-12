@@ -1,6 +1,3 @@
-create extension if not exists pg_trgm;
-create extension if not exists pgcrypto;
-
 create type public.gender as enum ('male', 'female');
 create type public.user_type as enum ('admin', 'member', 'scholar');
 create type public.hadith_type as enum ('marfu', 'mawquf', 'qudsi', 'atharSahaba');
@@ -29,12 +26,75 @@ create table if not exists public.users (
   email text not null unique,
   password text not null,
   avatar_url text,
+  avatar_public_id text,
   status public.user_status not null default 'pending_confirmation',
   gender public.gender,
   type public.user_type not null default 'member',
   birth_date date,
   created_at timestamptz not null default current_timestamp,
   updated_at timestamptz not null default current_timestamp
+);
+
+create table if not exists public.refresh_token_sessions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  token_hash text not null unique,
+  token_id text not null unique,
+  family_id uuid not null,
+  issued_at timestamptz not null,
+  expires_at timestamptz not null,
+  revoked_at timestamptz,
+  replaced_by_token_id text,
+  user_agent text,
+  ip_address text,
+  created_at timestamptz not null default current_timestamp,
+
+  constraint fk_refresh_token_sessions_user
+    foreign key (user_id)
+    references public.users(id)
+    on delete cascade
+);
+
+create table if not exists public.email_verification_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  token_hash text not null unique,
+  expires_at timestamptz not null,
+  consumed_at timestamptz,
+  last_sent_at timestamptz not null,
+  created_at timestamptz not null default current_timestamp,
+
+  constraint fk_email_verification_tokens_user
+    foreign key (user_id)
+    references public.users(id)
+    on delete cascade
+);
+
+create table if not exists public.password_reset_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  token_hash text not null unique,
+  expires_at timestamptz not null,
+  consumed_at timestamptz,
+  created_at timestamptz not null default current_timestamp,
+
+  constraint fk_password_reset_tokens_user
+    foreign key (user_id)
+    references public.users(id)
+    on delete cascade
+);
+
+create table if not exists public.login_attempts (
+  id uuid primary key default gen_random_uuid(),
+  email_key text not null,
+  ip_address text,
+  failed_count integer not null default 0,
+  locked_until timestamptz,
+  last_failed_at timestamptz,
+  created_at timestamptz not null default current_timestamp,
+  updated_at timestamptz not null default current_timestamp,
+
+  constraint uq_login_attempts_email_ip unique (email_key, ip_address)
 );
 
 create table if not exists public.ruling (
@@ -457,6 +517,9 @@ create table if not exists public.upgrade_requests (
   file_path text null,
   reviewed_by uuid null,
   notes text null,
+  review_notes text null,
+  rejection_reason text null,
+  reviewed_at timestamptz null,
   created_at timestamptz not null default current_timestamp,
   updated_at timestamptz not null default current_timestamp,
 
@@ -520,6 +583,7 @@ create table if not exists public.notifications (
   type notification_type not null,
   hadith_id uuid null,
   fake_hadith_id uuid null,
+  user_id uuid null,
   created_by uuid null,
   created_at timestamptz not null default current_timestamp,
   updated_at timestamptz not null default current_timestamp,
@@ -535,6 +599,11 @@ create table if not exists public.notifications (
     references public.fake_ahadith(id)
     on delete set null
     on update cascade,
+
+  constraint fk_notifications_user
+    foreign key (user_id)
+    references public.users(id)
+    on delete cascade,
 
   constraint fk_notifications_created_by
     foreign key (created_by)

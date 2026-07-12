@@ -13,36 +13,6 @@
 
 BEGIN;
 
-CREATE OR REPLACE FUNCTION public.arab_norm(p_text text)
-RETURNS text
-LANGUAGE plpgsql
-IMMUTABLE
-AS $$
-DECLARE
-  v_text text;
-BEGIN
-  IF p_text IS NULL THEN
-    RETURN NULL;
-  END IF;
-
-  v_text := p_text;
-
-  v_text := replace(v_text, 'أ', 'ا');
-  v_text := replace(v_text, 'إ', 'ا');
-  v_text := replace(v_text, 'آ', 'ا');
-  v_text := replace(v_text, 'ٱ', 'ا');
-  v_text := replace(v_text, 'ى', 'ي');
-  v_text := replace(v_text, 'ة', 'ه');
-  v_text := replace(v_text, 'ؤ', 'و');
-  v_text := replace(v_text, 'ئ', 'ي');
-
-  v_text := regexp_replace(v_text, $re$[ًٌٍَُِّْٰـۖۗۘۙۚۛۜ۝۞ۣ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬ۮۯ]$re$, '', 'g');
-  v_text := regexp_replace(v_text, $re$[^[:alnum:]ء-ي ]$re$, ' ', 'g');
-  v_text := regexp_replace(v_text, $re$[[:space:]]+$re$, ' ', 'g');
-
-  RETURN btrim(v_text);
-END;
-$$;
 
 -- =========================
 -- RULINGS

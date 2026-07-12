@@ -1,27 +1,31 @@
+FROM eclipse-temurin:21-jdk-alpine AS builder
 
-FROM eclipse-temurin:21-jdk AS builder
-
-WORKDIR /app
+WORKDIR /workspace
 
 COPY .mvn .mvn
-COPY mvnw .
-COPY pom.xml .
+COPY mvnw pom.xml ./
 
 RUN chmod +x mvnw
-RUN ./mvnw dependency:go-offline
-
+RUN ./mvnw --batch-mode dependency:go-offline
 
 COPY src src
 
-RUN ./mvnw clean package -DskipTests
+# CI runs ./mvnw --batch-mode verify before the Docker build job; this stage only packages the verified source.
+RUN ./mvnw --batch-mode clean package -DskipTests
 
+FROM eclipse-temurin:21-jre-alpine
 
-FROM eclipse-temurin:21-jre
+RUN addgroup -S app && adduser -S app -G app
 
 WORKDIR /app
 
-COPY --from=builder /app/target/*.jar app.jar
+COPY --from=builder --chown=app:app /workspace/target/ahadith-*.jar /app/app.jar
+
+USER app
 
 EXPOSE 8080
 
-ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar app.jar"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD wget -qO- "http://127.0.0.1:${PORT:-8080}/actuator/health/readiness" >/dev/null || exit 1
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

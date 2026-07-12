@@ -1,18 +1,16 @@
 create extension if not exists pgcrypto;
+create extension if not exists pg_trgm;
 -- =========================
 -- CORE FK / RELATION INDEXES
 -- =========================
 create index on public.ahadith(book, rawi);
 create index on public.ahadith(book, ruling);
-create index on public.comments(user_id, created_at desc);
 
 create index if not exists idx_books_muhaddith
 on public.books(muhaddith);
 
 create index if not exists idx_ahadith_sub_valid
 on public.ahadith(sub_valid);
-create index on public.activity_log(created_at desc);
-create index on public.activity_log(actor_user_id, created_at desc);
 create index if not exists idx_ahadith_explaining
 on public.ahadith(explaining);
 
@@ -37,6 +35,9 @@ on public.ahadith using gin(search_vector);
 
 create index if not exists idx_ahadith_search_text_trgm
 on public.ahadith using gin(search_text gin_trgm_ops);
+
+create index if not exists idx_explaining_search_text_trgm
+on public.explaining using gin(search_text gin_trgm_ops);
 
 
 -- =========================
@@ -66,6 +67,9 @@ on public.comments(user_id);
 create index if not exists idx_comments_hadith_created_at
 on public.comments(hadith, created_at desc);
 
+create index if not exists idx_comments_user_created_at
+on public.comments(user_id, created_at desc);
+
 -- =========================
 -- FAVORITES
 -- =========================
@@ -89,6 +93,9 @@ on public.questions(hadith_id);
 create index if not exists idx_questions_hadith_created_at
 on public.questions(hadith_id, created_at desc);
 
+create index if not exists idx_questions_asker_created_at
+on public.questions(asker, created_at desc);
+
 -- =========================
 -- SEARCH HISTORY
 -- =========================
@@ -98,6 +105,9 @@ on public.search_history(user_id);
 
 create index if not exists idx_search_history_created_at
 on public.search_history(created_at);
+
+create index if not exists idx_search_history_user_created_at
+on public.search_history(user_id, created_at desc);
 
 -- =========================
 -- SIMILAR / TOPICS
@@ -175,12 +185,41 @@ on public.notifications(hadith_id);
 create index if not exists idx_notifications_fake_hadith_id
 on public.notifications(fake_hadith_id);
 
+create index if not exists idx_notifications_user_created_at
+on public.notifications(user_id, created_at desc);
+
 -- =========================
 -- FCM TOKENS
 -- =========================
 
 create index if not exists idx_user_fcm_tokens_last_seen
 on public.user_fcm_tokens(last_seen);
+
+-- =========================
+-- SECURITY / ACCOUNT TOKENS
+-- =========================
+
+create unique index if not exists uq_users_email_lower
+on public.users (lower(trim(email)))
+where email is not null;
+
+create index if not exists idx_refresh_token_sessions_user_id
+on public.refresh_token_sessions(user_id);
+
+create index if not exists idx_refresh_token_sessions_family_id
+on public.refresh_token_sessions(family_id);
+
+create index if not exists idx_refresh_token_sessions_expires_at
+on public.refresh_token_sessions(expires_at);
+
+create index if not exists idx_email_verification_tokens_user_id
+on public.email_verification_tokens(user_id);
+
+create index if not exists idx_email_verification_tokens_expires_at
+on public.email_verification_tokens(expires_at);
+
+create index if not exists idx_password_reset_tokens_expires_at
+on public.password_reset_tokens(expires_at);
 
 -- =========================
 -- FUNCTIONS
