@@ -200,6 +200,9 @@
                         <excludedEnvironmentVariable>JWT_ACCESS_EXPIRATION</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JWT_REFRESH_EXPIRATION</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>SPRING_PROFILES_ACTIVE</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>SPRING_DATASOURCE_URL</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>SPRING_DATASOURCE_USERNAME</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>SPRING_DATASOURCE_PASSWORD</excludedEnvironmentVariable>
                     </excludedEnvironmentVariables>
                 </configuration>
             </plugin>
@@ -222,6 +225,9 @@
                         <excludedEnvironmentVariable>JWT_ACCESS_EXPIRATION</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>JWT_REFRESH_EXPIRATION</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>SPRING_PROFILES_ACTIVE</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>SPRING_DATASOURCE_URL</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>SPRING_DATASOURCE_USERNAME</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>SPRING_DATASOURCE_PASSWORD</excludedEnvironmentVariable>
                     </excludedEnvironmentVariables>
                 </configuration>
                 <executions>

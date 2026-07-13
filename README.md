@@ -36,6 +36,9 @@ SPRING_DATASOURCE_URL
 SPRING_DATASOURCE_USERNAME
 SPRING_DATASOURCE_PASSWORD
 PORT
+LOCAL_POSTGRES_DB
+LOCAL_POSTGRES_USERNAME
+LOCAL_POSTGRES_PASSWORD
 JWT_SECRET
 JWT_ACCESS_EXPIRATION
 JWT_REFRESH_EXPIRATION
@@ -123,7 +126,7 @@ Build and run the application with PostgreSQL after creating `.env`:
 docker compose up --build
 ```
 
-Docker Compose reads `.env` automatically when present. The app service sets `SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/ahadith` inside the container so PostgreSQL is reached through the Compose service name, while local Maven/IntelliJ runs can use `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/ahadith`.
+Docker Compose reads `.env` automatically when present. The Compose PostgreSQL service uses `LOCAL_POSTGRES_DB`, `LOCAL_POSTGRES_USERNAME`, and `LOCAL_POSTGRES_PASSWORD`, so local containers do not depend on the real `SPRING_DATASOURCE_*` values. The app service sets `SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${LOCAL_POSTGRES_DB:-ahadith}` inside the container so PostgreSQL is reached through the Compose service name.
 
 Services:
 
