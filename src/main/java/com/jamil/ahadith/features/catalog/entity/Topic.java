@@ -1,0 +1,51 @@
+package com.jamil.ahadith.features.catalog.entity;
+
+import com.jamil.ahadith.features.user.entity.User;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
+import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.UUID;
+
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
+@Entity
+@Table(name = "topics")
+public class Topic {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id")
+    private UUID id;
+
+    @Column(name = "name")
+    private String name;
+
+    @ManyToOne
+    @JoinColumn(name = "created_by")
+    private User createdBy;
+
+    @ManyToOne
+    @JoinColumn(name = "updated_by")
+    private User updatedBy;
+
+    @Column(name = "created_at", insertable = false,updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", insertable = false,updatable = false)
+    private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "topic")
+    private Set<TopicClass> topicClasses = new LinkedHashSet<>();
+}

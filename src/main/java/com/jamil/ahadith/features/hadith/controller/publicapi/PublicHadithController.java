@@ -1,0 +1,41 @@
+package com.jamil.ahadith.features.hadith.controller.publicapi;
+
+import com.jamil.ahadith.features.hadith.entity.Hadith;
+
+import com.jamil.ahadith.features.search.dto.request.HadithSearchRequest;
+import com.jamil.ahadith.features.search.dto.response.HadithDetailsDto;
+import com.jamil.ahadith.features.search.dto.response.HadithFiltersDto;
+import com.jamil.ahadith.features.search.dto.response.HadithSearchItemDto;
+import com.jamil.ahadith.core.web.dto.SearchResponse;
+import com.jamil.ahadith.features.search.service.HadithSearchService;
+import lombok.AllArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
+
+@RestController
+@AllArgsConstructor
+@RequestMapping("/ahadith")
+public class PublicHadithController {
+    private final HadithSearchService hadithSearchService;
+
+    @PostMapping("/search")
+    public SearchResponse<HadithSearchItemDto> search(@RequestBody(required = false) HadithSearchRequest request) {
+        return hadithSearchService.publicSearch(request);
+    }
+
+    @GetMapping("/search/filters")
+    public HadithFiltersDto filters() {
+        return hadithSearchService.getFilters();
+    }
+
+    @GetMapping("/{id}")
+    public HadithDetailsDto details(@PathVariable UUID id) {
+        return hadithSearchService.getDetails(id);
+    }
+}
