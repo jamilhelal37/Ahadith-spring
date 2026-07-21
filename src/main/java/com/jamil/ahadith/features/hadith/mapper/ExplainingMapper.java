@@ -1,7 +1,6 @@
 package com.jamil.ahadith.features.hadith.mapper;
 
-import com.jamil.ahadith.features.hadith.entity.Hadith;
-
+import com.jamil.ahadith.core.web.mapper.AuditMapping;
 import com.jamil.ahadith.features.hadith.dto.request.ExplainingRequestDto;
 import com.jamil.ahadith.features.hadith.dto.response.ExplainingResponseDto;
 import com.jamil.ahadith.features.hadith.dto.update.ExplainingUpdateDto;
@@ -9,7 +8,7 @@ import com.jamil.ahadith.features.hadith.entity.Explaining;
 import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
-public interface ExplainingMapper {
+public interface ExplainingMapper extends AuditMapping {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)

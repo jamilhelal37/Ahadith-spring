@@ -27,7 +27,7 @@ import java.util.Set;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/admin/rulings")
+@RequestMapping({"/admin/rulings", "/api/v1/admin/rulings"})
 class RulingController {
         private final RulingService rulingService;
         private final AdminPageService adminPageService;

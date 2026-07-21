@@ -27,7 +27,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/admin/ahadith")
+@RequestMapping({"/admin/ahadith", "/api/v1/admin/ahadith"})
 public class AdminHadithController {
     private final HadithSearchService hadithSearchService;
     private final HadithService hadithService;

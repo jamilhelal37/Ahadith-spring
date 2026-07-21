@@ -2,7 +2,7 @@ package com.jamil.ahadith.features.account;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -73,7 +73,7 @@ class VerifyEmailPageTest {
         assertThat(js)
                 .contains("new URLSearchParams(window.location.search)")
                 .contains("window.history.replaceState({}, document.title, window.location.pathname)")
-                .contains("fetch(\"/auth/verify-email\"")
+                .contains("fetch(\"/api/v1/auth/verify-email\"")
                 .contains("method: \"POST\"")
                 .contains("\"Content-Type\": \"application/json\"")
                 .contains("JSON.stringify({ token: rawToken })")

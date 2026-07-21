@@ -1,6 +1,5 @@
 package com.jamil.ahadith.features.upgrade.dto.response;
 
-import com.jamil.ahadith.features.user.entity.User;
 
 import com.jamil.ahadith.core.web.dto.AdminUserReferenceDto;
 

@@ -1,10 +1,12 @@
 package com.jamil.ahadith.features.catalog.dto.update;
 
-import com.jamil.ahadith.features.catalog.entity.Muhaddith;
+import com.jamil.ahadith.features.catalog.dto.request.reference.MuhaddithReferenceRequestDto;
+import jakarta.validation.Valid;
 import lombok.Data;
 
 @Data
 public class BookUpdateDto {
     private String name;
-    private Muhaddith muhaddith;
+    @Valid
+    private MuhaddithReferenceRequestDto muhaddith;
 }

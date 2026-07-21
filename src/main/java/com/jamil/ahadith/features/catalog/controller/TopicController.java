@@ -20,7 +20,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/admin/topics")
+@RequestMapping({"/admin/topics", "/api/v1/admin/topics"})
 public class TopicController {
     private final TopicService topicService;
     private final AdminPageService adminPageService;

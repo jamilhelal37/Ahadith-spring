@@ -13,13 +13,13 @@ import com.jamil.ahadith.features.catalog.dto.update.TopicUpdateDto;
 import com.jamil.ahadith.features.catalog.exception.TopicNotFoundException;
 import com.jamil.ahadith.features.catalog.mapper.TopicMapper;
 import com.jamil.ahadith.features.catalog.repository.TopicRepository;
+import com.jamil.ahadith.features.search.service.SearchFiltersService;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.UUID;
 
 @Transactional
@@ -31,6 +31,7 @@ public class TopicService {
     private final EntityManager entityManager;
     private final CurrentUserService currentUserService;
     private final AdminPageService adminPageService;
+    private final SearchFiltersService searchFiltersService;
 
     public SearchResponse<TopicResponseDto> getTopics(Pageable pageable) {
         return adminPageService.response(topicRepository.findAll(pageable).map(topicMapper::toResponseDto));
@@ -47,6 +48,7 @@ public class TopicService {
         currentUserService.getCurrentUser().ifPresent(topic::setCreatedBy);
         topic = topicRepository.saveAndFlush(topic);
         entityManager.refresh(topic);
+        searchFiltersService.evictReferenceCaches();
         return topicMapper.toResponseDto(topic);
     }
 
@@ -56,6 +58,7 @@ public class TopicService {
         currentUserService.getCurrentUser().ifPresent(topic::setUpdatedBy);
         var savedTopic = topicRepository.saveAndFlush(topic);
         entityManager.refresh(savedTopic);
+        searchFiltersService.evictReferenceCaches();
         return topicMapper.toResponseDto(savedTopic);
     }
 
@@ -64,5 +67,6 @@ public class TopicService {
             throw new TopicNotFoundException();
         }
         topicRepository.deleteById(id);
+        searchFiltersService.evictReferenceCaches();
     }
 }

@@ -1,5 +1,6 @@
 package com.jamil.ahadith.features.user.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import jakarta.persistence.*;
@@ -31,12 +32,14 @@ public class User {
     private String email;
 
     @Column(name = "password")
+    @JsonIgnore
     private String password;
 
     @Column(name = "avatar_url")
     private String avatarUrl;
 
     @Column(name = "avatar_public_id")
+    @JsonIgnore
     private String avatarPublicId;
 
     @Enumerated(EnumType.STRING)

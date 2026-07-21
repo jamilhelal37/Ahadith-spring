@@ -3,7 +3,6 @@ package com.jamil.ahadith.features.hadith.controller.publicapi;
 import com.jamil.ahadith.features.hadith.dto.response.publicapi.PublicHadithDetailsDto;
 import com.jamil.ahadith.features.hadith.service.PublicHadithDetailsService;
 import com.jamil.ahadith.features.search.dto.request.HadithSearchRequest;
-import com.jamil.ahadith.features.search.dto.response.HadithFiltersDto;
 import com.jamil.ahadith.features.search.dto.response.HadithSearchItemDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
 import com.jamil.ahadith.features.search.service.HadithSearchService;
@@ -22,7 +21,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/ahadith")
+@RequestMapping({"/ahadith", "/api/v1/ahadith"})
 public class PublicHadithController {
     private final HadithSearchService hadithSearchService;
     private final PublicHadithDetailsService publicHadithDetailsService;
@@ -30,11 +29,6 @@ public class PublicHadithController {
     @PostMapping("/search")
     public SearchResponse<HadithSearchItemDto> search(@RequestBody(required = false) HadithSearchRequest request) {
         return hadithSearchService.publicSearch(request);
-    }
-
-    @GetMapping("/search/filters")
-    public HadithFiltersDto filters() {
-        return hadithSearchService.getFilters();
     }
 
     @GetMapping("/{id}")

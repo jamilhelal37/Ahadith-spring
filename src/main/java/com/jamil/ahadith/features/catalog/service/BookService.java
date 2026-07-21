@@ -11,15 +11,17 @@ import com.jamil.ahadith.features.catalog.dto.response.BookResponseDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
 import com.jamil.ahadith.features.catalog.dto.update.BookUpdateDto;
 import com.jamil.ahadith.features.catalog.exception.BookNotFoundException;
+import com.jamil.ahadith.features.catalog.exception.MuhaddithNotFoundException;
 import com.jamil.ahadith.features.catalog.mapper.BookMapper;
 import com.jamil.ahadith.features.catalog.repository.BookRepository;
+import com.jamil.ahadith.features.catalog.repository.MuhaddithRepository;
+import com.jamil.ahadith.features.search.service.SearchFiltersService;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.UUID;
 
 @Transactional
@@ -31,6 +33,8 @@ public class BookService {
     private final EntityManager entityManager;
     private final CurrentUserService currentUserService;
     private final AdminPageService adminPageService;
+    private final MuhaddithRepository muhaddithRepository;
+    private final SearchFiltersService searchFiltersService;
 
     public SearchResponse<BookResponseDto> getBooks(Pageable pageable) {
         return adminPageService.response(bookRepository.findAll(pageable).map(bookMapper::toResponseDto));
@@ -44,18 +48,26 @@ public class BookService {
 
     public BookResponseDto createBook(BookRequestDto request) {
         var book = bookMapper.toEntity(request);
+        book.setMuhaddith(muhaddithRepository.findById(request.getMuhaddith().getId())
+                .orElseThrow(MuhaddithNotFoundException::new));
         currentUserService.getCurrentUser().ifPresent(book::setCreatedBy);
         book = bookRepository.saveAndFlush(book);
         entityManager.refresh(book);
+        searchFiltersService.evictReferenceCaches();
         return bookMapper.toResponseDto(book);
     }
 
     public BookResponseDto updateBook(UUID id, BookUpdateDto request) {
         var book = bookRepository.findById(id).orElseThrow(BookNotFoundException::new);
         bookMapper.updateEntity(request, book);
+        if (request.getMuhaddith() != null) {
+            book.setMuhaddith(muhaddithRepository.findById(request.getMuhaddith().getId())
+                    .orElseThrow(MuhaddithNotFoundException::new));
+        }
         currentUserService.getCurrentUser().ifPresent(book::setUpdatedBy);
         var savedBook = bookRepository.saveAndFlush(book);
         entityManager.refresh(savedBook);
+        searchFiltersService.evictReferenceCaches();
         return bookMapper.toResponseDto(savedBook);
     }
 
@@ -64,5 +76,6 @@ public class BookService {
             throw new BookNotFoundException();
         }
         bookRepository.deleteById(id);
+        searchFiltersService.evictReferenceCaches();
     }
 }

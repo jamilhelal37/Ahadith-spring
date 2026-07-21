@@ -9,23 +9,49 @@ spring:
     multipart:
       max-file-size: 2MB
       max-request-size: 2MB
+  jpa:
+    open-in-view: false
 
 server:
   port: ${PORT:8080}
   address: 0.0.0.0
 
 management:
+  info:
+    env:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       probes:
         enabled: true
       show-details: never
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    version: ${APP_VERSION:0.0.1-SNAPSHOT}
+    build-time: ${APP_BUILD_TIME:unknown}
+    git-commit: ${APP_GIT_COMMIT:unknown}
+
+springdoc:
+  paths-to-match: /api/v1/**
 
 app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:4200}
+    allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+    allowed-headers: Authorization,Content-Type,Accept,X-Request-Id
+    exposed-headers: X-Request-Id
+    allow-credentials: ${APP_CORS_ALLOW_CREDENTIALS:false}
+    max-age: ${APP_CORS_MAX_AGE:1h}
   cloudinary:
     cloud-name: ${CLOUDINARY_CLOUD_NAME:}
     api-key: ${CLOUDINARY_API_KEY:}
@@ -46,3 +72,39 @@ app:
     login-max-failures: 5
     login-lock-duration: 15m
     trusted-proxy-headers: false
+  rate-limit:
+    # In-memory limits are scoped to one running instance. Use a shared Redis-backed implementation when scaling out.
+    enabled: ${APP_RATE_LIMIT_ENABLED:true}
+    cache-max-size: ${APP_RATE_LIMIT_CACHE_MAX_SIZE:10000}
+    cache-expire-after-access: ${APP_RATE_LIMIT_CACHE_EXPIRE_AFTER_ACCESS:2h}
+    policies:
+      register:
+        capacity: ${APP_RATE_LIMIT_REGISTER_CAPACITY:5}
+        window: ${APP_RATE_LIMIT_REGISTER_WINDOW:15m}
+      login:
+        capacity: ${APP_RATE_LIMIT_LOGIN_CAPACITY:20}
+        window: ${APP_RATE_LIMIT_LOGIN_WINDOW:1m}
+      forgot-password-ip:
+        capacity: ${APP_RATE_LIMIT_FORGOT_PASSWORD_IP_CAPACITY:3}
+        window: ${APP_RATE_LIMIT_FORGOT_PASSWORD_IP_WINDOW:15m}
+      forgot-password-email:
+        capacity: ${APP_RATE_LIMIT_FORGOT_PASSWORD_EMAIL_CAPACITY:3}
+        window: ${APP_RATE_LIMIT_FORGOT_PASSWORD_EMAIL_WINDOW:1h}
+      resend-verification:
+        capacity: ${APP_RATE_LIMIT_RESEND_VERIFICATION_CAPACITY:3}
+        window: ${APP_RATE_LIMIT_RESEND_VERIFICATION_WINDOW:15m}
+      verify-email:
+        capacity: ${APP_RATE_LIMIT_VERIFY_EMAIL_CAPACITY:10}
+        window: ${APP_RATE_LIMIT_VERIFY_EMAIL_WINDOW:15m}
+      reset-password:
+        capacity: ${APP_RATE_LIMIT_RESET_PASSWORD_CAPACITY:10}
+        window: ${APP_RATE_LIMIT_RESET_PASSWORD_WINDOW:15m}
+      refresh:
+        capacity: ${APP_RATE_LIMIT_REFRESH_CAPACITY:30}
+        window: ${APP_RATE_LIMIT_REFRESH_WINDOW:1m}
+      public-hadith-search:
+        capacity: ${APP_RATE_LIMIT_PUBLIC_HADITH_SEARCH_CAPACITY:60}
+        window: ${APP_RATE_LIMIT_PUBLIC_HADITH_SEARCH_WINDOW:1m}
+  public-cache:
+    reference-max-size: ${APP_PUBLIC_CACHE_REFERENCE_MAX_SIZE:128}
+    reference-expire-after-write: ${APP_PUBLIC_CACHE_REFERENCE_EXPIRE_AFTER_WRITE:30m}

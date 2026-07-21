@@ -10,8 +10,8 @@ RUN ./mvnw --batch-mode dependency:go-offline
 
 COPY src src
 
-# CI runs ./mvnw --batch-mode verify before the Docker build job; this stage only packages the verified source.
-RUN ./mvnw --batch-mode clean package -DskipTests
+# CI should run ./mvnw --batch-mode verify before the Docker build job; this stage still runs package tests.
+RUN ./mvnw --batch-mode clean package
 
 FROM eclipse-temurin:21-jre-alpine
 

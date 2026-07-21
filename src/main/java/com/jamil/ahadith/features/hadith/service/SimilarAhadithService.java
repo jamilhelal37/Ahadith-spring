@@ -2,14 +2,16 @@ package com.jamil.ahadith.features.hadith.service;
 
 import com.jamil.ahadith.core.web.AdminPageService;
 
-import com.jamil.ahadith.features.hadith.entity.Hadith;
-
 import com.jamil.ahadith.features.hadith.dto.request.SimilarAhadithRequestDto;
+import com.jamil.ahadith.features.hadith.dto.request.reference.HadithReferenceRequestDto;
 import com.jamil.ahadith.features.hadith.dto.response.SimilarAhadithResponseDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
 import com.jamil.ahadith.features.hadith.dto.update.SimilarAhadithUpdateDto;
+import com.jamil.ahadith.features.hadith.entity.Hadith;
+import com.jamil.ahadith.features.hadith.exception.HadithNotFoundException;
 import com.jamil.ahadith.features.hadith.exception.SimilarAhadithNotFoundException;
 import com.jamil.ahadith.features.hadith.mapper.SimilarAhadithMapper;
+import com.jamil.ahadith.features.hadith.repository.HadithRepository;
 import com.jamil.ahadith.features.hadith.repository.SimilarAhadithRepository;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
@@ -28,6 +30,7 @@ public class SimilarAhadithService {
     private final SimilarAhadithMapper similarAhadithMapper;
     private final EntityManager entityManager;
     private final AdminPageService adminPageService;
+    private final HadithRepository hadithRepository;
 
     public SearchResponse<SimilarAhadithResponseDto> getSimilarAhadiths(Pageable pageable) {
         return adminPageService.response(similarAhadithRepository.findAll(pageable).map(similarAhadithMapper::toResponseDto));
@@ -40,7 +43,10 @@ public class SimilarAhadithService {
     }
 
     public SimilarAhadithResponseDto createSimilarAhadith(SimilarAhadithRequestDto request) {
-        var entity = similarAhadithRepository.saveAndFlush(similarAhadithMapper.toEntity(request));
+        var similarAhadith = similarAhadithMapper.toEntity(request);
+        similarAhadith.setMainHadith(resolveHadith(request.getMainHadith()));
+        similarAhadith.setSimHadith(resolveHadith(request.getSimHadith()));
+        var entity = similarAhadithRepository.saveAndFlush(similarAhadith);
         entityManager.refresh(entity);
         return similarAhadithMapper.toResponseDto(entity);
     }
@@ -48,6 +54,12 @@ public class SimilarAhadithService {
     public SimilarAhadithResponseDto updateSimilarAhadith(UUID id, SimilarAhadithUpdateDto request) {
         var entity = similarAhadithRepository.findById(id).orElseThrow(SimilarAhadithNotFoundException::new);
         similarAhadithMapper.updateEntity(request, entity);
+        if (request.getMainHadith() != null) {
+            entity.setMainHadith(resolveHadith(request.getMainHadith()));
+        }
+        if (request.getSimHadith() != null) {
+            entity.setSimHadith(resolveHadith(request.getSimHadith()));
+        }
         var saved = similarAhadithRepository.saveAndFlush(entity);
         entityManager.refresh(saved);
         return similarAhadithMapper.toResponseDto(saved);
@@ -58,5 +70,10 @@ public class SimilarAhadithService {
             throw new SimilarAhadithNotFoundException();
         }
         similarAhadithRepository.deleteById(id);
+    }
+
+    private Hadith resolveHadith(HadithReferenceRequestDto reference) {
+        return hadithRepository.findById(reference.getId())
+                .orElseThrow(HadithNotFoundException::new);
     }
 }

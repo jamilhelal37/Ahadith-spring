@@ -51,7 +51,6 @@ class SearchHistoryTest {
     @Test
     void searchShouldPersistHistoryForAuthenticatedUser() {
         var user = new com.jamil.ahadith.features.user.entity.User();
-        user.setId(UUID.randomUUID());
         user.setName("Admin User");
         user.setEmail("admin@example.com");
         user.setPassword("encoded-password");

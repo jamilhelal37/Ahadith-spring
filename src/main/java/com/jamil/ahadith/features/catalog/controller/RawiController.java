@@ -20,7 +20,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/admin/rawis")
+@RequestMapping({"/admin/rawis", "/api/v1/admin/rawis"})
 class RawiController {
         private final RawiService rawiService;
         private final AdminPageService adminPageService;

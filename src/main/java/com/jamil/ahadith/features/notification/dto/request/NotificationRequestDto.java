@@ -1,13 +1,10 @@
 package com.jamil.ahadith.features.notification.dto.request;
 
-import com.jamil.ahadith.features.notification.entity.Notification;
-
-import com.jamil.ahadith.features.hadith.entity.FakeHadith;
-import com.jamil.ahadith.features.hadith.entity.Hadith;
+import com.jamil.ahadith.features.hadith.dto.request.reference.FakeHadithReferenceRequestDto;
+import com.jamil.ahadith.features.hadith.dto.request.reference.HadithReferenceRequestDto;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
-
-import java.util.UUID;
 
 @Data
 public class NotificationRequestDto {
@@ -16,6 +13,8 @@ public class NotificationRequestDto {
     @NotBlank(message = "Body is required")
     private String body;
     private String type;
-    private Hadith hadith;
-    private FakeHadith fakeHadith;
+    @Valid
+    private HadithReferenceRequestDto hadith;
+    @Valid
+    private FakeHadithReferenceRequestDto fakeHadith;
 }

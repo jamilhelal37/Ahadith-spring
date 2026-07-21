@@ -11,6 +11,8 @@ import com.jamil.ahadith.features.user.entity.UserStatus;
 import com.jamil.ahadith.core.exception.ForbiddenException;
 import com.jamil.ahadith.core.exception.RateLimitException;
 import com.jamil.ahadith.core.mail.EmailService;
+import com.jamil.ahadith.core.ratelimit.RateLimitKeyResolver;
+import com.jamil.ahadith.core.ratelimit.RateLimitService;
 import com.jamil.ahadith.core.security.RefreshTokenRevoker;
 import com.jamil.ahadith.features.audit.repository.ActivityLogRepository;
 import com.jamil.ahadith.features.account.repository.EmailVerificationTokenRepository;
@@ -57,6 +59,8 @@ public class AccountSecurityService {
     private final PasswordPolicyService passwordPolicyService;
     private final RefreshTokenRevoker refreshTokenRevoker;
     private final ActivityLogRepository activityLogRepository;
+    private final RateLimitService rateLimitService;
+    private final RateLimitKeyResolver rateLimitKeyResolver;
 
     @Transactional
     public void sendInitialVerification(User user) {
@@ -131,6 +135,11 @@ public class AccountSecurityService {
         String normalizedEmail =
                 normalizeEmail(email);
 
+        rateLimitService.assertAllowed(
+                "forgot-password-email",
+                rateLimitKeyResolver.emailHashKey(normalizedEmail)
+        );
+
         Instant now = Instant.now();
 
         userRepository.findByEmail(normalizedEmail)
@@ -164,7 +173,7 @@ public class AccountSecurityService {
 
         PasswordResetToken resetToken =
                 passwordResetTokenRepository
-                        .findByTokenHash(tokenHash)
+                        .findByTokenHashForUpdate(tokenHash)
                         .orElseThrow(() ->
                                 new BadCredentialsException(
                                         INVALID_PASSWORD_RESET_TOKEN_MESSAGE
@@ -194,6 +203,7 @@ public class AccountSecurityService {
 
         createPasswordResetAuditLog(user);
 
+        passwordResetTokenRepository.consumeActiveForUser(user, now);
         passwordResetTokenRepository.save(resetToken);
         userRepository.save(user);
 
@@ -267,6 +277,8 @@ public class AccountSecurityService {
             User user,
             Instant now
     ) {
+        passwordResetTokenRepository.consumeActiveForUser(user, now);
+
         String rawToken =
                 tokenHashService.generateOpaqueToken();
 

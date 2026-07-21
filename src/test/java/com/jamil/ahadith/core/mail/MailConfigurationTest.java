@@ -4,34 +4,42 @@ import com.jamil.ahadith.core.config.MailConfigProperties;
 import com.jamil.ahadith.core.exception.EmailDeliveryException;
 import com.jamil.ahadith.features.user.entity.User;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
-import org.springframework.test.web.client.MockRestServiceServer;
 
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.client.ExpectedCount.once;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+@ExtendWith(OutputCaptureExtension.class)
 class MailConfigurationTest {
+    private static final String MOJIBAKE_O_WITH_STROKE = "\u00D8";
+    private static final String MOJIBAKE_U_WITH_GRAVE = "\u00D9";
+    private static final String MOJIBAKE_A_WITH_TILDE = "\u00C3";
+
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(RestClientAutoConfiguration.class))
             .withUserConfiguration(MailBeans.class);
 
     @Test
@@ -76,21 +84,67 @@ class MailConfigurationTest {
                 new EmailLinkBuilder(mailProperties("https://frontend.example.com/", "http://localhost:8080/")));
         service.initialize();
 
+        String verificationLink = "http://localhost:8080/verify-email?token=raw-token-123";
         server.expect(once(), requestTo("https://api.resend.com/emails"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header("Authorization", "Bearer test-resend-key"))
                 .andExpect(header("Content-Type", MediaType.APPLICATION_JSON_VALUE))
-                .andExpect(content().json("""
-                        {
-                          "from": "sender@example.com",
-                          "to": ["recipient@example.com"],
-                          "subject": "Verify your Ahadith account",
-                          "text": "ØªØ£ÙƒÙŠØ¯ Ø­Ø³Ø§Ø¨Ùƒ ÙÙŠ Ahadith\\n\\nØ±Ø§Ø¨Ø· ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ:\\nhttp://localhost:8080/verify-email?token=raw-token-123"
-                        }
-                        """))
+                .andExpect(jsonPath("$.from").value("موسوعة الأحاديث النبوية <sender@example.com>"))
+                .andExpect(jsonPath("$.to[0]").value("recipient@example.com"))
+                .andExpect(jsonPath("$.subject").value("تأكيد بريدك الإلكتروني | موسوعة الأحاديث النبوية"))
+                .andExpect(jsonPath("$.subject").value(not(containsString(MOJIBAKE_O_WITH_STROKE))))
+                .andExpect(jsonPath("$.subject").value(not(containsString(MOJIBAKE_U_WITH_GRAVE))))
+                .andExpect(jsonPath("$.subject").value(not(containsString(MOJIBAKE_A_WITH_TILDE))))
+                .andExpect(jsonPath("$.text").value(containsString("مرحباً بك في موسوعة الأحاديث النبوية")))
+                .andExpect(jsonPath("$.text").value(containsString("لتفعيل حسابك، استخدم الرابط التالي:")))
+                .andExpect(jsonPath("$.text").value(containsString(verificationLink)))
+                .andExpect(jsonPath("$.text").value(not(containsString(MOJIBAKE_O_WITH_STROKE))))
+                .andExpect(jsonPath("$.text").value(not(containsString(MOJIBAKE_U_WITH_GRAVE))))
+                .andExpect(jsonPath("$.text").value(not(containsString(MOJIBAKE_A_WITH_TILDE))))
+                .andExpect(jsonPath("$.html").value(containsString("<html lang=\"ar\" dir=\"rtl\">")))
+                .andExpect(jsonPath("$.html").value(containsString("<meta charset=\"UTF-8\">")))
+                .andExpect(jsonPath("$.html").value(containsString("تأكيد الحساب")))
+                .andExpect(jsonPath("$.html").value(containsString(verificationLink)))
+                .andExpect(jsonPath("$.html").value(not(containsString(MOJIBAKE_O_WITH_STROKE))))
+                .andExpect(jsonPath("$.html").value(not(containsString(MOJIBAKE_U_WITH_GRAVE))))
+                .andExpect(jsonPath("$.html").value(not(containsString(MOJIBAKE_A_WITH_TILDE))))
                 .andRespond(withSuccess("{\"id\":\"email-id\"}", MediaType.APPLICATION_JSON));
 
         service.sendVerificationEmail(user("recipient@example.com"), "raw-token-123");
+
+        server.verify();
+    }
+
+    @Test
+    void resendPasswordResetEmailShouldSendArabicHtmlAndText() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        ResendEmailService service = resendService(builder, mailProperties("https://frontend.example.com"));
+
+        String resetLink = "https://frontend.example.com/reset-password?token=reset-token-123";
+        server.expect(once(), requestTo("https://api.resend.com/emails"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Authorization", "Bearer test-resend-key"))
+                .andExpect(jsonPath("$.from").value("موسوعة الأحاديث النبوية <sender@example.com>"))
+                .andExpect(jsonPath("$.to[0]").value("recipient@example.com"))
+                .andExpect(jsonPath("$.subject").value("إعادة تعيين كلمة المرور | موسوعة الأحاديث النبوية"))
+                .andExpect(jsonPath("$.subject").value(not(containsString(MOJIBAKE_O_WITH_STROKE))))
+                .andExpect(jsonPath("$.subject").value(not(containsString(MOJIBAKE_U_WITH_GRAVE))))
+                .andExpect(jsonPath("$.subject").value(not(containsString(MOJIBAKE_A_WITH_TILDE))))
+                .andExpect(jsonPath("$.text").value(containsString("لإعادة تعيين كلمة المرور، استخدم الرابط التالي:")))
+                .andExpect(jsonPath("$.text").value(containsString(resetLink)))
+                .andExpect(jsonPath("$.text").value(not(containsString(MOJIBAKE_O_WITH_STROKE))))
+                .andExpect(jsonPath("$.text").value(not(containsString(MOJIBAKE_U_WITH_GRAVE))))
+                .andExpect(jsonPath("$.text").value(not(containsString(MOJIBAKE_A_WITH_TILDE))))
+                .andExpect(jsonPath("$.html").value(containsString("dir=\"rtl\"")))
+                .andExpect(jsonPath("$.html").value(containsString("إعادة تعيين كلمة المرور")))
+                .andExpect(jsonPath("$.html").value(containsString(resetLink)))
+                .andExpect(jsonPath("$.html").value(not(containsString(MOJIBAKE_O_WITH_STROKE))))
+                .andExpect(jsonPath("$.html").value(not(containsString(MOJIBAKE_U_WITH_GRAVE))))
+                .andExpect(jsonPath("$.html").value(not(containsString(MOJIBAKE_A_WITH_TILDE))))
+                .andRespond(withSuccess("{\"id\":\"email-id\"}", MediaType.APPLICATION_JSON));
+
+        service.sendPasswordResetEmail(user("recipient@example.com"), "reset-token-123");
 
         server.verify();
     }
@@ -180,6 +234,22 @@ class MailConfigurationTest {
     }
 
     @Test
+    void resendShouldNotLogApiKeyOrToken(CapturedOutput output) {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        ResendEmailService service = resendService(builder, mailProperties("https://frontend.example.com"));
+
+        server.expect(once(), requestTo("https://api.resend.com/emails"))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        service.sendVerificationEmail(user("recipient@example.com"), "secret-token-123");
+
+        assertThat(output).doesNotContain("test-resend-key");
+        assertThat(output).doesNotContain("secret-token-123");
+        server.verify();
+    }
+
+    @Test
     void verificationBaseUrlShouldFallBackToFrontendBaseUrl() {
         new ApplicationContextRunner()
                 .withUserConfiguration(MailPropertiesOnly.class)
@@ -234,6 +304,10 @@ class MailConfigurationTest {
     @EnableConfigurationProperties(MailConfigProperties.class)
     @Import({ResendEmailService.class, NoOpEmailService.class, EmailLinkBuilder.class})
     static class MailBeans {
+        @Bean
+        RestClient.Builder restClientBuilder() {
+            return RestClient.builder();
+        }
     }
 
     @Configuration

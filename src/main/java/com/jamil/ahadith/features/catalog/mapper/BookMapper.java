@@ -13,7 +13,7 @@ import org.mapstruct.*;
 @Mapper(componentModel = "spring")
 public interface BookMapper extends AuditMapping {
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "muhaddith", source = "muhaddith")
+    @Mapping(target = "muhaddith", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
@@ -25,7 +25,7 @@ public interface BookMapper extends AuditMapping {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "muhaddith", source = "muhaddith")
+    @Mapping(target = "muhaddith", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "createdAt", ignore = true)

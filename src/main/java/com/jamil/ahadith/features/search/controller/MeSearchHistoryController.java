@@ -16,7 +16,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/me/search-history")
+@RequestMapping({"/me/search-history", "/api/v1/me/search-history"})
 public class MeSearchHistoryController {
     private final SearchService searchService;
 

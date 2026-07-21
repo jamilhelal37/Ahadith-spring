@@ -19,7 +19,7 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/me/favorites")
+@RequestMapping({"/me/favorites", "/api/v1/me/favorites"})
 public class MeFavoriteController {
     private final FavoriteService favoriteService;
 

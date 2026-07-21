@@ -1,6 +1,5 @@
 package com.jamil.ahadith.features.interaction.dto.request;
 
-import com.jamil.ahadith.features.interaction.entity.Comment;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;

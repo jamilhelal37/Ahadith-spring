@@ -1,8 +1,6 @@
 package com.jamil.ahadith.features.catalog.dto.request;
 
-import com.jamil.ahadith.features.catalog.entity.Muhaddith;
 
-import com.jamil.ahadith.features.user.entity.User;
 
 import com.jamil.ahadith.features.user.entity.Gender;
 import jakarta.validation.constraints.NotBlank;

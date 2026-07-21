@@ -22,7 +22,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/admin/explaining")
+@RequestMapping({"/admin/explaining", "/api/v1/admin/explaining"})
 public class ExplainingController {
     private final ExplainingService explainingService;
     private final AdminPageService adminPageService;
