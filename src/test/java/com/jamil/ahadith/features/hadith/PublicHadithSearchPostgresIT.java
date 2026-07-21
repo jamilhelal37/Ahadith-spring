@@ -33,9 +33,9 @@ class PublicHadithSearchPostgresIT extends PostgresIntegrationTestBase {
                 values (?, ?, ?, cast(? as public.hadith_type), ?)
                 """, subValidId, "unmatched substitute", 99, "marfu", bookId);
         jdbc.update("""
-                insert into public.ahadith (id, text, normal_text, search_text, hadith_number, type, book, sanad, sub_valid)
-                values (?, ?, ?, ?, ?, cast(? as public.hadith_type), ?, ?, ?)
-                """, firstId, "truth path", "truth path normal", "truth path search", 1, "marfu", bookId, "HTTP sanad", subValidId);
+                insert into public.ahadith (id, text, hadith_number, type, book, sanad, sub_valid)
+                values (?, ?, ?, cast(? as public.hadith_type), ?, ?, ?)
+                """, firstId, "truth path", 1, "marfu", bookId, "HTTP sanad", subValidId);
         jdbc.update("""
                 insert into public.ahadith (id, text, hadith_number, type, book)
                 values (?, ?, ?, cast(? as public.hadith_type), ?)
@@ -56,7 +56,7 @@ class PublicHadithSearchPostgresIT extends PostgresIntegrationTestBase {
                 .andExpect(jsonPath("$.items[*].id", contains(firstId.toString(), secondId.toString())))
                 .andExpect(jsonPath("$.items[0].book.id").value(bookId.toString()))
                 .andExpect(jsonPath("$.items[0].text").value("truth path"))
-                .andExpect(jsonPath("$.items[0].normalText").value("truth path normal"))
+                .andExpect(jsonPath("$.items[0].normalText").value("truth path"))
                 .andExpect(jsonPath("$.items[0].normal_text").doesNotExist())
                 .andExpect(jsonPath("$.items[0].searchText").doesNotExist())
                 .andExpect(jsonPath("$.items[0].sanad").value("HTTP sanad"))
@@ -64,7 +64,7 @@ class PublicHadithSearchPostgresIT extends PostgresIntegrationTestBase {
                 .andExpect(jsonPath("$.items[0].hasExplanation").value(false))
                 .andExpect(jsonPath("$.items[0].subValid").doesNotExist())
                 .andExpect(jsonPath("$.items[0].subValidId").doesNotExist())
-                .andExpect(jsonPath("$.items[1].normalText", nullValue()))
+                .andExpect(jsonPath("$.items[1].normalText").value("truth without sanad"))
                 .andExpect(jsonPath("$.items[1].sanad", nullValue()))
                 .andExpect(jsonPath("$.items[1].hasSubValid").value(false))
                 .andExpect(jsonPath("$.items[1].subValid").doesNotExist())
@@ -79,7 +79,7 @@ class PublicHadithSearchPostgresIT extends PostgresIntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(firstId.toString()))
                 .andExpect(jsonPath("$.text").value("truth path"))
-                .andExpect(jsonPath("$.normalText").value("truth path normal"))
+                .andExpect(jsonPath("$.normalText").value("truth path"))
                 .andExpect(jsonPath("$.sanad").value("HTTP sanad"))
                 .andExpect(jsonPath("$.normal_text").doesNotExist())
                 .andExpect(jsonPath("$.searchText").doesNotExist());

@@ -178,20 +178,20 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
         UUID secondId = uuid(209);
         UUID otherUserHadithId = uuid(210);
 
-        jdbc.update("insert into public.muhaddiths (id, name, gender) values (?, ?, cast(? as public.gender))",
-                muhaddithId, "Favorite Muhaddith", "male");
-        jdbc.update("insert into public.rawis (id, name, gender) values (?, ?, cast(? as public.gender))",
-                rawiId, "Favorite Rawi", "male");
+        jdbc.update("insert into public.muhaddiths (id, name, gender, about) values (?, ?, cast(? as public.gender), ?)",
+                muhaddithId, "Favorite Muhaddith", "male", "Favorite muhaddith about");
+        jdbc.update("insert into public.rawis (id, name, gender, about) values (?, ?, cast(? as public.gender), ?)",
+                rawiId, "Favorite Rawi", "male", "Favorite rawi about");
         jdbc.update("insert into public.ruling (id, name) values (?, ?)", rulingId, "Favorite Ruling");
         jdbc.update("insert into public.books (id, name, muhaddith) values (?, ?, ?)",
                 bookId, "Favorite Book", muhaddithId);
-        jdbc.update("insert into public.explaining (id, text, normal_text) values (?, ?, ?)",
-                explanationId, "Explanation text", "Explanation normal");
+        jdbc.update("insert into public.explaining (id, text) values (?, ?)",
+                explanationId, "Explanation text");
         jdbc.update("insert into public.topics (id, name) values (?, ?)", topicId, "Favorite Topic");
-        insertHadith(subValidId, "sub valid text", "sub valid normal", 99, bookId, null, null, null, null, null);
-        insertHadith(firstId, "first text", "first normal", 1, bookId, rawiId, rulingId, explanationId, "first sanad", subValidId);
-        insertHadith(secondId, "second text", "second normal", 2, bookId, null, null, null, null, null);
-        insertHadith(otherUserHadithId, "other user text", "other normal", 3, bookId, null, null, null, null, null);
+        insertHadith(subValidId, "sub valid text", 99, bookId, null, null, null, null, null);
+        insertHadith(firstId, "first text", 1, bookId, rawiId, rulingId, explanationId, "first sanad", subValidId);
+        insertHadith(secondId, "second text", 2, bookId, null, null, null, null, null);
+        insertHadith(otherUserHadithId, "other user text", 3, bookId, null, null, null, null, null);
         jdbc.update("insert into public.topic_classes (id, topic, hadith) values (?, ?, ?)", uuid(211), topicId, firstId);
         insertFavorite(uuid(301), owner.getId(), firstId, "2026-01-01 10:00:00+00");
         insertFavorite(uuid(302), owner.getId(), secondId, "2026-01-02 10:00:00+00");
@@ -205,7 +205,7 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
                 .andExpect(jsonPath("$.items", hasSize(1)))
                 .andExpect(jsonPath("$.items[0].id").value(secondId.toString()))
                 .andExpect(jsonPath("$.items[0].text").value("second text"))
-                .andExpect(jsonPath("$.items[0].normalText").value("second normal"))
+                .andExpect(jsonPath("$.items[0].normalText").value("second text"))
                 .andExpect(jsonPath("$.items[0].sanad", nullValue()))
                 .andExpect(jsonPath("$.items[0].book.id").value(bookId.toString()))
                 .andExpect(jsonPath("$.items[0].book.name").value("Favorite Book"))
@@ -386,13 +386,13 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
         return hadithRepository.saveAndFlush(hadith);
     }
 
-    private void insertHadith(UUID id, String text, String normalText, int number, UUID bookId, UUID rawiId,
+    private void insertHadith(UUID id, String text, int number, UUID bookId, UUID rawiId,
                               UUID rulingId, UUID explanationId, String sanad, UUID subValidId) {
         jdbc.update("""
                 insert into public.ahadith
-                    (id, text, normal_text, search_text, hadith_number, type, book, rawi, ruling, explaining, sanad, sub_valid)
-                values (?, ?, ?, ?, ?, cast(? as public.hadith_type), ?, ?, ?, ?, ?, ?)
-                """, id, text, normalText, "internal search text", number, "marfu", bookId, rawiId, rulingId,
+                    (id, text, hadith_number, type, book, rawi, ruling, explaining, sanad, sub_valid)
+                values (?, ?, ?, cast(? as public.hadith_type), ?, ?, ?, ?, ?, ?)
+                """, id, text, number, "marfu", bookId, rawiId, rulingId,
                 explanationId, sanad, subValidId);
     }
 
