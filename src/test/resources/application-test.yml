@@ -27,9 +27,11 @@ jwt:
 app:
   mail:
     enabled: false
+    provider: resend
     frontend-base-url: http://localhost:8080
     verification-base-url: http://localhost:8080
     verification-path: /verify-email
+    resend-api-key:
   security:
     search-history-max-per-user: 50
     login-max-failures: 3

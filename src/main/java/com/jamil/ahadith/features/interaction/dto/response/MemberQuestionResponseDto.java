@@ -1,22 +1,22 @@
 package com.jamil.ahadith.features.interaction.dto.response;
 
-import com.jamil.ahadith.core.web.dto.AdminUserReferenceDto;
-
-import com.jamil.ahadith.features.hadith.entity.Hadith;
+import com.jamil.ahadith.features.hadith.dto.response.publicapi.PublicHadithSummaryResponseDto;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
-public class QuestionResponseDto {
+@NoArgsConstructor
+@AllArgsConstructor
+public class MemberQuestionResponseDto {
     private UUID id;
-    private Hadith hadith;
-    private AdminUserReferenceDto asker;
+    private PublicHadithSummaryResponseDto hadith;
     private String askerText;
     private Boolean isActive;
     private String answerText;
-    private AdminUserReferenceDto updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

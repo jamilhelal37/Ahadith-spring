@@ -1,13 +1,7 @@
 package com.jamil.ahadith.features.interaction.dto.response;
 
-import com.jamil.ahadith.features.hadith.entity.Hadith;
-
-import com.jamil.ahadith.features.user.entity.User;
-
 import com.jamil.ahadith.core.web.dto.SimpleReferenceDto;
-
 import com.jamil.ahadith.core.web.dto.AdminUserReferenceDto;
-
 import lombok.Data;
 
 import java.time.LocalDateTime;

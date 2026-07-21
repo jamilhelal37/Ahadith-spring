@@ -98,6 +98,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/muhaddiths/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/explaining/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/fake-ahadith/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/filterslist").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {

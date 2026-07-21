@@ -7,6 +7,8 @@ public interface HadithSearchRow {
 
     String getText();
 
+    String getNormalText();
+
     Integer getHadithNumber();
 
     String getType();
@@ -32,4 +34,8 @@ public interface HadithSearchRow {
     UUID getExplanationId();
 
     String getExplanationText();
+
+    String getExplanationNormalText();
+
+    UUID getSubValidId();
 }

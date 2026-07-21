@@ -1,31 +1,32 @@
 package com.jamil.ahadith.features.interaction.controller;
 
-import com.jamil.ahadith.features.interaction.entity.Favorite;
-
+import com.jamil.ahadith.core.web.dto.SearchResponse;
 import com.jamil.ahadith.features.interaction.dto.response.FavoriteResponseDto;
 import com.jamil.ahadith.features.interaction.service.FavoriteService;
-import lombok.AllArgsConstructor;
+import com.jamil.ahadith.features.search.dto.response.HadithSearchItemDto;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
-@AllArgsConstructor
+@RequiredArgsConstructor
 @RequestMapping("/me/favorites")
 public class MeFavoriteController {
     private final FavoriteService favoriteService;
 
     @GetMapping
-    public List<FavoriteResponseDto> getFavorites() {
-        return favoriteService.getCurrentUserFavorites();
+    public SearchResponse<HadithSearchItemDto> getFavorites(@RequestParam(defaultValue = "0") int page,
+                                                            @RequestParam(defaultValue = "20") int size) {
+        return favoriteService.getCurrentUserFavorites(page, size);
     }
 
     @PostMapping("/{hadithId}")

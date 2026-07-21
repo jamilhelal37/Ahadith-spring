@@ -1,14 +1,16 @@
 package com.jamil.ahadith.features.hadith.controller.publicapi;
 
-import com.jamil.ahadith.features.hadith.entity.Hadith;
-
+import com.jamil.ahadith.features.hadith.dto.response.publicapi.PublicHadithDetailsDto;
+import com.jamil.ahadith.features.hadith.service.PublicHadithDetailsService;
 import com.jamil.ahadith.features.search.dto.request.HadithSearchRequest;
-import com.jamil.ahadith.features.search.dto.response.HadithDetailsDto;
 import com.jamil.ahadith.features.search.dto.response.HadithFiltersDto;
 import com.jamil.ahadith.features.search.dto.response.HadithSearchItemDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
 import com.jamil.ahadith.features.search.service.HadithSearchService;
 import lombok.AllArgsConstructor;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +25,7 @@ import java.util.UUID;
 @RequestMapping("/ahadith")
 public class PublicHadithController {
     private final HadithSearchService hadithSearchService;
+    private final PublicHadithDetailsService publicHadithDetailsService;
 
     @PostMapping("/search")
     public SearchResponse<HadithSearchItemDto> search(@RequestBody(required = false) HadithSearchRequest request) {
@@ -35,7 +38,11 @@ public class PublicHadithController {
     }
 
     @GetMapping("/{id}")
-    public HadithDetailsDto details(@PathVariable UUID id) {
-        return hadithSearchService.getDetails(id);
+    public ResponseEntity<PublicHadithDetailsDto> details(@PathVariable UUID id) {
+        PublicHadithDetailsDto response = publicHadithDetailsService.getDetails(id);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .header(HttpHeaders.VARY, HttpHeaders.AUTHORIZATION)
+                .body(response);
     }
 }

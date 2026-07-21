@@ -1,119 +1,182 @@
 package com.jamil.ahadith.core.mail;
 
-import com.jamil.ahadith.features.user.entity.User;
-
 import com.jamil.ahadith.core.config.MailConfigProperties;
 import com.jamil.ahadith.core.exception.EmailDeliveryException;
-import com.jamil.ahadith.core.mail.EmailService;
-import com.jamil.ahadith.core.mail.NoOpEmailService;
-import com.jamil.ahadith.core.mail.SmtpEmailService;
-import jakarta.mail.Message;
-import jakarta.mail.Session;
-import jakarta.mail.internet.MimeMessage;
+import com.jamil.ahadith.features.user.entity.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration;
+import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.mail.MailSendException;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClient;
+import org.springframework.test.web.client.MockRestServiceServer;
 
-import java.util.Properties;
+import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.springframework.test.web.client.ExpectedCount.once;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 class MailConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(MailSenderAutoConfiguration.class))
+            .withConfiguration(AutoConfigurations.of(RestClientAutoConfiguration.class))
             .withUserConfiguration(MailBeans.class);
 
     @Test
-    void javaMailSenderAndSmtpEmailServiceShouldBeCreatedWhenMailIsEnabled() {
+    void resendEmailServiceShouldBeCreatedWhenMailIsEnabledWithResendProvider() {
         contextRunner
                 .withPropertyValues(
                         "app.mail.enabled=true",
+                        "app.mail.provider=resend",
+                        "app.mail.resend-api-key=test-resend-key",
                         "app.mail.from=sender@example.com",
                         "app.mail.frontend-base-url=https://app.example.com",
                         "app.mail.verification-base-url=http://localhost:8080",
-                        "app.mail.verification-path=/verify-email",
-                        "spring.mail.host=smtp.gmail.com",
-                        "spring.mail.port=587",
-                        "spring.mail.username=sender@example.com",
-                        "spring.mail.password=test-app-password")
+                        "app.mail.verification-path=/verify-email")
                 .run(context -> {
-                    assertThat(context).hasSingleBean(JavaMailSender.class);
                     assertThat(context).hasSingleBean(EmailService.class);
-                    assertThat(context.getBean(EmailService.class)).isInstanceOf(SmtpEmailService.class);
+                    assertThat(context.getBean(EmailService.class)).isInstanceOf(ResendEmailService.class);
+                    assertThat(context).doesNotHaveBean("mailSender");
+                    assertThat(context).doesNotHaveBean("mailHealthContributor");
                 });
     }
 
     @Test
-    void noOpEmailServiceShouldBeCreatedWhenMailIsDisabledWithoutGmailCredentials() {
+    void noOpEmailServiceShouldBeCreatedWhenMailIsDisabled() {
         new ApplicationContextRunner()
                 .withUserConfiguration(MailBeans.class)
                 .withPropertyValues("app.mail.enabled=false")
                 .run(context -> {
-                    assertThat(context).doesNotHaveBean(JavaMailSender.class);
                     assertThat(context).hasSingleBean(EmailService.class);
                     assertThat(context.getBean(EmailService.class)).isInstanceOf(NoOpEmailService.class);
+                    assertThat(context).doesNotHaveBean("mailSender");
+                    assertThat(context).doesNotHaveBean("mailHealthContributor");
                 });
     }
 
     @Test
-    void verificationEmailShouldContainRecipientFromSubjectUtf8AndLocalRawTokenLink() throws Exception {
-        JavaMailSender sender = mock(JavaMailSender.class);
-        MimeMessage message = mimeMessage();
-        when(sender.createMimeMessage()).thenReturn(message);
-        SmtpEmailService service = new SmtpEmailService(
-                sender, mailProperties("https://frontend.example.com/", "http://localhost:8080/"));
+    void resendVerificationEmailShouldSendExpectedHttpRequest() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        ResendEmailService service = new ResendEmailService(
+                builder,
+                mailProperties("https://frontend.example.com/", "http://localhost:8080/"),
+                new EmailLinkBuilder(mailProperties("https://frontend.example.com/", "http://localhost:8080/")));
+        service.initialize();
+
+        server.expect(once(), requestTo("https://api.resend.com/emails"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Authorization", "Bearer test-resend-key"))
+                .andExpect(header("Content-Type", MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(content().json("""
+                        {
+                          "from": "sender@example.com",
+                          "to": ["recipient@example.com"],
+                          "subject": "Verify your Ahadith account",
+                          "text": "ØªØ£ÙƒÙŠØ¯ Ø­Ø³Ø§Ø¨Ùƒ ÙÙŠ Ahadith\\n\\nØ±Ø§Ø¨Ø· ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ:\\nhttp://localhost:8080/verify-email?token=raw-token-123"
+                        }
+                        """))
+                .andRespond(withSuccess("{\"id\":\"email-id\"}", MediaType.APPLICATION_JSON));
 
         service.sendVerificationEmail(user("recipient@example.com"), "raw-token-123");
 
-        verify(sender).send(message);
-        assertThat(message.getFrom()[0].toString()).isEqualTo("sender@example.com");
-        assertThat(message.getRecipients(Message.RecipientType.TO)[0].toString()).isEqualTo("recipient@example.com");
-        assertThat(message.getSubject()).isEqualTo("Verify your Ahadith account");
-        assertThat(message.getContent().toString()).contains("تأكيد حسابك");
-        assertThat(message.getContent().toString())
-                .contains("http://localhost:8080/verify-email?token=raw-token-123")
-                .doesNotContain("//verify-email");
+        server.verify();
     }
 
     @Test
-    void renderVerificationUrlShouldUseRenderExternalUrlWhenConfigured() throws Exception {
-        JavaMailSender sender = mock(JavaMailSender.class);
-        MimeMessage message = mimeMessage();
-        when(sender.createMimeMessage()).thenReturn(message);
-        SmtpEmailService service = new SmtpEmailService(
-                sender, mailProperties("https://frontend.example.com", "https://example-api.onrender.com"));
+    void resendShouldTreatSuccessfulResponseAsSent() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        ResendEmailService service = resendService(builder, mailProperties("https://frontend.example.com"));
 
-        service.sendVerificationEmail(user("recipient@example.com"), "render-token");
+        server.expect(once(), requestTo("https://api.resend.com/emails"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
 
-        assertThat(message.getContent().toString())
-                .contains("https://example-api.onrender.com/verify-email?token=render-token");
+        service.sendVerificationEmail(user("recipient@example.com"), "success-token");
+
+        server.verify();
     }
 
     @Test
-    void explicitVerificationBaseUrlShouldOverrideFrontendBaseUrl() throws Exception {
-        JavaMailSender sender = mock(JavaMailSender.class);
-        MimeMessage message = mimeMessage();
-        when(sender.createMimeMessage()).thenReturn(message);
-        SmtpEmailService service = new SmtpEmailService(
-                sender, mailProperties("https://frontend.example.com", "https://custom.example.com"));
+    void resendHttpFailuresShouldThrowSafeEmailDeliveryException() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        ResendEmailService service = resendService(builder, mailProperties("https://frontend.example.com"));
 
-        service.sendVerificationEmail(user("recipient@example.com"), "custom-token");
+        server.expect(once(), requestTo("https://api.resend.com/emails"))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST).body("invalid api key or raw-token-123"));
 
-        assertThat(message.getContent().toString())
-                .contains("https://custom.example.com/verify-email?token=custom-token")
-                .doesNotContain("https://frontend.example.com/verify-email");
+        assertThatThrownBy(() -> service.sendVerificationEmail(user("recipient@example.com"), "raw-token-123"))
+                .isInstanceOf(EmailDeliveryException.class)
+                .hasMessage("Email delivery failed")
+                .hasMessageNotContaining("raw-token-123")
+                .hasMessageNotContaining("test-resend-key");
+
+        server.verify();
+    }
+
+    @Test
+    void resendServerFailuresShouldThrowSafeEmailDeliveryException() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        ResendEmailService service = resendService(builder, mailProperties("https://frontend.example.com"));
+
+        server.expect(once(), requestTo("https://api.resend.com/emails"))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+
+        assertThatThrownBy(() -> service.sendPasswordResetEmail(user("recipient@example.com"), "reset-token"))
+                .isInstanceOf(EmailDeliveryException.class)
+                .hasMessage("Email delivery failed")
+                .hasMessageNotContaining("reset-token")
+                .hasMessageNotContaining("test-resend-key");
+
+        server.verify();
+    }
+
+    @Test
+    void resendRedirectShouldThrowSafeEmailDeliveryException() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        ResendEmailService service = resendService(builder, mailProperties("https://frontend.example.com"));
+
+        server.expect(once(), requestTo("https://api.resend.com/emails"))
+                .andRespond(withStatus(HttpStatus.FOUND));
+
+        assertThatThrownBy(() -> service.sendVerificationEmail(user("recipient@example.com"), "redirect-token"))
+                .isInstanceOf(EmailDeliveryException.class)
+                .hasMessage("Email delivery failed")
+                .hasMessageNotContaining("redirect-token")
+                .hasMessageNotContaining("test-resend-key");
+
+        server.verify();
+    }
+
+    @Test
+    void resendTimeoutShouldThrowSafeEmailDeliveryException() {
+        RestClient.Builder builder = RestClient.builder()
+                .requestFactory((uri, httpMethod) -> {
+                    throw new ResourceAccessException("timeout while calling Resend", new IOException("timeout"));
+                });
+        ResendEmailService service = resendService(builder, mailProperties("https://frontend.example.com"));
+
+        assertThatThrownBy(() -> service.sendVerificationEmail(user("recipient@example.com"), "timeout-token"))
+                .isInstanceOf(EmailDeliveryException.class)
+                .hasMessage("Email delivery failed")
+                .hasMessageNotContaining("timeout-token")
+                .hasMessageNotContaining("test-resend-key");
     }
 
     @Test
@@ -129,57 +192,20 @@ class MailConfigurationTest {
     }
 
     @Test
-    void verificationUrlShouldEncodeSensitiveCharactersAndAvoidDoubleSlash() throws Exception {
-        JavaMailSender sender = mock(JavaMailSender.class);
-        MimeMessage message = mimeMessage();
-        when(sender.createMimeMessage()).thenReturn(message);
-        SmtpEmailService service = new SmtpEmailService(
-                sender, mailProperties("https://frontend.example.com", "https://example-api.onrender.com/"));
+    void emailLinksShouldUseConfiguredBasesAndEncodeTokens() {
+        EmailLinkBuilder links = new EmailLinkBuilder(
+                mailProperties("https://frontend.example.com/", "https://api.jamilhelal.me/"));
 
-        service.sendVerificationEmail(user("recipient@example.com"), "raw token+/=");
-
-        assertThat(message.getContent().toString())
-                .contains("https://example-api.onrender.com/verify-email?token=raw%20token%2B%2F%3D")
-                .doesNotContain("//verify-email");
+        assertThat(links.verificationLink("raw token+/="))
+                .isEqualTo("https://api.jamilhelal.me/verify-email?token=raw%20token%2B%2F%3D");
+        assertThat(links.passwordResetLink("reset token+/="))
+                .isEqualTo("https://frontend.example.com/reset-password?token=reset%20token%2B%2F%3D");
     }
 
-    @Test
-    void resetEmailShouldKeepUsingFrontendBaseUrl() throws Exception {
-        JavaMailSender sender = mock(JavaMailSender.class);
-        MimeMessage message = mimeMessage();
-        when(sender.createMimeMessage()).thenReturn(message);
-        SmtpEmailService service = new SmtpEmailService(
-                sender, mailProperties("https://frontend.example.com", "https://api.example.com"));
-
-        service.sendPasswordResetEmail(user("recipient@example.com"), "reset-token-123");
-
-        verify(sender).send(message);
-        assertThat(message.getFrom()[0].toString()).isEqualTo("sender@example.com");
-        assertThat(message.getRecipients(Message.RecipientType.TO)[0].toString()).isEqualTo("recipient@example.com");
-        assertThat(message.getSubject()).isEqualTo("Reset your Ahadith password");
-        assertThat(message.getContent().toString()).contains("إعادة تعيين");
-        assertThat(message.getContent().toString())
-                .contains("https://frontend.example.com/reset-password?token=reset-token-123")
-                .doesNotContain("//reset-password");
-    }
-
-    @Test
-    void smtpFailureShouldThrowSafeException() {
-        JavaMailSender sender = mock(JavaMailSender.class);
-        when(sender.createMimeMessage()).thenReturn(mimeMessage());
-        doThrow(new MailSendException("authentication failed for hidden credentials"))
-                .when(sender).send(any(MimeMessage.class));
-        SmtpEmailService service = new SmtpEmailService(sender, mailProperties("https://frontend.example.com"));
-
-        assertThatThrownBy(() -> service.sendVerificationEmail(user("recipient@example.com"), "raw-token-123"))
-                .isInstanceOf(EmailDeliveryException.class)
-                .hasMessage("Email delivery failed")
-                .hasMessageNotContaining("credentials")
-                .hasMessageNotContaining("raw-token-123");
-    }
-
-    private MimeMessage mimeMessage() {
-        return new MimeMessage(Session.getInstance(new Properties()));
+    private ResendEmailService resendService(RestClient.Builder builder, MailConfigProperties properties) {
+        ResendEmailService service = new ResendEmailService(builder, properties, new EmailLinkBuilder(properties));
+        service.initialize();
+        return service;
     }
 
     private MailConfigProperties mailProperties(String frontendBaseUrl) {
@@ -189,6 +215,8 @@ class MailConfigurationTest {
     private MailConfigProperties mailProperties(String frontendBaseUrl, String verificationBaseUrl) {
         MailConfigProperties properties = new MailConfigProperties();
         properties.setEnabled(true);
+        properties.setProvider("resend");
+        properties.setResendApiKey("test-resend-key");
         properties.setFrom("sender@example.com");
         properties.setFrontendBaseUrl(frontendBaseUrl);
         properties.setVerificationBaseUrl(verificationBaseUrl);
@@ -196,15 +224,15 @@ class MailConfigurationTest {
         return properties;
     }
 
-    private com.jamil.ahadith.features.user.entity.User user(String email) {
-        com.jamil.ahadith.features.user.entity.User user = new com.jamil.ahadith.features.user.entity.User();
+    private User user(String email) {
+        User user = new User();
         user.setEmail(email);
         return user;
     }
 
     @Configuration
     @EnableConfigurationProperties(MailConfigProperties.class)
-    @Import({SmtpEmailService.class, NoOpEmailService.class})
+    @Import({ResendEmailService.class, NoOpEmailService.class, EmailLinkBuilder.class})
     static class MailBeans {
     }
 

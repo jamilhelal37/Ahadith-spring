@@ -67,12 +67,6 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
-        <!-- MAIL -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-mail</artifactId>
-        </dependency>
-
         <!-- POSTGRESQL -->
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -203,6 +197,7 @@
                         <excludedEnvironmentVariable>SPRING_DATASOURCE_URL</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>SPRING_DATASOURCE_USERNAME</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>SPRING_DATASOURCE_PASSWORD</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>RESEND_API_KEY</excludedEnvironmentVariable>
                     </excludedEnvironmentVariables>
                 </configuration>
             </plugin>
@@ -228,6 +223,7 @@
                         <excludedEnvironmentVariable>SPRING_DATASOURCE_URL</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>SPRING_DATASOURCE_USERNAME</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>SPRING_DATASOURCE_PASSWORD</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>RESEND_API_KEY</excludedEnvironmentVariable>
                     </excludedEnvironmentVariables>
                 </configuration>
                 <executions>

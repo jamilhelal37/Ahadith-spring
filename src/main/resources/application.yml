@@ -32,10 +32,12 @@ app:
     api-secret: ${CLOUDINARY_API_SECRET:}
   mail:
     enabled: ${APP_MAIL_ENABLED:false}
+    provider: ${APP_MAIL_PROVIDER:resend}
     from: ${APP_MAIL_FROM:}
     frontend-base-url: ${APP_MAIL_FRONTEND_BASE_URL:http://localhost:8080}
     verification-base-url:
     verification-path: /verify-email
+    resend-api-key: ${RESEND_API_KEY:}
     verification-token-ttl: 24h
     reset-token-ttl: 30m
     resend-throttle: 5m

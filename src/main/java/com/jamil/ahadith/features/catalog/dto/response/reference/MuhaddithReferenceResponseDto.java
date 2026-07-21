@@ -1,4 +1,4 @@
-package com.jamil.ahadith.features.catalog.dto.response;
+package com.jamil.ahadith.features.catalog.dto.response.reference;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,10 +9,7 @@ import java.util.UUID;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class PublicBookListItemDto {
-    private int serialNumber;
+public class MuhaddithReferenceResponseDto {
     private UUID id;
     private String name;
-    private UUID muhaddithId;
-    private String muhaddithName;
 }

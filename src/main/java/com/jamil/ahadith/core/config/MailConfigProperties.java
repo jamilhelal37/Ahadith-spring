@@ -11,10 +11,12 @@ import java.time.Duration;
 @ConfigurationProperties(prefix = "app.mail")
 public class MailConfigProperties {
     private boolean enabled = false;
+    private String provider = "resend";
     private String from;
     private String frontendBaseUrl;
     private String verificationBaseUrl;
     private String verificationPath = "/verify-email";
+    private String resendApiKey;
     private Duration verificationTokenTtl = Duration.ofHours(24);
     private Duration resetTokenTtl = Duration.ofMinutes(30);
     private Duration resendThrottle = Duration.ofMinutes(5);

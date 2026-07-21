@@ -74,16 +74,16 @@ class ConfigurationPaginationSearchTest {
     void productionValidatorShouldAcceptCompleteProductionConfiguration() {
         JwtConfig jwtConfig = new JwtConfig("a".repeat(64),Duration.ofHours(1),Duration.ofDays(7));
         MailConfigProperties mail = new MailConfigProperties();
-        mail.setFrom("no-reply@ahadith.local");
-        mail.setFrontendBaseUrl("https://app.ahadith.local");
+        mail.setEnabled(true);
+        mail.setProvider("resend");
+        mail.setResendApiKey("re_test_resend_key_value");
+        mail.setFrom("no-reply@mail.jamilhelal.me");
+        mail.setFrontendBaseUrl("https://api.jamilhelal.me");
 
         MockEnvironment environment = new MockEnvironment()
                 .withProperty("spring.datasource.url", "jdbc:postgresql://localhost:5432/ahadith")
                 .withProperty("spring.datasource.username", "postgres")
                 .withProperty("spring.datasource.password", "database-password")
-                .withProperty("spring.mail.host", "smtp.gmail.com")
-                .withProperty("spring.mail.username", "mailer@ahadith.local")
-                .withProperty("spring.mail.password", "gmail-app-password-value")
                 .withProperty("app.cloudinary.cloud-name", "cloud")
                 .withProperty("app.cloudinary.api-key", "key")
                 .withProperty("app.cloudinary.api-secret", "cloudinary-secret-value");
@@ -97,18 +97,17 @@ class ConfigurationPaginationSearchTest {
     }
 
     @Test
-    void productionValidatorShouldRejectInvalidMailConfigurationWithoutLeakingValues() {
+    void productionValidatorShouldRejectMissingResendApiKeyWithoutRequiringSmtpVariables() {
         JwtConfig jwtConfig = new JwtConfig("a".repeat(64),Duration.ofHours(1),Duration.ofDays(7));
         MailConfigProperties mail = new MailConfigProperties();
-        mail.setFrom("not-an-email");
-        mail.setFrontendBaseUrl("not-a-url");
+        mail.setEnabled(true);
+        mail.setProvider("resend");
+        mail.setFrom("no-reply@mail.jamilhelal.me");
+        mail.setFrontendBaseUrl("https://api.jamilhelal.me");
         MockEnvironment environment = new MockEnvironment()
                 .withProperty("spring.datasource.url", "jdbc:postgresql://localhost:5432/ahadith")
                 .withProperty("spring.datasource.username", "postgres")
                 .withProperty("spring.datasource.password", "database-password")
-                .withProperty("spring.mail.host", "smtp.gmail.com")
-                .withProperty("spring.mail.username", "mailer@ahadith.local")
-                .withProperty("spring.mail.password", "change-this-password")
                 .withProperty("app.cloudinary.cloud-name", "cloud")
                 .withProperty("app.cloudinary.api-key", "key")
                 .withProperty("app.cloudinary.api-secret", "cloudinary-secret-value");
@@ -119,8 +118,80 @@ class ConfigurationPaginationSearchTest {
 
         assertThatThrownBy(() -> validator.run(new DefaultApplicationArguments(new String[0])))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("SPRING_MAIL_PASSWORD")
-                .hasMessageNotContaining("change-this-password");
+                .hasMessageContaining("RESEND_API_KEY")
+                .hasMessageNotContaining("SPRING_MAIL");
+    }
+
+    @Test
+    void productionValidatorShouldRejectInvalidMailConfigurationWithoutLeakingValues() {
+        JwtConfig jwtConfig = new JwtConfig("a".repeat(64),Duration.ofHours(1),Duration.ofDays(7));
+        MailConfigProperties mail = new MailConfigProperties();
+        mail.setEnabled(true);
+        mail.setProvider("resend");
+        mail.setResendApiKey("change-this-resend-key");
+        mail.setFrom("not-an-email");
+        mail.setFrontendBaseUrl("not-a-url");
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("spring.datasource.url", "jdbc:postgresql://localhost:5432/ahadith")
+                .withProperty("spring.datasource.username", "postgres")
+                .withProperty("spring.datasource.password", "database-password")
+                .withProperty("app.cloudinary.cloud-name", "cloud")
+                .withProperty("app.cloudinary.api-key", "key")
+                .withProperty("app.cloudinary.api-secret", "cloudinary-secret-value");
+        environment.setActiveProfiles("prod");
+
+        ProductionConfigurationValidator validator =
+                new ProductionConfigurationValidator(environment, jwtConfig, mail);
+
+        assertThatThrownBy(() -> validator.run(new DefaultApplicationArguments(new String[0])))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("RESEND_API_KEY")
+                .hasMessageNotContaining("change-this-resend-key");
+    }
+
+    @Test
+    void productionValidatorShouldAllowDisabledMailWithoutResendApiKey() {
+        JwtConfig jwtConfig = new JwtConfig("a".repeat(64),Duration.ofHours(1),Duration.ofDays(7));
+        MailConfigProperties mail = new MailConfigProperties();
+        mail.setEnabled(false);
+        mail.setProvider("resend");
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("spring.datasource.url", "jdbc:postgresql://localhost:5432/ahadith")
+                .withProperty("spring.datasource.username", "postgres")
+                .withProperty("spring.datasource.password", "database-password")
+                .withProperty("app.cloudinary.cloud-name", "cloud")
+                .withProperty("app.cloudinary.api-key", "key")
+                .withProperty("app.cloudinary.api-secret", "cloudinary-secret-value");
+        environment.setActiveProfiles("prod");
+
+        ProductionConfigurationValidator validator =
+                new ProductionConfigurationValidator(environment, jwtConfig, mail);
+
+        assertThatCode(() -> validator.run(new DefaultApplicationArguments(new String[0])))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void productionValidatorShouldRejectUnsupportedMailProvider() {
+        JwtConfig jwtConfig = new JwtConfig("a".repeat(64),Duration.ofHours(1),Duration.ofDays(7));
+        MailConfigProperties mail = new MailConfigProperties();
+        mail.setEnabled(true);
+        mail.setProvider("smtp");
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("spring.datasource.url", "jdbc:postgresql://localhost:5432/ahadith")
+                .withProperty("spring.datasource.username", "postgres")
+                .withProperty("spring.datasource.password", "database-password")
+                .withProperty("app.cloudinary.cloud-name", "cloud")
+                .withProperty("app.cloudinary.api-key", "key")
+                .withProperty("app.cloudinary.api-secret", "cloudinary-secret-value");
+        environment.setActiveProfiles("prod");
+
+        ProductionConfigurationValidator validator =
+                new ProductionConfigurationValidator(environment, jwtConfig, mail);
+
+        assertThatThrownBy(() -> validator.run(new DefaultApplicationArguments(new String[0])))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("APP_MAIL_PROVIDER");
     }
 
     @Test

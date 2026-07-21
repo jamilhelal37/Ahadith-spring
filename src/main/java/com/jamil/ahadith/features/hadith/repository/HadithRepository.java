@@ -1,19 +1,6 @@
 package com.jamil.ahadith.features.hadith.repository;
 
-import com.jamil.ahadith.features.catalog.entity.Ruling;
-
-import com.jamil.ahadith.features.catalog.entity.Rawi;
-
-import com.jamil.ahadith.features.catalog.entity.Muhaddith;
-
-import com.jamil.ahadith.features.catalog.entity.TopicClass;
-
-import com.jamil.ahadith.features.catalog.entity.Book;
-
-import com.jamil.ahadith.features.hadith.entity.Explaining;
-
-import com.jamil.ahadith.features.catalog.entity.Topic;
-
+import com.jamil.ahadith.features.catalog.dto.response.reference.TopicReferenceResponseDto;
 import com.jamil.ahadith.features.search.dto.projection.HadithSearchRow;
 import com.jamil.ahadith.features.search.dto.projection.HadithTopicRow;
 import com.jamil.ahadith.features.hadith.entity.Hadith;
@@ -131,20 +118,20 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             Pageable pageable
     );
 
-    @EntityGraph(attributePaths = {"book", "book.muhaddith", "rawi", "ruling", "explaining"})
     @Query("""
-            select h
+            select h.id
             from Hadith h
             where h.book.id = :bookId
-            order by h.hadithNumber asc, h.createdAt asc, h.id asc
+            order by h.hadithNumber asc, h.id asc
             """)
-    Page<Hadith> findBookAhadithPage(@Param("bookId") UUID bookId, Pageable pageable);
+    Page<UUID> findBookAhadithIds(@Param("bookId") UUID bookId, Pageable pageable);
 
     @Query(
             value = """
                     select
                         h.id as "id",
                         h.text as "text",
+                        h.normal_text as "normalText",
                         h.hadith_number as "hadithNumber",
                         cast(h.type as text) as "type",
                         h.sanad as "sanad",
@@ -157,7 +144,9 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
                         m.id as "muhaddithId",
                         m.name as "muhaddithName",
                         e.id as "explanationId",
-                        e.text as "explanationText"
+                        e.text as "explanationText",
+                        e.normal_text as "explanationNormalText",
+                        h.sub_valid as "subValidId"
                     from public.ahadith h
                     left join public.books b on b.id = h.book
                     left join public.muhaddiths m on m.id = b.muhaddith
@@ -170,11 +159,42 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
     )
     List<HadithSearchRow> findSearchRowsByIds(@Param("ids") UUID[] ids);
 
+    @Query("""
+            select h.id as id,
+                   h.text as text,
+                   h.normalText as normalText,
+                   h.hadithNumber as hadithNumber,
+                   cast(h.type as string) as type,
+                   h.sanad as sanad,
+                   b.id as bookId,
+                   b.name as bookName,
+                   r.id as rawiId,
+                   r.name as rawiName,
+                   ru.id as rulingId,
+                   ru.name as rulingName,
+                   m.id as muhaddithId,
+                   m.name as muhaddithName,
+                   e.id as explanationId,
+                   e.text as explanationText,
+                   e.normalText as explanationNormalText,
+                   sv.id as subValidId
+            from Hadith h
+            left join h.book b
+            left join b.muhaddith m
+            left join h.rawi r
+            left join h.ruling ru
+            left join h.explaining e
+            left join h.subValid sv
+            where h.id in :ids
+            """)
+    List<HadithSearchRow> findSearchRowsByIdsJpa(@Param("ids") List<UUID> ids);
+
     @Query(
             value = """
                     select
                         h.id as "id",
                         h.text as "text",
+                        h.normal_text as "normalText",
                         h.hadith_number as "hadithNumber",
                         cast(h.type as text) as "type",
                         h.sanad as "sanad",
@@ -187,7 +207,9 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
                         m.id as "muhaddithId",
                         m.name as "muhaddithName",
                         e.id as "explanationId",
-                        e.text as "explanationText"
+                        e.text as "explanationText",
+                        e.normal_text as "explanationNormalText",
+                        h.sub_valid as "subValidId"
                     from public.ahadith h
                     left join public.books b on b.id = h.book
                     left join public.muhaddiths m on m.id = b.muhaddith
@@ -200,6 +222,36 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
     )
     HadithSearchRow findSearchRowById(@Param("id") UUID id);
 
+    @Query("""
+            select h.id as id,
+                   h.text as text,
+                   h.normalText as normalText,
+                   h.hadithNumber as hadithNumber,
+                   cast(h.type as string) as type,
+                   h.sanad as sanad,
+                   b.id as bookId,
+                   b.name as bookName,
+                   r.id as rawiId,
+                   r.name as rawiName,
+                   ru.id as rulingId,
+                   ru.name as rulingName,
+                   m.id as muhaddithId,
+                   m.name as muhaddithName,
+                   e.id as explanationId,
+                   e.text as explanationText,
+                   e.normalText as explanationNormalText,
+                   sv.id as subValidId
+            from Hadith h
+            left join h.book b
+            left join b.muhaddith m
+            left join h.rawi r
+            left join h.ruling ru
+            left join h.explaining e
+            left join h.subValid sv
+            where h.id = :id
+            """)
+    HadithSearchRow findPublicDetailsRowById(@Param("id") UUID id);
+
     @Query(
             value = """
                     select
@@ -209,7 +261,7 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
                     from public.topic_classes tc
                     join public.topics t on t.id = tc.topic
                     where tc.hadith = any(cast(:ids as uuid[]))
-                    order by t.name asc
+                    order by t.name asc, t.id asc
                     """,
             nativeQuery = true
     )
@@ -222,7 +274,16 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             from TopicClass tc
             join tc.topic t
             where tc.hadith.id in :ids
-            order by t.name asc
+            order by t.name asc, t.id asc
             """)
     List<HadithTopicRow> findTopicsByHadithIdsJpa(@Param("ids") List<UUID> ids);
+
+    @Query("""
+            select new com.jamil.ahadith.features.catalog.dto.response.reference.TopicReferenceResponseDto(t.id, t.name)
+            from TopicClass tc
+            join tc.topic t
+            where tc.hadith.id = :hadithId
+            order by t.name asc, t.id asc
+            """)
+    List<TopicReferenceResponseDto> findPublicTopicReferencesByHadithId(@Param("hadithId") UUID hadithId);
 }

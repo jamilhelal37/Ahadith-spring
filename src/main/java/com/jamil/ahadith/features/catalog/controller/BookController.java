@@ -1,7 +1,5 @@
 package com.jamil.ahadith.features.catalog.controller;
 
-import com.jamil.ahadith.features.catalog.entity.Book;
-
 import com.jamil.ahadith.features.catalog.dto.request.BookRequestDto;
 import com.jamil.ahadith.features.catalog.dto.response.BookResponseDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
@@ -53,9 +51,4 @@ public class BookController {
         return bookService.updateBook(id, request);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteBook(@PathVariable UUID id) {
-        bookService.deleteBook(id);
-        return ResponseEntity.noContent().build();
-    }
 }

@@ -33,14 +33,7 @@ public class ProductionConfigurationValidator implements ApplicationRunner {
         require("SPRING_DATASOURCE_USERNAME", environment.getProperty("spring.datasource.username"));
         require("SPRING_DATASOURCE_PASSWORD", environment.getProperty("spring.datasource.password"));
 
-        require("SPRING_MAIL_HOST", environment.getProperty("spring.mail.host"));
-        require("SPRING_MAIL_USERNAME", environment.getProperty("spring.mail.username"));
-        require("SPRING_MAIL_PASSWORD", environment.getProperty("spring.mail.password"));
-        rejectPlaceholder("SPRING_MAIL_USERNAME", environment.getProperty("spring.mail.username"));
-        rejectPlaceholder("SPRING_MAIL_PASSWORD", environment.getProperty("spring.mail.password"));
-        requireEmail("APP_MAIL_FROM", mailProperties.getFrom());
-        requireUrl("APP_MAIL_FRONTEND_BASE_URL", mailProperties.getFrontendBaseUrl());
-        requireHttpsUrl("APP_MAIL_FRONTEND_BASE_URL", mailProperties.getVerificationBaseUrl());
+        validateMailConfiguration();
 
         require("CLOUDINARY_CLOUD_NAME", environment.getProperty("app.cloudinary.cloud-name"));
         require("CLOUDINARY_API_KEY", environment.getProperty("app.cloudinary.api-key"));
@@ -55,6 +48,22 @@ public class ProductionConfigurationValidator implements ApplicationRunner {
         if (secret.length() < 64) {
             throw new IllegalStateException("JWT_SECRET must be at least 64 characters");
         }
+    }
+
+    private void validateMailConfiguration() {
+        String provider = normalizedMailProvider();
+        if (!"resend".equals(provider)) {
+            throw new IllegalStateException("APP_MAIL_PROVIDER must be one of: resend");
+        }
+        if (!mailProperties.isEnabled()) {
+            return;
+        }
+
+        require("RESEND_API_KEY", mailProperties.getResendApiKey());
+        rejectPlaceholder("RESEND_API_KEY", mailProperties.getResendApiKey());
+        requireEmail("APP_MAIL_FROM", mailProperties.getFrom());
+        requireHttpsUrl("APP_MAIL_FRONTEND_BASE_URL", mailProperties.getFrontendBaseUrl());
+        requireHttpsUrl("APP_MAIL_VERIFICATION_BASE_URL", mailProperties.getVerificationBaseUrl());
     }
 
     private void require(String name, String value) {
@@ -109,5 +118,13 @@ public class ProductionConfigurationValidator implements ApplicationRunner {
                 || normalized.contains("your-")
                 || normalized.equals("password")
                 || normalized.equals("secret");
+    }
+
+    private String normalizedMailProvider() {
+        String provider = mailProperties.getProvider();
+        if (provider == null || provider.isBlank()) {
+            return "resend";
+        }
+        return provider.trim().toLowerCase(Locale.ROOT);
     }
 }

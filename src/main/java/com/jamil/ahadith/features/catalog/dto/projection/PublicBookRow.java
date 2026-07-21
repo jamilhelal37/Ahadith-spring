@@ -1,4 +1,4 @@
-package com.jamil.ahadith.features.search.dto.response;
+package com.jamil.ahadith.features.catalog.dto.projection;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,7 +9,9 @@ import java.util.UUID;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ExplanationDto {
+public class PublicBookRow {
     private UUID id;
-    private String text;
+    private String name;
+    private UUID muhaddithId;
+    private String muhaddithName;
 }

@@ -1,48 +1,8 @@
 package com.jamil.ahadith.features.audit.aspect;
 
-import com.jamil.ahadith.features.catalog.entity.Ruling;
-
-import com.jamil.ahadith.features.interaction.dto.response.QuestionResponseDto;
-
-import com.jamil.ahadith.features.catalog.entity.Rawi;
-
-import com.jamil.ahadith.features.catalog.dto.response.RawiResponseDto;
-
-import com.jamil.ahadith.features.catalog.dto.response.RulingResponseDto;
-
-import com.jamil.ahadith.features.catalog.dto.response.MuhaddithResponseDto;
-
-import com.jamil.ahadith.features.catalog.entity.Muhaddith;
-
-import com.jamil.ahadith.features.notification.dto.response.NotificationResponseDto;
-
-import com.jamil.ahadith.features.hadith.entity.Hadith;
-
-import com.jamil.ahadith.features.hadith.entity.SimilarAhadith;
-
-import com.jamil.ahadith.features.interaction.entity.Question;
-
-import com.jamil.ahadith.features.notification.entity.Notification;
-
-import com.jamil.ahadith.features.catalog.dto.response.TopicResponseDto;
-
-import com.jamil.ahadith.features.upgrade.dto.response.UpgradeRequestResponseDto;
-
-import com.jamil.ahadith.features.hadith.dto.response.HadithResponseDto;
-
-import com.jamil.ahadith.features.catalog.entity.Book;
-
-import com.jamil.ahadith.features.hadith.dto.response.SimilarAhadithResponseDto;
-
-import com.jamil.ahadith.features.catalog.dto.response.BookResponseDto;
-
-import com.jamil.ahadith.features.upgrade.entity.UpgradeRequest;
-
-import com.jamil.ahadith.features.catalog.entity.Topic;
-
 import com.jamil.ahadith.features.audit.entity.ActivityLog;
-import com.jamil.ahadith.features.user.entity.User;
 import com.jamil.ahadith.features.audit.repository.ActivityLogRepository;
+import com.jamil.ahadith.features.user.entity.User;
 import com.jamil.ahadith.features.user.repository.UserRepository;
 import lombok.AllArgsConstructor;
 import org.aspectj.lang.JoinPoint;
@@ -147,7 +107,10 @@ public class ActivityLogAspect {
         if (result instanceof com.jamil.ahadith.features.catalog.dto.response.RulingResponseDto responseDto) {
             return responseDto.getId();
         }
-        if (result instanceof com.jamil.ahadith.features.interaction.dto.response.QuestionResponseDto responseDto) {
+        if (result instanceof com.jamil.ahadith.features.interaction.dto.response.MemberQuestionResponseDto responseDto) {
+            return responseDto.getId();
+        }
+        if (result instanceof com.jamil.ahadith.features.interaction.dto.response.ScholarQuestionResponseDto responseDto) {
             return responseDto.getId();
         }
         if (result instanceof com.jamil.ahadith.features.notification.dto.response.NotificationResponseDto responseDto) {
@@ -184,7 +147,7 @@ public class ActivityLogAspect {
     private String buildMessage(String methodName, String tableName) {
         return switch (methodName) {
             case "createTopic", "createHadith", "createBook", "createMuhaddith", "createRawi", "createRuling", "createQuestion", "createNotification", "createSimilarAhadith", "createUpgradeRequest" -> "created " + tableName;
-            case "updateTopic", "updateHadith", "updateBook", "updateMuhaddith", "updateRawi", "updateRuling", "updateQuestion", "updateNotification", "updateSimilarAhadith", "updateUpgradeRequest" -> "updated " + tableName;
+            case "updateTopic", "updateHadith", "updateBook", "updateMuhaddith", "updateRawi", "updateRuling", "answerQuestion", "updateQuestionStatus", "updateNotification", "updateSimilarAhadith", "updateUpgradeRequest" -> "updated " + tableName;
             case "deleteTopic", "deleteHadith", "deleteBook", "deleteMuhaddith", "deleteRawi", "deleteRuling", "deleteQuestion", "deleteNotification", "deleteSimilarAhadith", "deleteUpgradeRequest" -> "deleted " + tableName;
             default -> "performed action on " + tableName;
         };

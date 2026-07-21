@@ -35,11 +35,16 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @AutoConfigureMockMvc
@@ -81,10 +86,10 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
         mockMvc.perform(get("/me/questions/" + questionId).header("Authorization", bearer(other)))
                 .andExpect(status().isNotFound());
         mockMvc.perform(put("/me/questions/" + questionId)
-                        .header("Authorization", bearer(other))
+                        .header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"askerText\":\"tamper\"}"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isMethodNotAllowed());
         mockMvc.perform(delete("/me/questions/" + questionId).header("Authorization", bearer(other)))
                 .andExpect(status().isNotFound());
     }
@@ -124,6 +129,15 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
                 .andExpect(status().isCreated());
         mockMvc.perform(post("/me/favorites/" + hadith.getId()).header("Authorization", bearer(owner)))
                 .andExpect(status().isConflict());
+        mockMvc.perform(post("/me/favorites/" + hadith.getId()).header("Authorization", bearer(other)))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/me/favorites/" + UUID.randomUUID()).header("Authorization", bearer(owner)))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(delete("/me/favorites/" + hadith.getId()).header("Authorization", bearer(other)))
+                .andExpect(status().isNoContent());
+        assertThat(favoriteRepository.findByUserIdAndHadithId(owner.getId(), hadith.getId())).isPresent();
+        assertThat(favoriteRepository.findByUserIdAndHadithId(other.getId(), hadith.getId())).isEmpty();
 
         mockMvc.perform(delete("/me/favorites/" + hadith.getId()).header("Authorization", bearer(other)))
                 .andExpect(status().isNotFound());
@@ -131,6 +145,162 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
 
         Favorite favorite = favoriteRepository.findByUserIdAndHadithId(owner.getId(), hadith.getId()).orElseThrow();
         assertThat(favorite.getUser().getId()).isEqualTo(owner.getId());
+
+        mockMvc.perform(delete("/me/favorites/" + hadith.getId()).header("Authorization", bearer(owner)))
+                .andExpect(status().isNoContent());
+        assertThat(favoriteRepository.findByUserIdAndHadithId(owner.getId(), hadith.getId())).isEmpty();
+    }
+
+    @Test
+    void favoriteEndpointsShouldRequireAuthentication() throws Exception {
+        UUID hadithId = hadith().getId();
+
+        mockMvc.perform(get("/me/favorites"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/me/favorites/" + hadithId))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/me/favorites/" + hadithId))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void currentUserFavoritesShouldReturnHadithCardsOnlyWithPaginationAndStableFavoriteOrder() throws Exception {
+        User owner = user("favorites-list-owner@example.com", UserType.member);
+        User other = user("favorites-list-other@example.com", UserType.member);
+        UUID muhaddithId = uuid(201);
+        UUID rawiId = uuid(202);
+        UUID rulingId = uuid(203);
+        UUID bookId = uuid(204);
+        UUID explanationId = uuid(205);
+        UUID topicId = uuid(206);
+        UUID subValidId = uuid(207);
+        UUID firstId = uuid(208);
+        UUID secondId = uuid(209);
+        UUID otherUserHadithId = uuid(210);
+
+        jdbc.update("insert into public.muhaddiths (id, name, gender) values (?, ?, cast(? as public.gender))",
+                muhaddithId, "Favorite Muhaddith", "male");
+        jdbc.update("insert into public.rawis (id, name, gender) values (?, ?, cast(? as public.gender))",
+                rawiId, "Favorite Rawi", "male");
+        jdbc.update("insert into public.ruling (id, name) values (?, ?)", rulingId, "Favorite Ruling");
+        jdbc.update("insert into public.books (id, name, muhaddith) values (?, ?, ?)",
+                bookId, "Favorite Book", muhaddithId);
+        jdbc.update("insert into public.explaining (id, text, normal_text) values (?, ?, ?)",
+                explanationId, "Explanation text", "Explanation normal");
+        jdbc.update("insert into public.topics (id, name) values (?, ?)", topicId, "Favorite Topic");
+        insertHadith(subValidId, "sub valid text", "sub valid normal", 99, bookId, null, null, null, null, null);
+        insertHadith(firstId, "first text", "first normal", 1, bookId, rawiId, rulingId, explanationId, "first sanad", subValidId);
+        insertHadith(secondId, "second text", "second normal", 2, bookId, null, null, null, null, null);
+        insertHadith(otherUserHadithId, "other user text", "other normal", 3, bookId, null, null, null, null, null);
+        jdbc.update("insert into public.topic_classes (id, topic, hadith) values (?, ?, ?)", uuid(211), topicId, firstId);
+        insertFavorite(uuid(301), owner.getId(), firstId, "2026-01-01 10:00:00+00");
+        insertFavorite(uuid(302), owner.getId(), secondId, "2026-01-02 10:00:00+00");
+        insertFavorite(uuid(303), other.getId(), otherUserHadithId, "2026-01-03 10:00:00+00");
+
+        String response = mockMvc.perform(get("/me/favorites")
+                        .header("Authorization", bearer(owner))
+                        .param("page", "0")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(1)))
+                .andExpect(jsonPath("$.items[0].id").value(secondId.toString()))
+                .andExpect(jsonPath("$.items[0].text").value("second text"))
+                .andExpect(jsonPath("$.items[0].normalText").value("second normal"))
+                .andExpect(jsonPath("$.items[0].sanad", nullValue()))
+                .andExpect(jsonPath("$.items[0].book.id").value(bookId.toString()))
+                .andExpect(jsonPath("$.items[0].book.name").value("Favorite Book"))
+                .andExpect(jsonPath("$.items[0].muhaddith.id").value(muhaddithId.toString()))
+                .andExpect(jsonPath("$.items[0].topics", empty()))
+                .andExpect(jsonPath("$.items[0].hasExplanation").value(false))
+                .andExpect(jsonPath("$.items[0].hasSubValid").value(false))
+                .andExpect(jsonPath("$.items[0].favoriteId").doesNotExist())
+                .andExpect(jsonPath("$.items[0].user").doesNotExist())
+                .andExpect(jsonPath("$.items[0].userId").doesNotExist())
+                .andExpect(jsonPath("$.items[0].email").doesNotExist())
+                .andExpect(jsonPath("$.items[0].searchText").doesNotExist())
+                .andExpect(jsonPath("$.items[0].createdAt").doesNotExist())
+                .andExpect(jsonPath("$.items[0].updatedAt").doesNotExist())
+                .andExpect(jsonPath("$.pagination.page").value(0))
+                .andExpect(jsonPath("$.pagination.size").value(1))
+                .andExpect(jsonPath("$.pagination.totalItems").value(2))
+                .andExpect(jsonPath("$.pagination.totalPages").value(2))
+                .andExpect(jsonPath("$.pagination.hasNext").value(true))
+                .andExpect(jsonPath("$.pagination.hasPrevious").value(false))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode firstItem = objectMapper.readTree(response).get("items").get(0);
+        assertThat(firstItem.size()).isEqualTo(13);
+
+        mockMvc.perform(get("/me/favorites")
+                        .header("Authorization", bearer(owner))
+                        .param("page", "1")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].id").value(firstId.toString()))
+                .andExpect(jsonPath("$.items[0].sanad").value("first sanad"))
+                .andExpect(jsonPath("$.items[0].rawi.id").value(rawiId.toString()))
+                .andExpect(jsonPath("$.items[0].ruling.id").value(rulingId.toString()))
+                .andExpect(jsonPath("$.items[0].topics[*].id", contains(topicId.toString())))
+                .andExpect(jsonPath("$.items[0].hasExplanation").value(true))
+                .andExpect(jsonPath("$.items[0].hasSubValid").value(true))
+                .andExpect(jsonPath("$.items[0].subValid").doesNotExist())
+                .andExpect(jsonPath("$.items[0].subValidId").doesNotExist())
+                .andExpect(jsonPath("$.pagination.page").value(1))
+                .andExpect(jsonPath("$.pagination.hasNext").value(false))
+                .andExpect(jsonPath("$.pagination.hasPrevious").value(true));
+
+        mockMvc.perform(get("/me/favorites")
+                        .header("Authorization", bearer(other))
+                        .param("page", "0")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(1)))
+                .andExpect(jsonPath("$.items[0].id").value(otherUserHadithId.toString()))
+                .andExpect(jsonPath("$.pagination.totalItems").value(1));
+
+        mockMvc.perform(get("/me/favorites")
+                        .header("Authorization", bearer(owner))
+                        .param("page", "2")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", empty()))
+                .andExpect(jsonPath("$.pagination.totalItems").value(2));
+
+        mockMvc.perform(get("/me/favorites")
+                        .header("Authorization", bearer(owner))
+                        .param("page", "-1"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/me/favorites")
+                        .header("Authorization", bearer(owner))
+                        .param("size", "0"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/me/favorites")
+                        .header("Authorization", bearer(owner))
+                        .param("size", "100"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pagination.size").value(50));
+
+        User emptyUser = user("favorites-empty@example.com", UserType.member);
+        mockMvc.perform(get("/me/favorites").header("Authorization", bearer(emptyUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", empty()))
+                .andExpect(jsonPath("$.pagination.page").value(0))
+                .andExpect(jsonPath("$.pagination.size").value(20))
+                .andExpect(jsonPath("$.pagination.totalItems").value(0))
+                .andExpect(jsonPath("$.pagination.totalPages").value(0))
+                .andExpect(jsonPath("$.pagination.hasNext").value(false))
+                .andExpect(jsonPath("$.pagination.hasPrevious").value(false));
+
+        User admin = user("favorites-admin@example.com", UserType.admin);
+        mockMvc.perform(get("/admin/favorites").header("Authorization", bearer(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].user").exists())
+                .andExpect(jsonPath("$.items[0].hadith").exists())
+                .andExpect(jsonPath("$.items[0].createdAt").exists());
     }
 
     @Test
@@ -214,6 +384,27 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
         hadith.setHadithNumber(Math.abs(UUID.randomUUID().hashCode()));
         hadith.setType(HadithType.marfu);
         return hadithRepository.saveAndFlush(hadith);
+    }
+
+    private void insertHadith(UUID id, String text, String normalText, int number, UUID bookId, UUID rawiId,
+                              UUID rulingId, UUID explanationId, String sanad, UUID subValidId) {
+        jdbc.update("""
+                insert into public.ahadith
+                    (id, text, normal_text, search_text, hadith_number, type, book, rawi, ruling, explaining, sanad, sub_valid)
+                values (?, ?, ?, ?, ?, cast(? as public.hadith_type), ?, ?, ?, ?, ?, ?)
+                """, id, text, normalText, "internal search text", number, "marfu", bookId, rawiId, rulingId,
+                explanationId, sanad, subValidId);
+    }
+
+    private void insertFavorite(UUID id, UUID userId, UUID hadithId, String createdAt) {
+        jdbc.update("""
+                insert into public.favorites (id, user_id, hadith, created_at)
+                values (?, ?, ?, cast(? as timestamptz))
+                """, id, userId, hadithId, createdAt);
+    }
+
+    private UUID uuid(int value) {
+        return UUID.fromString("00000000-0000-0000-0000-%012d".formatted(value));
     }
 
     private String bearer(User user) {

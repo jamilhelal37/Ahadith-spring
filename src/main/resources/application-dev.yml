@@ -13,23 +13,6 @@ spring:
       ddl-auto: validate
     show-sql: true
 
-  mail:
-    host: ${SPRING_MAIL_HOST:localhost}
-    port: ${SPRING_MAIL_PORT:1025}
-    username: ${SPRING_MAIL_USERNAME:}
-    password: ${SPRING_MAIL_PASSWORD:}
-    test-connection: false
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-            required: true
-          connectiontimeout: 5000
-          timeout: 5000
-          writetimeout: 5000
-
 server:
   port: ${PORT:8080}
 
@@ -45,10 +28,12 @@ app:
     api-secret: ${CLOUDINARY_API_SECRET:}
   mail:
     enabled: ${APP_MAIL_ENABLED:false}
+    provider: ${APP_MAIL_PROVIDER:resend}
     from: ${APP_MAIL_FROM:}
     frontend-base-url: ${APP_MAIL_FRONTEND_BASE_URL:http://localhost:8080}
     verification-base-url:
     verification-path: /verify-email
+    resend-api-key: ${RESEND_API_KEY:}
     verification-token-ttl: 24h
     reset-token-ttl: 30m
     resend-throttle: 5m

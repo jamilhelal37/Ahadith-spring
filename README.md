@@ -43,15 +43,13 @@ JWT_SECRET
 JWT_ACCESS_EXPIRATION
 JWT_REFRESH_EXPIRATION
 APP_MAIL_ENABLED
+APP_MAIL_PROVIDER
+RESEND_API_KEY
+APP_MAIL_FROM
+APP_MAIL_FRONTEND_BASE_URL
 CLOUDINARY_CLOUD_NAME
 CLOUDINARY_API_KEY
 CLOUDINARY_API_SECRET
-SPRING_MAIL_HOST
-SPRING_MAIL_PORT
-SPRING_MAIL_USERNAME
-SPRING_MAIL_PASSWORD
-APP_MAIL_FROM
-APP_MAIL_FRONTEND_BASE_URL
 ```
 
 Generate a strong local JWT secret with at least 64 random characters:
@@ -309,40 +307,37 @@ Keep direct local development values in the untracked root `.env` file. Do not c
 
 ## Email Configuration
 
-The project uses Spring Boot mail auto-configuration. `spring-boot-starter-mail` provides `JavaMailSender` when `SPRING_MAIL_HOST` is configured. For local Gmail SMTP, keep the real values in environment variables loaded from an untracked `.env`, your shell, Docker Compose, or the IDE run configuration:
+The project sends email through the Resend HTTP API. SMTP is not used, which keeps production compatible with Render Free where SMTP ports are blocked.
 
-- `SPRING_MAIL_HOST=smtp.gmail.com`
-- `SPRING_MAIL_PORT=587`
-- `SPRING_MAIL_USERNAME=<gmail address>`
-- `SPRING_MAIL_PASSWORD=<Google App Password>`
-- `APP_MAIL_FROM=<same verified sender address>`
-- `APP_MAIL_FRONTEND_BASE_URL=<frontend URL>`
+For Render, configure:
 
-Use a Google App Password, not the normal Gmail account password. The App Password must never be committed or printed in logs.
+```text
+SPRING_PROFILES_ACTIVE=prod
+APP_MAIL_ENABLED=true
+APP_MAIL_PROVIDER=resend
+RESEND_API_KEY=<secret>
+APP_MAIL_FROM=no-reply@mail.jamilhelal.me
+APP_MAIL_FRONTEND_BASE_URL=https://api.jamilhelal.me
+```
 
-For production, set environment variables:
+`RESEND_API_KEY` must remain a secret. Do not commit it to Git, place it in README examples as a real value, or print it in logs.
 
-- `SPRING_MAIL_HOST`
-- `SPRING_MAIL_PORT`
-- `SPRING_MAIL_USERNAME`
-- `SPRING_MAIL_PASSWORD`
-- `APP_MAIL_FROM`
-- `APP_MAIL_FRONTEND_BASE_URL`
-
-Mail connection testing is disabled in application configuration. Common failures:
-
-- `JavaMailSender` missing: `SPRING_MAIL_HOST` is not loaded into the Spring Environment.
-- Authentication failed: use a Google App Password and verify the account has 2-Step Verification enabled.
-- `.env` changes ignored: load `.env` through Docker Compose, shell variables, or the IDE run configuration.
+For local development, keep `APP_MAIL_ENABLED=false` unless you intentionally want to test Resend with a private key in your untracked `.env`.
 
 Verification emails link to the temporary same-origin page:
 
 - Local: `http://localhost:8080/verify-email?token=...`
-- Deployed app: `${APP_MAIL_FRONTEND_BASE_URL}/verify-email?token=...`
+- Deployed app: `https://api.jamilhelal.me/verify-email?token=...`
+
+Password-reset emails use `${APP_MAIL_FRONTEND_BASE_URL}/reset-password?token=...`.
+
+Common failures:
+
+- `RESEND_API_KEY` missing: set it as a Render secret environment variable.
+- Sender rejected: verify `mail.jamilhelal.me` in Resend and use `APP_MAIL_FROM=no-reply@mail.jamilhelal.me`.
+- `.env` changes ignored: load `.env` through Docker Compose, shell variables, or the IDE run configuration.
 
 The click flow is: email link -> `GET /verify-email` -> static page JavaScript -> `POST /auth/verify-email` -> success/error message. No second manual verification action is required. The page removes the token from the visible address bar after reading it and does not store it in browser storage.
-
-Password-reset emails continue to use `${APP_MAIL_FRONTEND_BASE_URL}/reset-password?token=...`. Verification emails use the same base URL with `/verify-email`.
 
 The temporary verification page is served from `src/main/resources/static` by the Spring Boot API. Replace it later by changing `app.mail.verification-base-url` and/or the email template once the web or mobile team provides the final UI. The raw one-time token is sent only in the email link; the database stores only its hash.
 
@@ -350,7 +345,7 @@ For Render Web Services:
 
 - Set `SPRING_PROFILES_ACTIVE=prod`.
 - Render supplies `PORT`; the app listens on that port and binds to `0.0.0.0`.
-- Set datasource, JWT, Gmail SMTP, Cloudinary, and mail sender variables in the Render Dashboard. Use `sync: false` for secrets if you manage them through infrastructure files.
+- Set datasource, JWT, Resend, Cloudinary, and mail sender variables in the Render Dashboard. Use `sync: false` for secrets if you manage them through infrastructure files.
 
 ## Upgrade Requests
 
