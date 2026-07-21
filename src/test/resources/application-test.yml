@@ -36,3 +36,5 @@ app:
     search-history-max-per-user: 50
     login-max-failures: 3
     login-lock-duration: 15m
+  rate-limit:
+    enabled: false

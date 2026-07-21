@@ -1,8 +1,6 @@
 package com.jamil.ahadith.features.hadith.dto.request;
 
-import com.jamil.ahadith.features.hadith.entity.Hadith;
 
-import com.jamil.ahadith.features.hadith.entity.Explaining;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;

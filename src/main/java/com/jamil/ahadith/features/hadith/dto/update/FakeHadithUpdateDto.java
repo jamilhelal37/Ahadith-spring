@@ -1,14 +1,17 @@
 package com.jamil.ahadith.features.hadith.dto.update;
 
-import com.jamil.ahadith.features.hadith.entity.Hadith;
-import com.jamil.ahadith.features.catalog.entity.Ruling;
+import com.jamil.ahadith.features.catalog.dto.request.reference.RulingReferenceRequestDto;
+import com.jamil.ahadith.features.hadith.dto.request.reference.HadithReferenceRequestDto;
+import jakarta.validation.Valid;
 import lombok.Data;
 
 @Data
 public class FakeHadithUpdateDto {
-    private Hadith subValid;
+    @Valid
+    private HadithReferenceRequestDto subValid;
     private String text;
     private String normalText;
     private String searchText;
-    private Ruling ruling;
+    @Valid
+    private RulingReferenceRequestDto ruling;
 }

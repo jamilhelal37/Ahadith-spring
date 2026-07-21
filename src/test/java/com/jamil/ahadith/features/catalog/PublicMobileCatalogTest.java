@@ -24,7 +24,7 @@ import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -662,11 +662,19 @@ class PublicMobileCatalogTest {
 
     private Hadith saveHadith(UUID id, Book book, int hadithNumber, String text) {
         Hadith hadith = new Hadith();
-        hadith.setId(id);
         hadith.setBook(book);
         hadith.setHadithNumber(hadithNumber);
         hadith.setText(text);
-        return hadithRepository.save(hadith);
+        hadith = hadithRepository.saveAndFlush(hadith);
+        if (id == null) {
+            return hadith;
+        }
+
+        jdbcTemplate.update(
+                "update \"ahadith\" set \"id\" = ? where \"id\" = ?",
+                id,
+                hadith.getId());
+        return hadithRepository.findById(id).orElseThrow();
     }
 
     private void insertRuling(UUID id, String name) {

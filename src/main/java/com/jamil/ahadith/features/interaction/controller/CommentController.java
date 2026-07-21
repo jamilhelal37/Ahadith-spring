@@ -25,12 +25,12 @@ public class CommentController {
     private final CommentService commentService;
     private final AdminPageService adminPageService;
 
-    @GetMapping("/me/comments")
+    @GetMapping({"/me/comments", "/api/v1/me/comments"})
     public List<CommentResponseDto> getMyComments() {
         return commentService.getCurrentUserComments();
     }
 
-    @GetMapping({"/scholar/comments", "/admin/comments"})
+    @GetMapping({"/scholar/comments", "/admin/comments", "/api/v1/scholar/comments", "/api/v1/admin/comments"})
     public SearchResponse<CommentResponseDto> getComments(@RequestParam(defaultValue = "0") int page,
                                                           @RequestParam(defaultValue = "20") int size,
                                                           @RequestParam(required = false) String sort) {
@@ -39,49 +39,49 @@ public class CommentController {
                 Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by("id"))));
     }
 
-    @GetMapping("/me/comments/{id}")
+    @GetMapping({"/me/comments/{id}", "/api/v1/me/comments/{id}"})
     public CommentResponseDto getMyCommentById(@PathVariable UUID id) {
         return commentService.getCurrentUserCommentById(id);
     }
 
-    @GetMapping({"/scholar/comments/{id}", "/admin/comments/{id}"})
+    @GetMapping({"/scholar/comments/{id}", "/admin/comments/{id}", "/api/v1/scholar/comments/{id}", "/api/v1/admin/comments/{id}"})
     public CommentResponseDto getCommentById(@PathVariable UUID id) {
         return commentService.getCommentById(id);
     }
 
-    @PostMapping({"/me/comments", "/scholar/comments"})
+    @PostMapping({"/me/comments", "/scholar/comments", "/api/v1/me/comments", "/api/v1/scholar/comments"})
     public ResponseEntity<CommentResponseDto> createComment(@Valid @RequestBody CommentRequestDto request,
                                                            UriComponentsBuilder uriBuilder) {
         var comment = commentService.createComment(request);
-        var uri = uriBuilder.path("/me/comments/{id}").buildAndExpand(comment.getId()).toUri();
+        var uri = uriBuilder.path("/api/v1/me/comments/{id}").buildAndExpand(comment.getId()).toUri();
         return ResponseEntity.created(uri).body(comment);
     }
 
-    @PostMapping({"/me/hadiths/{hadithId}/comments", "/scholar/hadiths/{hadithId}/comments"})
+    @PostMapping({"/me/hadiths/{hadithId}/comments", "/scholar/hadiths/{hadithId}/comments", "/api/v1/me/hadiths/{hadithId}/comments", "/api/v1/scholar/hadiths/{hadithId}/comments"})
     public ResponseEntity<CommentResponseDto> createHadithComment(@PathVariable UUID hadithId,
                                                                   @Valid @RequestBody CommentRequestDto request,
                                                                   UriComponentsBuilder uriBuilder) {
         request.setHadithId(hadithId);
         var comment = commentService.createComment(request);
-        var uri = uriBuilder.path("/me/comments/{id}").buildAndExpand(comment.getId()).toUri();
+        var uri = uriBuilder.path("/api/v1/me/comments/{id}").buildAndExpand(comment.getId()).toUri();
         return ResponseEntity.created(uri).body(comment);
     }
 
     @RequestMapping(
-            value = {"/me/comments/{id}", "/scholar/comments/{id}"},
+            value = {"/me/comments/{id}", "/scholar/comments/{id}", "/api/v1/me/comments/{id}", "/api/v1/scholar/comments/{id}"},
             method = {RequestMethod.PUT, RequestMethod.PATCH})
     public CommentResponseDto updateComment(@PathVariable UUID id,
                                            @Valid @RequestBody CommentUpdateDto request) {
         return commentService.updateCurrentUserComment(id, request);
     }
 
-    @DeleteMapping({"/me/comments/{id}", "/scholar/comments/{id}"})
+    @DeleteMapping({"/me/comments/{id}", "/scholar/comments/{id}", "/api/v1/me/comments/{id}", "/api/v1/scholar/comments/{id}"})
     public ResponseEntity<Void> deleteMyComment(@PathVariable UUID id) {
         commentService.deleteCurrentUserComment(id);
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/admin/comments/{id}")
+    @DeleteMapping({"/admin/comments/{id}", "/api/v1/admin/comments/{id}"})
     public ResponseEntity<Void> deleteComment(@PathVariable UUID id) {
         commentService.deleteComment(id);
         return ResponseEntity.noContent().build();

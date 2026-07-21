@@ -2,11 +2,18 @@ package com.jamil.ahadith.features.notification.service;
 
 import com.jamil.ahadith.core.web.AdminPageService;
 
-import com.jamil.ahadith.features.notification.entity.Notification;
-
+import com.jamil.ahadith.features.hadith.dto.request.reference.FakeHadithReferenceRequestDto;
+import com.jamil.ahadith.features.hadith.dto.request.reference.HadithReferenceRequestDto;
+import com.jamil.ahadith.features.hadith.entity.FakeHadith;
+import com.jamil.ahadith.features.hadith.entity.Hadith;
+import com.jamil.ahadith.features.hadith.exception.FakeHadithNotFoundException;
+import com.jamil.ahadith.features.hadith.exception.HadithNotFoundException;
+import com.jamil.ahadith.features.hadith.repository.FakeHadithRepository;
+import com.jamil.ahadith.features.hadith.repository.HadithRepository;
 import com.jamil.ahadith.features.notification.dto.request.NotificationRequestDto;
 import com.jamil.ahadith.features.notification.dto.response.NotificationResponseDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
+import com.jamil.ahadith.features.notification.entity.Notification;
 import com.jamil.ahadith.features.notification.exception.NotificationNotFoundException;
 import com.jamil.ahadith.features.notification.mapper.NotificationMapper;
 import com.jamil.ahadith.features.notification.repository.NotificationRepository;
@@ -27,6 +34,8 @@ public class NotificationService {
     private final NotificationMapper notificationMapper;
     private final EntityManager entityManager;
     private final AdminPageService adminPageService;
+    private final HadithRepository hadithRepository;
+    private final FakeHadithRepository fakeHadithRepository;
 
     public SearchResponse<NotificationResponseDto> getNotifications(Pageable pageable) {
         return adminPageService.response(notificationRepository.findAll(pageable).map(notificationMapper::toResponseDto));
@@ -39,7 +48,10 @@ public class NotificationService {
     }
 
     public NotificationResponseDto createNotification(NotificationRequestDto request) {
-        var notification = notificationRepository.saveAndFlush(notificationMapper.toEntity(request));
+        var entity = notificationMapper.toEntity(request);
+        entity.setHadith(resolveHadith(request.getHadith()));
+        entity.setFakeHadith(resolveFakeHadith(request.getFakeHadith()));
+        var notification = notificationRepository.saveAndFlush(entity);
         entityManager.refresh(notification);
         return notificationMapper.toResponseDto(notification);
     }
@@ -49,5 +61,21 @@ public class NotificationService {
             throw new NotificationNotFoundException();
         }
         notificationRepository.deleteById(id);
+    }
+
+    private Hadith resolveHadith(HadithReferenceRequestDto reference) {
+        if (reference == null) {
+            return null;
+        }
+        return hadithRepository.findById(reference.getId())
+                .orElseThrow(HadithNotFoundException::new);
+    }
+
+    private FakeHadith resolveFakeHadith(FakeHadithReferenceRequestDto reference) {
+        if (reference == null) {
+            return null;
+        }
+        return fakeHadithRepository.findById(reference.getId())
+                .orElseThrow(FakeHadithNotFoundException::new);
     }
 }

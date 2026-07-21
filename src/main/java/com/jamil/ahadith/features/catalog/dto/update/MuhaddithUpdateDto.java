@@ -1,6 +1,5 @@
 package com.jamil.ahadith.features.catalog.dto.update;
 
-import com.jamil.ahadith.features.user.entity.User;
 
 import com.jamil.ahadith.features.user.entity.Gender;
 import lombok.Data;

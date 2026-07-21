@@ -28,7 +28,7 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/me")
+@RequestMapping({"/me", "/api/v1/me"})
 public class UserProfileController {
     private final UserProfileService userProfileService;
     private final UserRepository userRepository;

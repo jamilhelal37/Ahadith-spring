@@ -19,7 +19,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/admin/notifications")
+@RequestMapping({"/admin/notifications", "/api/v1/admin/notifications"})
 public class NotificationController {
     private final NotificationService notificationService;
     private final AdminPageService adminPageService;

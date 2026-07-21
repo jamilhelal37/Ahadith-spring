@@ -20,7 +20,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/admin/upgrade-requests")
+@RequestMapping({"/admin/upgrade-requests", "/api/v1/admin/upgrade-requests"})
 public class UpgradeRequestController {
     private final UpgradeRequestService upgradeRequestService;
     private final AdminPageService adminPageService;

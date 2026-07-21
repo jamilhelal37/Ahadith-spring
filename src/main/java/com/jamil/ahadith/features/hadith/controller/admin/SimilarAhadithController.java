@@ -20,7 +20,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/admin/similar-ahadith")
+@RequestMapping({"/admin/similar-ahadith", "/api/v1/admin/similar-ahadith"})
 public class SimilarAhadithController {
     private final SimilarAhadithService similarAhadithService;
     private final AdminPageService adminPageService;

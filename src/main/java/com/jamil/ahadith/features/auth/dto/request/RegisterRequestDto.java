@@ -1,6 +1,5 @@
 package com.jamil.ahadith.features.auth.dto.request;
 
-import com.jamil.ahadith.features.user.entity.User;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.jamil.ahadith.core.config.FlexibleLocalDateDeserializer;

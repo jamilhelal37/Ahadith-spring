@@ -3,9 +3,8 @@ package com.jamil.ahadith.features.notification.mapper;
 import com.jamil.ahadith.features.hadith.entity.FakeHadith;
 
 import com.jamil.ahadith.features.hadith.entity.Hadith;
-
-import com.jamil.ahadith.features.user.entity.User;
-
+import com.jamil.ahadith.features.hadith.dto.response.reference.FakeHadithReferenceResponseDto;
+import com.jamil.ahadith.features.hadith.dto.response.reference.HadithReferenceResponseDto;
 import com.jamil.ahadith.core.web.mapper.AuditMapping;
 
 import com.jamil.ahadith.features.notification.dto.request.NotificationRequestDto;
@@ -17,8 +16,8 @@ import org.mapstruct.*;
 @Mapper(componentModel = "spring")
 public interface NotificationMapper extends AuditMapping {
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "hadith", source = "hadith")
-    @Mapping(target = "fakeHadith", source = "fakeHadith")
+    @Mapping(target = "hadith", ignore = true)
+    @Mapping(target = "fakeHadith", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
@@ -33,5 +32,19 @@ public interface NotificationMapper extends AuditMapping {
 
     default NotificationType map(String value) {
         return value == null || value.isBlank() ? NotificationType.general : NotificationType.valueOf(value);
+    }
+
+    default HadithReferenceResponseDto toHadithReferenceResponseDto(Hadith hadith) {
+        if (hadith == null) {
+            return null;
+        }
+        return new HadithReferenceResponseDto(hadith.getId(), hadith.getHadithNumber(), hadith.getText());
+    }
+
+    default FakeHadithReferenceResponseDto toFakeHadithReferenceResponseDto(FakeHadith fakeHadith) {
+        if (fakeHadith == null) {
+            return null;
+        }
+        return new FakeHadithReferenceResponseDto(fakeHadith.getId(), fakeHadith.getText());
     }
 }

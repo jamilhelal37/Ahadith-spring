@@ -375,3 +375,95 @@ Flyway migrations are consolidated into a fresh-database baseline:
 - `V3__seed_core_hadith_data.sql`: seed/reference data only.
 
 Databases previously initialized with the old V1-V7 history must be recreated before using this consolidated baseline. Do not run `flyway repair`, add placeholder migrations, or configure Flyway to ignore missing migrations for this change.
+
+## API v1
+
+The canonical API base path is now `/api/v1`. Legacy routes remain available temporarily for existing Postman collections and clients, but new clients should use v1.
+
+| Legacy endpoint | API v1 endpoint | Status |
+| --- | --- | --- |
+| `/auth/**` | `/api/v1/auth/**` | Deprecated alias |
+| `/ahadith/**` | `/api/v1/ahadith/**` | Deprecated alias |
+| `/books/**` | `/api/v1/books/**` | Deprecated alias |
+| `/rawis/**` | `/api/v1/rawis/**` | Deprecated alias |
+| `/rulings/**` | `/api/v1/rulings/**` | Deprecated alias |
+| `/topics/**` | `/api/v1/topics/**` | Deprecated alias |
+| `/muhaddiths/**` | `/api/v1/muhaddiths/**` | Deprecated alias |
+| `/filterslist` | `/api/v1/search/filters` | Deprecated alias |
+| `/ahadith/search/filters` | `/api/v1/search/filters` | Deprecated alias |
+| `/me/**` | `/api/v1/me/**` | Deprecated alias |
+| `/scholar/**` | `/api/v1/scholar/**` | Deprecated alias |
+| `/admin/**` | `/api/v1/admin/**` | Deprecated alias |
+
+`/actuator/**` is intentionally not under `/api/v1`. The browser verification page remains `GET /verify-email`; its JavaScript posts to `/api/v1/auth/verify-email`.
+
+Example:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com"}'
+```
+
+Postman should use `{{baseUrl}}/api/v1` for new requests and keep old collections only during the transition period.
+
+## DTO Contracts
+
+Admin request DTO relationships are nested reference objects, not flattened ids:
+
+```json
+{
+  "book": { "id": "00000000-0000-0000-0000-000000000000" },
+  "rawi": { "id": "00000000-0000-0000-0000-000000000000" },
+  "ruling": { "id": "00000000-0000-0000-0000-000000000000" }
+}
+```
+
+Response DTOs use nested reference DTOs such as `BookReferenceResponseDto`, `RawiReferenceResponseDto`, `MuhaddithReferenceResponseDto`, `PublicHadithSummaryResponseDto`, `PublicBookResponseDto`, `PublicRawiListItemDto`, `PublicMuhaddithListItemDto`, `HadithSearchItemDto`, `PublicHadithDetailsDto`, and `FiltersListResponseDto`. JPA entity schemas are not part of the public OpenAPI contract.
+
+## CORS
+
+Production must set explicit origins:
+
+```text
+APP_CORS_ALLOWED_ORIGINS=https://jamilhelal.me,https://www.jamilhelal.me
+```
+
+Allowed methods are `GET,POST,PUT,PATCH,DELETE,OPTIONS`. Allowed request headers are `Authorization,Content-Type,Accept,X-Request-Id`; exposed headers are `X-Request-Id`. Credentials are disabled by default because authentication uses Bearer tokens in the `Authorization` header.
+
+## Rate Limits
+
+The current implementation uses bounded in-memory Caffeine caches and is suitable for one Render instance. Use a shared Redis-backed implementation before scaling to multiple instances.
+
+| Policy | Default |
+| --- | --- |
+| register | 5 requests / 15 minutes / IP |
+| login | 20 requests / minute / IP |
+| forgot-password | 3 requests / 15 minutes / IP and 3 requests / hour / email hash |
+| resend-verification | 3 requests / 15 minutes / IP plus the existing 5 minute per-user resend delay |
+| verify-email | 10 requests / 15 minutes / IP |
+| reset-password | 10 requests / 15 minutes / IP |
+| refresh | 30 requests / minute / IP |
+| public hadith search | 60 requests / minute / IP |
+
+Exceeded limits return `429` with the standard error response and `Retry-After`.
+
+## Error Codes
+
+Common API errors use the shared error response shape. Expected statuses include `401` unauthenticated, `403` forbidden, `404` not found, `409` conflict, and `429` rate limited.
+
+## Render Variables
+
+Add these variables for the new security and CORS behavior:
+
+```text
+APP_CORS_ALLOWED_ORIGINS=https://jamilhelal.me,https://www.jamilhelal.me
+APP_CORS_ALLOW_CREDENTIALS=false
+APP_CORS_MAX_AGE=1h
+APP_SECURITY_TRUSTED_PROXY_HEADERS=true
+APP_RATE_LIMIT_ENABLED=true
+APP_RATE_LIMIT_CACHE_MAX_SIZE=10000
+APP_RATE_LIMIT_CACHE_EXPIRE_AFTER_ACCESS=2h
+```
+
+Individual rate limit values can be overridden with the `APP_RATE_LIMIT_*` variables defined in `application.yml`.

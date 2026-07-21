@@ -14,7 +14,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/admin/favorites")
+@RequestMapping({"/admin/favorites", "/api/v1/admin/favorites"})
 public class FavoriteController {
     private final FavoriteService favoriteService;
     private final AdminPageService adminPageService;

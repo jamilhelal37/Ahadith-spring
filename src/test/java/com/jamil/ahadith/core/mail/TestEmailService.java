@@ -7,12 +7,14 @@ import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @Profile("test")
 public class TestEmailService implements EmailService {
     private final Map<String, String> verificationTokens = new ConcurrentHashMap<>();
     private final Map<String, String> passwordResetTokens = new ConcurrentHashMap<>();
+    private final AtomicBoolean failNextPasswordReset = new AtomicBoolean();
 
     @Override
     public void sendVerificationEmail(User user, String token) {
@@ -21,6 +23,9 @@ public class TestEmailService implements EmailService {
 
     @Override
     public void sendPasswordResetEmail(User user, String token) {
+        if (failNextPasswordReset.compareAndSet(true, false)) {
+            throw new IllegalStateException("Test password reset email failure");
+        }
         passwordResetTokens.put(user.getEmail(), token);
     }
 
@@ -32,8 +37,13 @@ public class TestEmailService implements EmailService {
         return passwordResetTokens.get(email);
     }
 
+    public void failNextPasswordResetEmail() {
+        failNextPasswordReset.set(true);
+    }
+
     public void clear() {
         verificationTokens.clear();
         passwordResetTokens.clear();
+        failNextPasswordReset.set(false);
     }
 }

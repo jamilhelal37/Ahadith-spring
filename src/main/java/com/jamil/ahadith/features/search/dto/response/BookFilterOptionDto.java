@@ -1,6 +1,5 @@
 package com.jamil.ahadith.features.search.dto.response;
 
-import com.jamil.ahadith.features.catalog.entity.Muhaddith;
 
 import com.jamil.ahadith.core.web.dto.SimpleReferenceDto;
 

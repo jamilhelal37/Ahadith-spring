@@ -1,6 +1,5 @@
 package com.jamil.ahadith.features.auth.dto.response;
 
-import com.jamil.ahadith.features.user.entity.User;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

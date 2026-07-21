@@ -13,13 +13,13 @@ import com.jamil.ahadith.features.catalog.dto.update.RulingUpdateDto;
 import com.jamil.ahadith.features.catalog.exception.RulingNotFoundException;
 import com.jamil.ahadith.features.catalog.mapper.RulingMapper;
 import com.jamil.ahadith.features.catalog.repository.RulingRepository;
+import com.jamil.ahadith.features.search.service.SearchFiltersService;
 import org.springframework.stereotype.Service;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.UUID;
 
 @Transactional
@@ -31,6 +31,7 @@ public class RulingService {
     private final EntityManager entityManager;
     private final CurrentUserService currentUserService;
     private final AdminPageService adminPageService;
+    private final SearchFiltersService searchFiltersService;
 
     public SearchResponse<RulingResponseDto> getRulings(Pageable pageable) {
         return adminPageService.response(rulingRepository.findAll(pageable).map(rulingMapper::toResponseDto));
@@ -47,6 +48,7 @@ public class RulingService {
         currentUserService.getCurrentUser().ifPresent(ruling::setCreatedBy);
         ruling = rulingRepository.saveAndFlush(ruling);
         entityManager.refresh(ruling);
+        searchFiltersService.evictReferenceCaches();
         return rulingMapper.toResponseDto(ruling);
     }
 
@@ -56,6 +58,7 @@ public class RulingService {
         currentUserService.getCurrentUser().ifPresent(ruling::setUpdatedBy);
         var savedRuling = rulingRepository.saveAndFlush(ruling);
         entityManager.refresh(savedRuling);
+        searchFiltersService.evictReferenceCaches();
         return rulingMapper.toResponseDto(savedRuling);
     }
 
@@ -64,6 +67,7 @@ public class RulingService {
             throw new RulingNotFoundException();
         }
         rulingRepository.deleteById(id);
+        searchFiltersService.evictReferenceCaches();
     }
 
 }

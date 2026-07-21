@@ -1,8 +1,8 @@
 package com.jamil.ahadith.features.hadith.dto.response;
 
-import com.jamil.ahadith.features.hadith.entity.Hadith;
-import com.jamil.ahadith.features.catalog.entity.Ruling;
-import com.jamil.ahadith.features.user.entity.User;
+import com.jamil.ahadith.core.web.dto.AdminUserReferenceDto;
+import com.jamil.ahadith.features.catalog.dto.response.reference.RulingReferenceResponseDto;
+import com.jamil.ahadith.features.hadith.dto.response.reference.HadithReferenceResponseDto;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -11,13 +11,13 @@ import java.util.UUID;
 @Data
 public class FakeHadithResponseDto {
     private UUID id;
-    private Hadith subValid;
+    private HadithReferenceResponseDto subValid;
     private String text;
     private String normalText;
     private String searchText;
-    private Ruling ruling;
-    private User createdBy;
-    private User updatedBy;
+    private RulingReferenceResponseDto ruling;
+    private AdminUserReferenceDto createdBy;
+    private AdminUserReferenceDto updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

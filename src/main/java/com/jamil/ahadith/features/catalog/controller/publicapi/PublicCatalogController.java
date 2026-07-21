@@ -24,79 +24,79 @@ import java.util.UUID;
 public class PublicCatalogController {
     private final PublicCatalogService publicCatalogService;
 
-    @GetMapping("/books")
+    @GetMapping({"/books", "/api/v1/books"})
     public List<PublicBookResponseDto> getBooks() {
         return publicCatalogService.getBooks();
     }
 
-    @GetMapping("/books/{id}")
+    @GetMapping({"/books/{id}", "/api/v1/books/{id}"})
     public PublicBookResponseDto getBook(@PathVariable UUID id) {
         return publicCatalogService.getBook(id);
     }
 
-    @GetMapping("/books/{bookId}/ahadith")
+    @GetMapping({"/books/{bookId}/ahadith", "/api/v1/books/{bookId}/ahadith"})
     public SearchResponse<HadithSearchItemDto> getBookAhadith(@PathVariable UUID bookId,
                                                               @RequestParam(defaultValue = "0") int page,
                                                               @RequestParam(defaultValue = "50") int size) {
         return publicCatalogService.getBookAhadith(bookId, page, size);
     }
 
-    @GetMapping("/rawis")
+    @GetMapping({"/rawis", "/api/v1/rawis"})
     public List<PublicRawiListItemDto> getRawis() {
         return publicCatalogService.getRawis();
     }
 
-    @GetMapping("/rawis/{id}")
+    @GetMapping({"/rawis/{id}", "/api/v1/rawis/{id}"})
     public SimpleReferenceDto getRawi(@PathVariable UUID id) {
         return publicCatalogService.getRawi(id);
     }
 
-    @GetMapping("/rulings")
+    @GetMapping({"/rulings", "/api/v1/rulings"})
     public List<SimpleReferenceDto> getRulings() {
         return publicCatalogService.getRulings();
     }
 
-    @GetMapping("/rulings/{id}")
+    @GetMapping({"/rulings/{id}", "/api/v1/rulings/{id}"})
     public SimpleReferenceDto getRuling(@PathVariable UUID id) {
         return publicCatalogService.getRuling(id);
     }
 
-    @GetMapping("/topics")
+    @GetMapping({"/topics", "/api/v1/topics"})
     public List<SimpleReferenceDto> getTopics() {
         return publicCatalogService.getTopics();
     }
 
-    @GetMapping("/topics/{id}")
+    @GetMapping({"/topics/{id}", "/api/v1/topics/{id}"})
     public SimpleReferenceDto getTopic(@PathVariable UUID id) {
         return publicCatalogService.getTopic(id);
     }
 
-    @GetMapping("/muhaddiths")
+    @GetMapping({"/muhaddiths", "/api/v1/muhaddiths"})
     public List<PublicMuhaddithListItemDto> getMuhaddiths() {
         return publicCatalogService.getMuhaddiths();
     }
 
-    @GetMapping("/muhaddiths/{id}")
+    @GetMapping({"/muhaddiths/{id}", "/api/v1/muhaddiths/{id}"})
     public SimpleReferenceDto getMuhaddith(@PathVariable UUID id) {
         return publicCatalogService.getMuhaddith(id);
     }
 
-    @GetMapping("/explaining")
+    @GetMapping({"/explaining", "/api/v1/explaining"})
     public List<PublicTextDto> getExplainings() {
         return publicCatalogService.getExplainings();
     }
 
-    @GetMapping("/explaining/{id}")
+    @GetMapping({"/explaining/{id}", "/api/v1/explaining/{id}"})
     public PublicTextDto getExplaining(@PathVariable UUID id) {
         return publicCatalogService.getExplaining(id);
     }
 
-    @GetMapping("/fake-ahadith")
+    @GetMapping({"/fake-ahadith", "/api/v1/fake-ahadith"})
     public List<PublicTextDto> getFakeAhadith() {
         return publicCatalogService.getFakeAhadith();
     }
 
-    @GetMapping("/fake-ahadith/{id}")
+    @GetMapping({"/fake-ahadith/{id}", "/api/v1/fake-ahadith/{id}"})
     public PublicTextDto getFakeHadith(@PathVariable UUID id) {
         return publicCatalogService.getFakeHadith(id);
     }

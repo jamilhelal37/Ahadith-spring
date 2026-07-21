@@ -8,7 +8,7 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
 import org.flywaydb.core.api.MigrationState;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -62,10 +62,10 @@ class PostgresFlywayMigrationIT {
                 .toList();
 
         assertThat(migrations)
-                .hasSize(3)
+                .hasSize(4)
                 .allSatisfy(migration -> assertThat(migration.getState()).isNotEqualTo(MigrationState.FAILED));
         assertThat(Arrays.stream(migrations).filter(migration -> migration.getState() == MigrationState.PENDING)).isEmpty();
-        assertThat(successfulVersions).containsExactly("1", "2", "3");
+        assertThat(successfulVersions).containsExactly("1", "2", "3", "4");
 
         assertThat(jdbc.queryForObject("select current_setting('server_version_num')::int", Integer.class))
                 .isGreaterThanOrEqualTo(160000);
@@ -138,13 +138,14 @@ class PostgresFlywayMigrationIT {
                       'email_verification_tokens',
                       'password_reset_tokens',
                       'login_attempts',
+                      'activity_log',
                       'upgrade_requests',
                       'notifications',
                       'ahadith'
                   )
                 """,
                 Integer.class))
-                .isEqualTo(8);
+                .isEqualTo(9);
         assertThat(jdbc.queryForObject(
                 """
                 select count(*)
@@ -158,10 +159,11 @@ class PostgresFlywayMigrationIT {
                       or (table_name = 'email_verification_tokens' and column_name in ('token_hash', 'last_sent_at'))
                       or (table_name = 'password_reset_tokens' and column_name in ('token_hash', 'consumed_at'))
                       or (table_name = 'login_attempts' and column_name in ('email_key', 'ip_address', 'locked_until'))
+                      or (table_name = 'activity_log' and column_name in ('actor_user_id', 'message', 'old_data', 'new_data'))
                   )
                 """,
                 Integer.class))
-                .isEqualTo(15);
+                .isEqualTo(19);
         assertThat(jdbc.queryForObject(
                 """
                 select count(*)

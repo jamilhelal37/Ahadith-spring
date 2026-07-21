@@ -7,10 +7,11 @@ import com.jamil.ahadith.features.user.entity.User;
 import com.jamil.ahadith.features.user.entity.UserStatus;
 import com.jamil.ahadith.features.user.entity.UserType;
 import com.jamil.ahadith.features.user.repository.UserRepository;
+import com.jamil.ahadith.features.search.service.SearchFiltersService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -52,8 +53,12 @@ class FiltersListIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private SearchFiltersService searchFiltersService;
+
     @BeforeEach
     void cleanDatabase() {
+        searchFiltersService.evictReferenceCaches();
         jdbcTemplate.execute("delete from \"topic_classes\"");
         jdbcTemplate.execute("delete from \"ahadith\"");
         jdbcTemplate.execute("delete from \"books\"");

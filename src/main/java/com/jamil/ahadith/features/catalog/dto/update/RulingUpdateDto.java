@@ -1,6 +1,5 @@
 package com.jamil.ahadith.features.catalog.dto.update;
 
-import com.jamil.ahadith.features.catalog.entity.Ruling;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

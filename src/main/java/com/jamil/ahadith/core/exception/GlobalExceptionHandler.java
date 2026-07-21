@@ -1,61 +1,42 @@
 package com.jamil.ahadith.core.exception;
 
-import com.jamil.ahadith.features.hadith.exception.SimilarAhadithNotFoundException;
-
-import com.jamil.ahadith.features.interaction.exception.CommentNotFoundException;
-
 import com.jamil.ahadith.core.storage.exception.ProfileImageStorageException;
-
-import com.jamil.ahadith.features.interaction.exception.FavoriteNotFoundException;
-
-import com.jamil.ahadith.features.hadith.exception.ExplainingNotFoundException;
-
-import com.jamil.ahadith.features.catalog.exception.TopicNotFoundException;
-
-import com.jamil.ahadith.features.hadith.entity.Hadith;
-
 import com.jamil.ahadith.core.storage.exception.ProfileImageValidationException;
-
-import com.jamil.ahadith.features.interaction.exception.QuestionNotFoundException;
-
-import com.jamil.ahadith.features.user.exception.UserNotFoundException;
-
-import com.jamil.ahadith.features.notification.entity.Notification;
-
+import com.jamil.ahadith.core.web.RequestCorrelationFilter;
 import com.jamil.ahadith.features.catalog.exception.BookNotFoundException;
-
-import com.jamil.ahadith.features.hadith.exception.HadithNotFoundException;
-
-import com.jamil.ahadith.features.hadith.exception.FakeHadithNotFoundException;
-
 import com.jamil.ahadith.features.catalog.exception.MuhaddithNotFoundException;
-
-import com.jamil.ahadith.features.catalog.exception.RulingNotFoundException;
-
-import com.jamil.ahadith.features.user.entity.User;
-
 import com.jamil.ahadith.features.catalog.exception.RawiNotFoundException;
-
+import com.jamil.ahadith.features.catalog.exception.RulingNotFoundException;
+import com.jamil.ahadith.features.catalog.exception.TopicNotFoundException;
+import com.jamil.ahadith.features.hadith.exception.ExplainingNotFoundException;
+import com.jamil.ahadith.features.hadith.exception.FakeHadithNotFoundException;
+import com.jamil.ahadith.features.hadith.exception.HadithNotFoundException;
+import com.jamil.ahadith.features.hadith.exception.SimilarAhadithNotFoundException;
+import com.jamil.ahadith.features.interaction.exception.CommentNotFoundException;
+import com.jamil.ahadith.features.interaction.exception.FavoriteNotFoundException;
+import com.jamil.ahadith.features.interaction.exception.QuestionNotFoundException;
 import com.jamil.ahadith.features.notification.exception.NotificationNotFoundException;
-
 import com.jamil.ahadith.features.upgrade.exception.UpgradeRequestNotFoundException;
-
-import com.jamil.ahadith.core.exception.ErrorResponseDto;
-import com.jamil.ahadith.core.exception.*;
-import com.jamil.ahadith.core.storage.exception.*;
-import com.jamil.ahadith.features.catalog.exception.*;
-import com.jamil.ahadith.features.hadith.exception.*;
-import com.jamil.ahadith.features.interaction.exception.*;
-import com.jamil.ahadith.features.notification.exception.*;
-import com.jamil.ahadith.features.upgrade.exception.*;
-import com.jamil.ahadith.features.user.exception.*;
+import com.jamil.ahadith.features.user.exception.UserNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -63,6 +44,7 @@ import java.util.Map;
 
 @ControllerAdvice
 class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler({
             RulingNotFoundException.class,
@@ -79,102 +61,182 @@ class GlobalExceptionHandler {
             CommentNotFoundException.class,
             SimilarAhadithNotFoundException.class,
             UpgradeRequestNotFoundException.class,
-            UserNotFoundException.class
+            UserNotFoundException.class,
+            NoHandlerFoundException.class,
+            NoResourceFoundException.class
     })
-    public ResponseEntity<ErrorResponseDto> handleNotFound(RuntimeException ex,
-                                                           HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), request);
+    public ResponseEntity<ErrorResponseDto> handleNotFound(Exception ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "Not Found", safeMessage(ex), request);
     }
 
-    @ExceptionHandler({ProfileImageValidationException.class, InvalidRequestException.class})
-    public ResponseEntity<ErrorResponseDto> handleBadRequest(RuntimeException ex,
-                                                             HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage(), request);
+    @ExceptionHandler({
+            ProfileImageValidationException.class,
+            InvalidRequestException.class,
+            HttpMessageNotReadableException.class,
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class
+    })
+    public ResponseEntity<ErrorResponseDto> handleBadRequest(Exception ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Bad Request", badRequestMessage(ex), request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ValidationErrorResponseDto> handleValidationError(MethodArgumentNotValidException ex,
-                                                                            HttpServletRequest request) {
+    public ResponseEntity<ErrorResponseDto> handleValidationError(
+            MethodArgumentNotValidException ex,
+            HttpServletRequest request
+    ) {
         Map<String, String> fields = new LinkedHashMap<>();
         ex.getBindingResult().getFieldErrors().forEach(error ->
                 fields.putIfAbsent(error.getField(), error.getDefaultMessage()));
 
-        ValidationErrorResponseDto response = new ValidationErrorResponseDto(
+        ErrorResponseDto response = new ErrorResponseDto(
                 HttpStatus.BAD_REQUEST.value(),
                 "Bad Request",
                 "Validation failed",
                 request.getRequestURI(),
                 LocalDateTime.now(),
+                requestId(request),
                 fields);
 
         return ResponseEntity.badRequest().body(response);
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
-    public ResponseEntity<ErrorResponseDto> handleMaxUploadSize(MaxUploadSizeExceededException ex,
-                                                                HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Bad Request",
-                "Profile image size must not exceed 2MB", request);
+    public ResponseEntity<ErrorResponseDto> handleMaxUploadSize(
+            MaxUploadSizeExceededException ex,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                "Bad Request",
+                "Profile image size must not exceed 2MB",
+                request);
     }
 
     @ExceptionHandler(ProfileImageStorageException.class)
-    public ResponseEntity<ErrorResponseDto> handleStorage(RuntimeException ex,
-                                                          HttpServletRequest request) {
+    public ResponseEntity<ErrorResponseDto> handleStorage(RuntimeException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", ex.getMessage(), request);
     }
 
     @ExceptionHandler(EmailDeliveryException.class)
-    public ResponseEntity<ErrorResponseDto> handleEmailDelivery(RuntimeException ex,
-                                                                HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error",
-                "Email delivery failed", request);
+    public ResponseEntity<ErrorResponseDto> handleEmailDelivery(RuntimeException ex, HttpServletRequest request) {
+        return buildErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Internal Server Error",
+                "Email delivery failed",
+                request);
     }
 
     @ExceptionHandler({UserAlreadyExistsException.class, ConflictException.class})
-    public ResponseEntity<ErrorResponseDto> handleConflict(RuntimeException ex,
-                                                           HttpServletRequest request) {
+    public ResponseEntity<ErrorResponseDto> handleConflict(RuntimeException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request);
     }
 
     @ExceptionHandler(ForbiddenException.class)
-    public ResponseEntity<ErrorResponseDto> handleForbidden(RuntimeException ex,
-                                                            HttpServletRequest request) {
+    public ResponseEntity<ErrorResponseDto> handleForbidden(RuntimeException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage(), request);
     }
 
     @ExceptionHandler(RateLimitException.class)
-    public ResponseEntity<ErrorResponseDto> handleRateLimited(RuntimeException ex,
-                                                              HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", ex.getMessage(), request);
+    public ResponseEntity<ErrorResponseDto> handleRateLimited(RateLimitException ex, HttpServletRequest request) {
+        ResponseEntity.BodyBuilder response = ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS);
+        if (ex.getRetryAfter() != null) {
+            long retryAfterSeconds = Math.max(1, (ex.getRetryAfter().toMillis() + 999) / 1000);
+            response.header("Retry-After", Long.toString(retryAfterSeconds));
+        }
+        return response.body(errorResponse(
+                HttpStatus.TOO_MANY_REQUESTS,
+                "Too Many Requests",
+                ex.getMessage(),
+                request));
     }
 
-    @ExceptionHandler({
-            org.springframework.security.authentication.BadCredentialsException.class,
-            org.springframework.security.core.userdetails.UsernameNotFoundException.class
-    })
-    public ResponseEntity<ErrorResponseDto> handleUnauthorized(RuntimeException ex,
-                                                               HttpServletRequest request) {
+    @ExceptionHandler({BadCredentialsException.class, UsernameNotFoundException.class})
+    public ResponseEntity<ErrorResponseDto> handleUnauthorized(RuntimeException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Unauthorized", ex.getMessage(), request);
     }
 
-    private ResponseEntity<ErrorResponseDto> buildErrorResponse(HttpStatus status, String error, String message,
-                                                                HttpServletRequest request) {
-        ErrorResponseDto response = new ErrorResponseDto(
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponseDto> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException ex,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(HttpStatus.METHOD_NOT_ALLOWED, "Method Not Allowed", "Method not allowed", request);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponseDto> handleUnsupportedMediaType(
+            HttpMediaTypeNotSupportedException ex,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                "Unsupported Media Type",
+                "Unsupported media type",
+                request);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponseDto> handleDataIntegrity(
+            DataIntegrityViolationException ex,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(HttpStatus.CONFLICT, "Conflict", "Database constraint violation", request);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponseDto> handleUnexpected(Exception ex, HttpServletRequest request) {
+        log.error("Unhandled request failure requestId={}", requestId(request), ex);
+        return buildErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Internal Server Error",
+                "Unexpected server error",
+                request);
+    }
+
+    private ResponseEntity<ErrorResponseDto> buildErrorResponse(
+            HttpStatus status,
+            String error,
+            String message,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.status(status).body(errorResponse(status, error, message, request));
+    }
+
+    private ErrorResponseDto errorResponse(
+            HttpStatus status,
+            String error,
+            String message,
+            HttpServletRequest request
+    ) {
+        return new ErrorResponseDto(
                 status.value(),
                 error,
                 message,
                 request.getRequestURI(),
-                LocalDateTime.now());
-        return ResponseEntity.status(status).body(response);
+                LocalDateTime.now(),
+                requestId(request));
     }
 
-    private record ValidationErrorResponseDto(
-            int status,
-            String error,
-            String message,
-            String path,
-            LocalDateTime timestamp,
-            Map<String, String> fields) {
+    private String requestId(HttpServletRequest request) {
+        Object requestId = request.getAttribute(RequestCorrelationFilter.REQUEST_ID_ATTRIBUTE);
+        return requestId == null ? null : requestId.toString();
     }
 
+    private String safeMessage(Exception ex) {
+        return ex.getMessage() == null ? "Resource not found" : ex.getMessage();
+    }
+
+    private String badRequestMessage(Exception ex) {
+        if (ex instanceof HttpMessageNotReadableException) {
+            return "Malformed JSON request";
+        }
+        if (ex instanceof MissingServletRequestParameterException missing) {
+            return "Missing required parameter: " + missing.getParameterName();
+        }
+        if (ex instanceof MethodArgumentTypeMismatchException mismatch) {
+            return "Invalid value for parameter: " + mismatch.getName();
+        }
+        return safeMessage(ex);
+    }
 }

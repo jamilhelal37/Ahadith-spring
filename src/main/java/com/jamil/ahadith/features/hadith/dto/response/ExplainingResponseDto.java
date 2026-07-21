@@ -1,8 +1,6 @@
 package com.jamil.ahadith.features.hadith.dto.response;
 
-import com.jamil.ahadith.features.hadith.entity.Hadith;
-
-import com.jamil.ahadith.features.user.entity.User;
+import com.jamil.ahadith.core.web.dto.AdminUserReferenceDto;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -14,8 +12,8 @@ public class ExplainingResponseDto {
     private String text;
     private String normalText;
     private String searchText;
-    private User createdBy;
-    private User updatedBy;
+    private AdminUserReferenceDto createdBy;
+    private AdminUserReferenceDto updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

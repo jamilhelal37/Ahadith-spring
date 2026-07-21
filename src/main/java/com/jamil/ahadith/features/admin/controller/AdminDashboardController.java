@@ -20,7 +20,7 @@ import java.util.Map;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/admin/dashboard")
+@RequestMapping({"/admin/dashboard", "/api/v1/admin/dashboard"})
 public class AdminDashboardController {
     private final HadithRepository hadithRepository;
     private final BookRepository bookRepository;

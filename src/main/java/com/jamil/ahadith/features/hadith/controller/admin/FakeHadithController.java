@@ -22,7 +22,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/admin/fake-ahadith")
+@RequestMapping({"/admin/fake-ahadith", "/api/v1/admin/fake-ahadith"})
 public class FakeHadithController {
     private final FakeHadithService fakeHadithService;
     private final AdminPageService adminPageService;

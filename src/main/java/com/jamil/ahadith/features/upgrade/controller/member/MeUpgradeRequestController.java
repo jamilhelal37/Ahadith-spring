@@ -19,7 +19,7 @@ import java.util.List;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/me/upgrade-requests")
+@RequestMapping({"/me/upgrade-requests", "/api/v1/me/upgrade-requests"})
 public class MeUpgradeRequestController {
     private final UpgradeRequestService upgradeRequestService;
 

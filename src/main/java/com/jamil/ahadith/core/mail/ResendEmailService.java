@@ -23,6 +23,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ResendEmailService implements EmailService {
     private static final String RESEND_EMAILS_URL = "https://api.resend.com/emails";
+    private static final String SENDER_DISPLAY_NAME = "موسوعة الأحاديث النبوية";
+    private static final String VERIFICATION_SUBJECT = "تأكيد بريدك الإلكتروني | موسوعة الأحاديث النبوية";
+    private static final String PASSWORD_RESET_SUBJECT = "إعادة تعيين كلمة المرور | موسوعة الأحاديث النبوية";
 
     private final RestClient.Builder restClientBuilder;
     private final MailConfigProperties mailProperties;
@@ -38,25 +41,27 @@ public class ResendEmailService implements EmailService {
 
     @Override
     public void sendVerificationEmail(User user, String token) {
-        send(user.getEmail(), "Verify your Ahadith account",
-                "ØªØ£ÙƒÙŠØ¯ Ø­Ø³Ø§Ø¨Ùƒ ÙÙŠ Ahadith\n\nØ±Ø§Ø¨Ø· ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ:\n"
-                        + emailLinkBuilder.verificationLink(token));
+        String verificationLink = emailLinkBuilder.verificationLink(token);
+        send(user.getEmail(), VERIFICATION_SUBJECT,
+                verificationEmailHtml(verificationLink),
+                verificationEmailText(verificationLink));
     }
 
     @Override
     public void sendPasswordResetEmail(User user, String token) {
-        send(user.getEmail(), "Reset your Ahadith password",
-                "Ø¥Ø¹Ø§Ø¯Ø© ØªØ¹ÙŠÙŠÙ† ÙƒÙ„Ù…Ø© Ù…Ø±ÙˆØ± Ahadith\n\nReset your password:\n"
-                        + emailLinkBuilder.passwordResetLink(token));
+        String resetLink = emailLinkBuilder.passwordResetLink(token);
+        send(user.getEmail(), PASSWORD_RESET_SUBJECT,
+                passwordResetEmailHtml(resetLink),
+                passwordResetEmailText(resetLink));
     }
 
-    private void send(String to, String subject, String text) {
+    private void send(String to, String subject, String html, String text) {
         try {
             restClient.post()
                     .uri(RESEND_EMAILS_URL)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + mailProperties.getResendApiKey())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(new ResendEmailRequest(mailProperties.getFrom(), List.of(to), subject, text))
+                    .body(new ResendEmailRequest(formattedFrom(), List.of(to), subject, html, text))
                     .retrieve()
                     .onStatus(status -> !status.is2xxSuccessful(), (request, response) -> {
                         throw new EmailDeliveryException("Email delivery failed", null);
@@ -69,10 +74,114 @@ public class ResendEmailService implements EmailService {
         }
     }
 
+    private String formattedFrom() {
+        return SENDER_DISPLAY_NAME + " <" + mailProperties.getFrom() + ">";
+    }
+
+    private String verificationEmailText(String verificationLink) {
+        return """
+                مرحباً بك في موسوعة الأحاديث النبوية
+
+                لتفعيل حسابك، استخدم الرابط التالي:
+                %s
+
+                إذا لم تقم بإنشاء هذا الحساب، يمكنك تجاهل هذه الرسالة.
+                صلاحية رابط التحقق محدودة، ولا يجوز مشاركته مع أي شخص.
+                """.formatted(verificationLink);
+    }
+
+    private String passwordResetEmailText(String resetLink) {
+        return """
+                مرحباً بك في موسوعة الأحاديث النبوية
+
+                لإعادة تعيين كلمة المرور، استخدم الرابط التالي:
+                %s
+
+                إذا لم تطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذه الرسالة.
+                صلاحية رابط إعادة التعيين محدودة، ولا يجوز مشاركته مع أي شخص.
+                """.formatted(resetLink);
+    }
+
+    private String verificationEmailHtml(String verificationLink) {
+        return emailHtml(
+                "تأكيد البريد الإلكتروني",
+                "مرحباً بك في موسوعة الأحاديث النبوية.",
+                "اضغط على الزر التالي لتفعيل حسابك:",
+                "تأكيد الحساب",
+                verificationLink,
+                "إذا لم تقم بإنشاء هذا الحساب، يمكنك تجاهل هذه الرسالة.",
+                "صلاحية رابط التحقق محدودة، ولا يجوز مشاركته مع أي شخص.");
+    }
+
+    private String passwordResetEmailHtml(String resetLink) {
+        return emailHtml(
+                "إعادة تعيين كلمة المرور",
+                "مرحباً بك في موسوعة الأحاديث النبوية.",
+                "اضغط على الزر التالي لإعادة تعيين كلمة المرور:",
+                "إعادة تعيين كلمة المرور",
+                resetLink,
+                "إذا لم تطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذه الرسالة.",
+                "صلاحية رابط إعادة التعيين محدودة، ولا يجوز مشاركته مع أي شخص.");
+    }
+
+    private String emailHtml(
+            String title,
+            String greeting,
+            String instruction,
+            String buttonText,
+            String link,
+            String ignoreMessage,
+            String expiryMessage
+    ) {
+        String escapedLink = escapeHtml(link);
+        return """
+                <!doctype html>
+                <html lang="ar" dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                </head>
+                <body style="margin:0;background:#f4f6f8;font-family:Tahoma,Arial,sans-serif;color:#1f2937">
+                    <div style="max-width:600px;margin:30px auto;background:#ffffff;padding:32px;border-radius:12px;box-sizing:border-box">
+                        <h1 style="margin:0 0 20px;color:#1f2937;font-size:26px;line-height:1.4">%s</h1>
+                        <p style="margin:0 0 16px;font-size:16px;line-height:1.8">%s</p>
+                        <p style="margin:0 0 24px;font-size:16px;line-height:1.8">%s</p>
+
+                        <a href="%s"
+                           style="display:inline-block;background:#198754;color:#ffffff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px">
+                            %s
+                        </a>
+
+                        <p style="margin:24px 0 8px;font-size:14px;line-height:1.8">إذا لم يعمل الزر، انسخ الرابط التالي:</p>
+                        <p style="direction:ltr;text-align:left;word-break:break-all;margin:0 0 24px;font-size:14px;line-height:1.7;color:#374151">
+                            %s
+                        </p>
+
+                        <p style="margin:0 0 8px;color:#6b7280;font-size:14px;line-height:1.8">
+                            %s
+                        </p>
+                        <p style="margin:0;color:#6b7280;font-size:14px;line-height:1.8">
+                            %s
+                        </p>
+                    </div>
+                </body>
+                </html>
+                """.formatted(title, greeting, instruction, escapedLink, buttonText, escapedLink, ignoreMessage, expiryMessage);
+    }
+
+    private String escapeHtml(String value) {
+        return value
+                .replace("&", "&amp;")
+                .replace("\"", "&quot;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
+    }
+
     private record ResendEmailRequest(
             String from,
             List<String> to,
             String subject,
+            String html,
             String text
     ) {
     }

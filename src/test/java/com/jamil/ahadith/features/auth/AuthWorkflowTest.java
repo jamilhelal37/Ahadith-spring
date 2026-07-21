@@ -4,6 +4,8 @@ import com.jamil.ahadith.core.mail.TestEmailService;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jamil.ahadith.features.account.repository.PasswordResetTokenRepository;
+import com.jamil.ahadith.features.account.service.TokenHashService;
 import com.jamil.ahadith.features.user.entity.User;
 import com.jamil.ahadith.features.user.entity.UserStatus;
 import com.jamil.ahadith.features.user.entity.UserType;
@@ -15,7 +17,7 @@ import com.jamil.ahadith.core.security.jwt.JwtService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -50,6 +52,8 @@ class AuthWorkflowTest {
     @Autowired
     private EmailVerificationTokenRepository emailVerificationTokenRepository;
     @Autowired
+    private PasswordResetTokenRepository passwordResetTokenRepository;
+    @Autowired
     private LoginAttemptRepository loginAttemptRepository;
     @Autowired
     private ActivityLogRepository activityLogRepository;
@@ -57,6 +61,8 @@ class AuthWorkflowTest {
     private PasswordEncoder passwordEncoder;
     @Autowired
     private JwtService jwtService;
+    @Autowired
+    private TokenHashService tokenHashService;
     @Autowired
     private TestEmailService testEmailService;
 
@@ -264,6 +270,7 @@ class AuthWorkflowTest {
         String email = "reset@example.com";
         createUser(email, UserStatus.active);
         JsonNode session = login(email);
+        JsonNode secondSession = login(email);
 
         mockMvc.perform(post("/auth/forgot-password")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -273,6 +280,8 @@ class AuthWorkflowTest {
 
         String token = testEmailService.passwordResetTokenFor(email);
         assertThat(token).isNotBlank();
+        assertThat(passwordResetTokenRepository.findByTokenHash(token)).isEmpty();
+        assertThat(passwordResetTokenRepository.findByTokenHash(tokenHashService.sha256(token))).isPresent();
 
         mockMvc.perform(post("/auth/reset-password")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -282,6 +291,10 @@ class AuthWorkflowTest {
         mockMvc.perform(post("/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"" + session.get("refreshToken").asText() + "\"}"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + secondSession.get("refreshToken").asText() + "\"}"))
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/auth/reset-password")
@@ -296,6 +309,119 @@ class AuthWorkflowTest {
 
         assertThat(activityLogRepository.existsByActorEmailAndMessageContainingIgnoreCase(email, "password reset"))
                 .isTrue();
+    }
+
+    @Test
+    void issuingNewPasswordResetTokenShouldInvalidatePreviousToken() throws Exception {
+        String email = unique("reset-reissue");
+        createUser(email, UserStatus.active);
+
+        requestPasswordReset(email);
+        String firstToken = testEmailService.passwordResetTokenFor(email);
+        assertThat(activePasswordResetTokenCount(email)).isEqualTo(1);
+
+        requestPasswordReset(email);
+        String secondToken = testEmailService.passwordResetTokenFor(email);
+        assertThat(secondToken).isNotBlank().isNotEqualTo(firstToken);
+        assertThat(activePasswordResetTokenCount(email)).isEqualTo(1);
+
+        mockMvc.perform(post("/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"" + firstToken + "\",\"newPassword\":\"87654321\"}"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"" + secondToken + "\",\"newPassword\":\"87654321\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void expiredPasswordResetTokenShouldBeRejected() throws Exception {
+        String email = unique("reset-expired");
+        createUser(email, UserStatus.active);
+
+        requestPasswordReset(email);
+        String token = testEmailService.passwordResetTokenFor(email);
+        var resetToken = passwordResetTokenRepository
+                .findByTokenHash(tokenHashService.sha256(token))
+                .orElseThrow();
+        resetToken.setExpiresAt(Instant.now().minusSeconds(1));
+        passwordResetTokenRepository.saveAndFlush(resetToken);
+
+        mockMvc.perform(post("/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"" + token + "\",\"newPassword\":\"87654321\"}"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginJson(email, "12345678")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void concurrentPasswordResetAttemptsShouldNotBothSucceed() throws Exception {
+        String email = unique("reset-race");
+        createUser(email, UserStatus.active);
+        requestPasswordReset(email);
+        String token = testEmailService.passwordResetTokenFor(email);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicInteger successCount = new AtomicInteger();
+
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            for (int i = 0; i < 2; i++) {
+                executor.submit(() -> {
+                    try {
+                        ready.countDown();
+                        start.await(5, TimeUnit.SECONDS);
+                        int status = mockMvc.perform(post("/auth/reset-password")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content("{\"token\":\"" + token + "\",\"newPassword\":\"87654321\"}"))
+                                .andReturn().getResponse().getStatus();
+                        if (status == 200) {
+                            successCount.incrementAndGet();
+                        }
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                });
+            }
+
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            executor.shutdown();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+
+        assertThat(successCount.get()).isEqualTo(1);
+        assertThat(activePasswordResetTokenCount(email)).isZero();
+    }
+
+    @Test
+    void passwordResetEmailFailureShouldRollbackTokenChanges() throws Exception {
+        String email = unique("reset-rollback");
+        createUser(email, UserStatus.active);
+        requestPasswordReset(email);
+        String firstToken = testEmailService.passwordResetTokenFor(email);
+        assertThat(activePasswordResetTokenCount(email)).isEqualTo(1);
+
+        testEmailService.failNextPasswordResetEmail();
+        mockMvc.perform(post("/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email + "\"}"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error").value("Internal Server Error"))
+                .andExpect(jsonPath("$.requestId").exists());
+
+        assertThat(testEmailService.passwordResetTokenFor(email)).isEqualTo(firstToken);
+        assertThat(activePasswordResetTokenCount(email)).isEqualTo(1);
+
+        mockMvc.perform(post("/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"" + firstToken + "\",\"newPassword\":\"87654321\"}"))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -344,6 +470,19 @@ class AuthWorkflowTest {
                         .content(loginJson(email, "12345678")))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString());
+    }
+
+    private void requestPasswordReset(String email) throws Exception {
+        mockMvc.perform(post("/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("If the email is registered, password reset instructions have been sent"));
+    }
+
+    private long activePasswordResetTokenCount(String email) {
+        User user = userRepository.findByEmail(email).orElseThrow();
+        return passwordResetTokenRepository.findByUserAndConsumedAtIsNullOrderByCreatedAtDesc(user).size();
     }
 
     private User createUser(String email, UserStatus status) {

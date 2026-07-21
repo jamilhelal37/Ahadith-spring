@@ -13,12 +13,12 @@ import com.jamil.ahadith.features.catalog.dto.update.RawiUpdateDto;
 import com.jamil.ahadith.features.catalog.exception.RawiNotFoundException;
 import com.jamil.ahadith.features.catalog.mapper.RawiMapper;
 import com.jamil.ahadith.features.catalog.repository.RawiRepository;
+import com.jamil.ahadith.features.search.service.SearchFiltersService;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Pageable;
-import java.util.List;
 import java.util.UUID;
 
 @Transactional
@@ -30,6 +30,7 @@ public class RawiService {
     private final EntityManager entityManager;
     private final CurrentUserService currentUserService;
     private final AdminPageService adminPageService;
+    private final SearchFiltersService searchFiltersService;
 
     public SearchResponse<RawiResponseDto> getRawis(Pageable pageable) {
         return adminPageService.response(rawiRepository.findAll(pageable).map(rawiMapper::toResponseDto));
@@ -46,6 +47,7 @@ public class RawiService {
         currentUserService.getCurrentUser().ifPresent(rawi::setCreatedBy);
         rawi = rawiRepository.saveAndFlush(rawi);
         entityManager.refresh(rawi);
+        searchFiltersService.evictReferenceCaches();
         return rawiMapper.toResponseDto(rawi);
     }
 
@@ -55,6 +57,7 @@ public class RawiService {
         currentUserService.getCurrentUser().ifPresent(rawi::setUpdatedBy);
         var savedRawi = rawiRepository.saveAndFlush(rawi);
         entityManager.refresh(savedRawi);
+        searchFiltersService.evictReferenceCaches();
         return rawiMapper.toResponseDto(savedRawi);
     }
 
@@ -63,6 +66,7 @@ public class RawiService {
             throw new RawiNotFoundException();
         }
         rawiRepository.deleteById(id);
+        searchFiltersService.evictReferenceCaches();
     }
 
 }

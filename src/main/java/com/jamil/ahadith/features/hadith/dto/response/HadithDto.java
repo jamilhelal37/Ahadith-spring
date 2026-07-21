@@ -1,6 +1,5 @@
 package com.jamil.ahadith.features.hadith.dto.response;
 
-import com.jamil.ahadith.features.hadith.entity.Hadith;
 
 import lombok.Data;
 

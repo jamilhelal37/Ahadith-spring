@@ -16,7 +16,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/admin/activity-logs")
+@RequestMapping({"/admin/activity-logs", "/api/v1/admin/activity-logs"})
 public class ActivityLogController {
     private final ActivityLogService activityLogService;
     private final AdminPageService adminPageService;
