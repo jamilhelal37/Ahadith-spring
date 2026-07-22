@@ -36,31 +36,62 @@ public class CloudinaryUpgradeDocumentStorageService implements UpgradeDocumentS
 
     @Override
     public UpgradeDocumentUploadResult upload(MultipartFile file, UUID userId) {
-        Path tempFile = validate(file);
-        String originalName = cleanOriginalName(file.getOriginalFilename());
-        String publicId = "upgrade-requests/%s/%s".formatted(userId, UUID.randomUUID());
-        try (InputStream input = Files.newInputStream(tempFile)) {
-            Map<?, ?> result = cloudinary.uploader().upload(input, ObjectUtils.asMap(
-                    "public_id", publicId,
-                    "resource_type", RESOURCE_TYPE,
-                    "type", DELIVERY_TYPE,
-                    "overwrite", false,
-                    "format", FORMAT,
-                    "filename", originalName
-            ));
-            return new UpgradeDocumentUploadResult(
-                    stringValue(result.get("asset_id")),
-                    stringValue(result.get("public_id")),
-                    stringValueOrDefault(result.get("resource_type"), RESOURCE_TYPE),
-                    DELIVERY_TYPE,
-                    stringValueOrDefault(result.get("format"), FORMAT),
-                    originalName,
-                    file.getSize()
-            );
+        if (file == null || file.isEmpty()) {
+            throw new UpgradeDocumentValidationException("Upgrade document PDF is required");
+        }
+
+        Path tempFile = null;
+        try {
+            tempFile = Files.createTempFile("upgrade-document-", ".pdf");
+            try (InputStream input = file.getInputStream()) {
+                Files.copy(input, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            validateFileMetadata(file);
+            validateMagicBytes(tempFile);
+            validatePdfDocument(tempFile);
+
+            String originalName = cleanOriginalName(file.getOriginalFilename());
+            String publicId = "upgrade-requests/%s/%s".formatted(userId, UUID.randomUUID());
+
+            try (InputStream uploadStream = Files.newInputStream(tempFile)) {
+                Map<?, ?> result = cloudinary.uploader().upload(uploadStream, ObjectUtils.asMap(
+                        "public_id", publicId,
+                        "resource_type", RESOURCE_TYPE,
+                        "type", DELIVERY_TYPE,
+                        "overwrite", false,
+                        "format", FORMAT,
+                        "filename", originalName
+                ));
+                return new UpgradeDocumentUploadResult(
+                        stringValue(result.get("asset_id")),
+                        stringValue(result.get("public_id")),
+                        stringValueOrDefault(result.get("resource_type"), RESOURCE_TYPE),
+                        DELIVERY_TYPE,
+                        stringValueOrDefault(result.get("format"), FORMAT),
+                        originalName,
+                        file.getSize()
+                );
+            }
         } catch (IOException ex) {
             throw new UpgradeDocumentStorageException("Failed to upload upgrade document", ex);
         } finally {
-            deleteTempFile(tempFile);
+            if (tempFile != null) {
+                deleteTempFile(tempFile);
+            }
+        }
+    }
+
+    private void validateFileMetadata(MultipartFile file) {
+        if (file.getSize() > properties.getMaxSize().toBytes()) {
+            throw new UpgradeDocumentTooLargeException("Upgrade document size exceeds the configured limit");
+        }
+        if (!CONTENT_TYPE.equalsIgnoreCase(String.valueOf(file.getContentType()))) {
+            throw new UpgradeDocumentValidationException("Upgrade document must be a PDF file");
+        }
+        String originalName = cleanOriginalName(file.getOriginalFilename());
+        if (!originalName.toLowerCase(Locale.ROOT).endsWith(".pdf")) {
+            throw new UpgradeDocumentValidationException("Upgrade document filename must end with .pdf");
         }
     }
 
@@ -84,46 +115,33 @@ public class CloudinaryUpgradeDocumentStorageService implements UpgradeDocumentS
             return;
         }
         try {
-            cloudinary.uploader().destroy(publicId, ObjectUtils.asMap(
+            Map<?, ?> result = cloudinary.uploader().destroy(publicId, ObjectUtils.asMap(
                     "resource_type", RESOURCE_TYPE,
                     "type", DELIVERY_TYPE
             ));
+            String status = stringValue(result.get("result"));
+            if (!"ok".equalsIgnoreCase(status) && !"not found".equalsIgnoreCase(status)) {
+                throw new UpgradeDocumentStorageException("Failed to delete upgrade document, result: " + status);
+            }
         } catch (IOException ex) {
             throw new UpgradeDocumentStorageException("Failed to delete upgrade document", ex);
         }
     }
 
-    private Path validate(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new UpgradeDocumentValidationException("Upgrade document PDF is required");
-        }
-        if (file.getSize() > properties.getMaxSize().toBytes()) {
-            throw new UpgradeDocumentTooLargeException("Upgrade document size exceeds the configured limit");
-        }
-        if (!CONTENT_TYPE.equalsIgnoreCase(String.valueOf(file.getContentType()))) {
-            throw new UpgradeDocumentValidationException("Upgrade document must be a PDF file");
-        }
-        String originalName = cleanOriginalName(file.getOriginalFilename());
-        if (!originalName.toLowerCase(Locale.ROOT).endsWith(".pdf")) {
-            throw new UpgradeDocumentValidationException("Upgrade document filename must end with .pdf");
-        }
-
-        Path tempFile = copyToTempFile(file);
-        validateMagicBytes(tempFile);
-        validatePdfDocument(tempFile);
-        return tempFile;
+    private String cleanOriginalName(String originalFilename) {
+        String cleaned = StringUtils.cleanPath(originalFilename == null ? "" : originalFilename).replace('\\', '/');
+        int lastSlash = cleaned.lastIndexOf('/');
+        String name = lastSlash >= 0 ? cleaned.substring(lastSlash + 1) : cleaned;
+        return name.isBlank() ? "document.pdf" : name;
     }
 
-    private Path copyToTempFile(MultipartFile file) {
-        try {
-            Path tempFile = Files.createTempFile("upgrade-document-", ".pdf");
-            try (InputStream input = file.getInputStream()) {
-                Files.copy(input, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            }
-            return tempFile;
-        } catch (IOException ex) {
-            throw new UpgradeDocumentValidationException("Unable to read upgrade document", ex);
-        }
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private String stringValueOrDefault(Object value, String fallback) {
+        String stringValue = stringValue(value);
+        return stringValue == null || stringValue.isBlank() ? fallback : stringValue;
     }
 
     private void validateMagicBytes(Path file) {
@@ -155,22 +173,6 @@ public class CloudinaryUpgradeDocumentStorageService implements UpgradeDocumentS
         } catch (IOException ex) {
             throw new UpgradeDocumentValidationException("Upgrade document is not a valid PDF", ex);
         }
-    }
-
-    private String cleanOriginalName(String originalFilename) {
-        String cleaned = StringUtils.cleanPath(originalFilename == null ? "" : originalFilename).replace('\\', '/');
-        int lastSlash = cleaned.lastIndexOf('/');
-        String name = lastSlash >= 0 ? cleaned.substring(lastSlash + 1) : cleaned;
-        return name.isBlank() ? "document.pdf" : name;
-    }
-
-    private String stringValue(Object value) {
-        return value == null ? null : String.valueOf(value);
-    }
-
-    private String stringValueOrDefault(Object value, String fallback) {
-        String stringValue = stringValue(value);
-        return stringValue == null || stringValue.isBlank() ? fallback : stringValue;
     }
 
     private void deleteTempFile(Path file) {

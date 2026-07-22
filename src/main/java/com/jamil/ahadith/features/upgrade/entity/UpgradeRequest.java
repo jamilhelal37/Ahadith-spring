@@ -29,8 +29,8 @@ public class UpgradeRequest {
     @Column(name = "id")
     private UUID id;
 
-    @OneToOne(cascade = CascadeType.MERGE)
-    @JoinColumn(name = "user_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
@@ -62,7 +62,7 @@ public class UpgradeRequest {
     @Column(name = "document_size_bytes")
     private Long documentSizeBytes;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewed_by")
     private User reviewedBy;
 

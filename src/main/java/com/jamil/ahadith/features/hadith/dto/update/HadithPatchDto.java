@@ -45,4 +45,16 @@ public class HadithPatchDto {
 
     @JsonDeserialize(using = TriStateDeserializer.class)
     private TriState<String> sanad = TriState.undefined();
+
+    public boolean isAnyDefined() {
+        return subValid.isDefined() ||
+                explaining.isDefined() ||
+                type.isDefined() ||
+                text.isDefined() ||
+                hadithNumber.isDefined() ||
+                ruling.isDefined() ||
+                rawi.isDefined() ||
+                book.isDefined() ||
+                sanad.isDefined();
+    }
 }

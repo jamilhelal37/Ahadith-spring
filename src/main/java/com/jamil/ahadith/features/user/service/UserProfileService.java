@@ -27,7 +27,8 @@ public class UserProfileService {
             try {
                 cloudinaryStorageService.deleteImage(uploadedImage.getAvatarPublicId());
             } catch (RuntimeException cleanupFailure) {
-                log.warn("Failed to delete uploaded profile image after database update failure");
+                log.warn("Failed to delete uploaded profile image after database update failure for userId: {} and publicId: {}", 
+                    userId, uploadedImage.getAvatarPublicId(), cleanupFailure);
             }
             throw ex;
         }

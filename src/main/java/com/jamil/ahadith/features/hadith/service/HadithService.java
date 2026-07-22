@@ -121,6 +121,10 @@ public class HadithService {
     }
 
     private void applyPatch(HadithPatchDto request, Hadith hadith) {
+        if (!request.isAnyDefined()) {
+            throw new InvalidRequestException("At least one field must be provided");
+        }
+
         if (request.getType().isDefined()) {
             if (request.getType().getValue() == null) {
                 throw new InvalidRequestException("type cannot be null");
@@ -128,38 +132,61 @@ public class HadithService {
             hadith.setType(request.getType().getValue());
         }
         if (request.getText().isDefined()) {
-            if (request.getText().getValue() == null) {
-                throw new InvalidRequestException("text cannot be null");
+            String val = request.getText().getValue();
+            if (val == null || val.isBlank()) {
+                throw new InvalidRequestException("text cannot be null or blank");
             }
-            hadith.setText(request.getText().getValue());
+            if (val.length() > com.jamil.ahadith.core.validation.ValidationLimits.HADITH_TEXT_MAX) {
+                throw new InvalidRequestException("text exceeds maximum length");
+            }
+            hadith.setText(val);
         }
         if (request.getHadithNumber().isDefined()) {
-            if (request.getHadithNumber().getValue() == null) {
+            Integer val = request.getHadithNumber().getValue();
+            if (val == null) {
                 throw new InvalidRequestException("hadithNumber cannot be null");
             }
-            if (request.getHadithNumber().getValue() < 0) {
+            if (val < 0) {
                 throw new InvalidRequestException("hadithNumber must be greater than or equal to 0");
             }
-            hadith.setHadithNumber(request.getHadithNumber().getValue());
+            hadith.setHadithNumber(val);
         }
         if (request.getSanad().isDefined()) {
-            hadith.setSanad(request.getSanad().getValue());
+            String val = request.getSanad().getValue();
+            if (val != null && val.length() > com.jamil.ahadith.core.validation.ValidationLimits.SANAD_MAX) {
+                throw new InvalidRequestException("sanad exceeds maximum length");
+            }
+            hadith.setSanad(val);
         }
+        
+        // Resolve relations first to ensure all are valid before applying
+        Hadith subValid = null;
         if (request.getSubValid().isDefined()) {
-            hadith.setSubValid(resolveHadith(request.getSubValid().getValue()));
+            subValid = resolveHadith(request.getSubValid().getValue());
         }
+        Explaining explaining = null;
         if (request.getExplaining().isDefined()) {
-            hadith.setExplaining(resolveExplaining(request.getExplaining().getValue()));
+            explaining = resolveExplaining(request.getExplaining().getValue());
         }
+        Ruling ruling = null;
         if (request.getRuling().isDefined()) {
-            hadith.setRuling(resolveRuling(request.getRuling().getValue()));
+            ruling = resolveRuling(request.getRuling().getValue());
         }
+        Rawi rawi = null;
         if (request.getRawi().isDefined()) {
-            hadith.setRawi(resolveRawi(request.getRawi().getValue()));
+            rawi = resolveRawi(request.getRawi().getValue());
         }
+        Book book = null;
         if (request.getBook().isDefined()) {
-            hadith.setBook(resolveBook(request.getBook().getValue()));
+            book = resolveBook(request.getBook().getValue());
         }
+
+        // Apply relations
+        if (request.getSubValid().isDefined()) hadith.setSubValid(subValid);
+        if (request.getExplaining().isDefined()) hadith.setExplaining(explaining);
+        if (request.getRuling().isDefined()) hadith.setRuling(ruling);
+        if (request.getRawi().isDefined()) hadith.setRawi(rawi);
+        if (request.getBook().isDefined()) hadith.setBook(book);
     }
 
     private Hadith resolveHadith(HadithReferenceRequestDto reference) {

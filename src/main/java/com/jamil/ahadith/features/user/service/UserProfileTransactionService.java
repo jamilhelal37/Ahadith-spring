@@ -21,10 +21,11 @@ public class UserProfileTransactionService {
     public void replaceProfileImage(UUID userId, ProfileImageResponse uploadedImage) {
         User user = userRepository.findByIdForUpdate(userId).orElseThrow(UserNotFoundException::new);
         String oldPublicId = user.getAvatarPublicId();
+        String newPublicId = uploadedImage.getAvatarPublicId();
         user.setAvatarUrl(uploadedImage.getAvatarUrl());
-        user.setAvatarPublicId(uploadedImage.getAvatarPublicId());
+        user.setAvatarPublicId(newPublicId);
         userRepository.save(user);
-        eventPublisher.publishEvent(new ProfileImageChangedEvent(oldPublicId));
+        eventPublisher.publishEvent(new ProfileImageChangedEvent(oldPublicId, newPublicId));
     }
 
     @Transactional
@@ -34,6 +35,6 @@ public class UserProfileTransactionService {
         user.setAvatarUrl(null);
         user.setAvatarPublicId(null);
         userRepository.save(user);
-        eventPublisher.publishEvent(new ProfileImageChangedEvent(oldPublicId));
+        eventPublisher.publishEvent(new ProfileImageChangedEvent(oldPublicId, null));
     }
 }

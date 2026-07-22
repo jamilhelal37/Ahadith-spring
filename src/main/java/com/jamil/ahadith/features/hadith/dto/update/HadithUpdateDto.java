@@ -8,6 +8,8 @@ import com.jamil.ahadith.features.hadith.dto.request.reference.ExplainingReferen
 import com.jamil.ahadith.features.hadith.dto.request.reference.HadithReferenceRequestDto;
 import com.jamil.ahadith.features.hadith.entity.HadithType;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -18,9 +20,12 @@ public class HadithUpdateDto {
     private HadithReferenceRequestDto subValid;
     @Valid
     private ExplainingReferenceRequestDto explaining;
+    @NotNull(message = "Hadith type is required")
     private HadithType type;
+    @NotBlank(message = "Hadith text is required")
     @Size(max = ValidationLimits.HADITH_TEXT_MAX)
     private String text;
+    @NotNull(message = "Hadith number is required")
     @Min(value = 0, message = "Hadith number must be greater than or equal to 0")
     private Integer hadithNumber;
     @Valid

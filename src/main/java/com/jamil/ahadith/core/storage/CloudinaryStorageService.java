@@ -29,11 +29,12 @@ public class CloudinaryStorageService {
     public ProfileImageResponse uploadProfileImage(MultipartFile file, UUID userId) {
         validateProfileImage(file);
 
-        String publicId = "users/%s/profile/avatar".formatted(userId);
+        String randomUuid = UUID.randomUUID().toString();
+        String publicId = "users/%s/profile/%s".formatted(userId, randomUuid);
         try {
             Map<?, ?> result = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
                     "public_id", publicId,
-                    "overwrite", true,
+                    "overwrite", false,
                     "resource_type", "image"
             ));
             return new ProfileImageResponse(

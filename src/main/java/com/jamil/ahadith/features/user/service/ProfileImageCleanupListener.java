@@ -20,10 +20,16 @@ public class ProfileImageCleanupListener {
         if (event.oldPublicId() == null || event.oldPublicId().isBlank()) {
             return;
         }
+
+        if (event.oldPublicId().equals(event.newPublicId())) {
+            log.info("Skipping image deletion because oldPublicId equals newPublicId: {}", event.oldPublicId());
+            return;
+        }
+
         try {
             cloudinaryStorageService.deleteImage(event.oldPublicId());
         } catch (RuntimeException ex) {
-            log.warn("Failed to delete replaced profile image");
+            log.warn("Failed to delete replaced profile image with publicId: {}", event.oldPublicId(), ex);
         }
     }
 }

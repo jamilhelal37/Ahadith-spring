@@ -62,10 +62,10 @@ class PostgresFlywayMigrationIT {
                 .toList();
 
         assertThat(migrations)
-                .hasSize(7)
+                .hasSize(8)
                 .allSatisfy(migration -> assertThat(migration.getState()).isNotEqualTo(MigrationState.FAILED));
         assertThat(Arrays.stream(migrations).filter(migration -> migration.getState() == MigrationState.PENDING)).isEmpty();
-        assertThat(successfulVersions).containsExactly("1", "2", "3", "4", "5", "6", "7");
+        assertThat(successfulVersions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
 
         assertThat(jdbc.queryForObject("select current_setting('server_version_num')::int", Integer.class))
                 .isGreaterThanOrEqualTo(160000);

@@ -115,13 +115,20 @@ public class UpgradeRequestService {
         UpgradeDocumentUploadResult upload = documentStorageService.upload(request.getDocument(), user.getId());
         try {
             UpgradeRequest saved = upgradeRequestTransactionService.createUpgradeRequest(user, request.getNotes(), upload);
-            auditEventPublisher.publishCreate("upgrade_requests", saved.getId(), AuditData.snapshot(saved));
+            try {
+                auditEventPublisher.publishCreate("upgrade_requests", saved.getId(), AuditData.snapshot(saved));
+            } catch (Exception e) {
+                log.warn("Failed to publish audit event for upgrade request creation: {}", saved.getId(), e);
+            }
             return upgradeRequestMapper.toMemberResponseDto(saved);
         } catch (DataIntegrityViolationException ex) {
             deleteUploadedDocument(upload);
             throw new ConflictException("An open upgrade request already exists");
-        } catch (RuntimeException ex) {
-            deleteUploadedDocument(upload);
+        } catch (Exception ex) {
+            // Note: If transaction rolled back, UpgradeRequestCleanupListener will handle it.
+            if (!(ex instanceof RuntimeException)) {
+                deleteUploadedDocument(upload);
+            }
             throw ex;
         }
     }
@@ -178,13 +185,7 @@ public class UpgradeRequestService {
     }
 
     public void deleteUpgradeRequest(UUID id) {
-        UpgradeRequestDocumentReference documentReference = upgradeRequestTransactionService.deleteUpgradeRequest(id);
-        try {
-            documentStorageService.delete(documentReference.publicId());
-        } catch (UpgradeDocumentStorageException ex) {
-            log.warn("Failed to delete upgrade document after request deletion requestId={} publicIdPresent={}",
-                    id, documentReference.publicId() != null);
-        }
+        upgradeRequestTransactionService.deleteUpgradeRequest(id);
     }
 
     private SignedDocumentDownloadResponseDto createDownloadResponse(UpgradeRequest request) {
