@@ -1,7 +1,5 @@
 package com.jamil.ahadith.features.upgrade.controller.member;
 
-import com.jamil.ahadith.features.upgrade.entity.UpgradeRequest;
-
 import com.jamil.ahadith.features.upgrade.dto.request.UpgradeRequestDto;
 import com.jamil.ahadith.features.upgrade.dto.response.UpgradeRequestResponseDto;
 import com.jamil.ahadith.features.upgrade.service.UpgradeRequestService;
@@ -27,7 +25,7 @@ public class MeUpgradeRequestController {
     public ResponseEntity<UpgradeRequestResponseDto> createUpgradeRequest(@Valid @RequestBody UpgradeRequestDto request,
                                                                           UriComponentsBuilder uriBuilder) {
         var upgradeRequest = upgradeRequestService.createUpgradeRequest(request);
-        var uri = uriBuilder.path("/me/upgrade-requests/{id}").buildAndExpand(upgradeRequest.getId()).toUri();
+        var uri = uriBuilder.path("/api/v1/me/upgrade-requests/{id}").buildAndExpand(upgradeRequest.getId()).toUri();
         return ResponseEntity.created(uri).body(upgradeRequest);
     }
 

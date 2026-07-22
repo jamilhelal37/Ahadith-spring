@@ -1,7 +1,5 @@
 package com.jamil.ahadith.features.catalog.controller;
 
-import com.jamil.ahadith.features.catalog.entity.Rawi;
-
 import com.jamil.ahadith.features.catalog.dto.request.RawiRequestDto;
 import com.jamil.ahadith.features.catalog.dto.response.RawiResponseDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
@@ -12,7 +10,15 @@ import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Set;
@@ -43,7 +49,7 @@ class RawiController {
         public ResponseEntity<RawiResponseDto> createRawi(@Valid @RequestBody RawiRequestDto rawiRequest,
                                                           UriComponentsBuilder uriBuilder) {
             var rawi = rawiService.createRawi(rawiRequest);
-            var uri = uriBuilder.path("/admin/rawis/{id}").buildAndExpand(rawi.getId()).toUri();
+        var uri = uriBuilder.path("/api/v1/admin/rawis/{id}").buildAndExpand(rawi.getId()).toUri();
             return ResponseEntity.created(uri).body(rawi);
         }
 

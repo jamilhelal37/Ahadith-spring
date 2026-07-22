@@ -49,6 +49,7 @@ public class JwtService {
 
         if (includeRole) {
             builder.claim("role", user.getType() != null ? SecurityRoleUtils.tokenRole(user.getType()) : null);
+            builder.claim("tokenVersion", user.getTokenVersion());
         }
 
         return builder.signWith(getSigningKey()).compact();

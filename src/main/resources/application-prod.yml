@@ -41,4 +41,4 @@ app:
     search-history-max-per-user: 50
     login-max-failures: 5
     login-lock-duration: 15m
-    trusted-proxy-headers: false
+    trusted-proxy-headers: ${APP_SECURITY_TRUSTED_PROXY_HEADERS:false}

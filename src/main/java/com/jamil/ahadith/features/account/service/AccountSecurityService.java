@@ -142,7 +142,7 @@ public class AccountSecurityService {
 
         Instant now = Instant.now();
 
-        userRepository.findByEmail(normalizedEmail)
+        userRepository.findByEmailForUpdate(normalizedEmail)
                 .filter(this::isActive)
                 .ifPresent(user ->
                         createAndSendPasswordResetToken(
@@ -197,6 +197,7 @@ public class AccountSecurityService {
                 );
 
         user.setPassword(encodedPassword);
+        user.setTokenVersion(user.getTokenVersion() + 1);
         resetToken.setConsumedAt(now);
 
         refreshTokenRevoker.revokeAllForUser(user);

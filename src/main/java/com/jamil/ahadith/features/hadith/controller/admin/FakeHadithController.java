@@ -1,9 +1,5 @@
 package com.jamil.ahadith.features.hadith.controller.admin;
 
-import com.jamil.ahadith.features.hadith.entity.FakeHadith;
-
-import com.jamil.ahadith.features.hadith.entity.Hadith;
-
 import com.jamil.ahadith.features.hadith.dto.request.FakeHadithRequestDto;
 import com.jamil.ahadith.features.hadith.dto.response.FakeHadithResponseDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
@@ -14,7 +10,15 @@ import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Set;
@@ -45,7 +49,7 @@ public class FakeHadithController {
     public ResponseEntity<FakeHadithResponseDto> createFakeHadith(@Valid @RequestBody FakeHadithRequestDto request,
                                                                  UriComponentsBuilder uriBuilder) {
         var fakeHadith = fakeHadithService.createFakeHadith(request);
-        var uri = uriBuilder.path("/admin/fake-ahadith/{id}").buildAndExpand(fakeHadith.getId()).toUri();
+        var uri = uriBuilder.path("/api/v1/admin/fake-ahadith/{id}").buildAndExpand(fakeHadith.getId()).toUri();
         return ResponseEntity.created(uri).body(fakeHadith);
     }
 

@@ -26,8 +26,6 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             left join public.rawis r on r.id = h.rawi
             left join public.ruling ru on ru.id = h.ruling
             left join public.explaining e on e.id = h.explaining
-            left join public.topic_classes tc on tc.hadith = h.id
-            left join public.topics t on t.id = tc.topic
             """;
 
     String PUBLIC_SEARCH_WHERE = """
@@ -59,7 +57,15 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             and (cast(:types as text[]) is null or cast(h.type as text) = any(cast(:types as text[])))
             and (cast(:rulingIds as uuid[]) is null or ru.id = any(cast(:rulingIds as uuid[])))
             and (cast(:bookIds as uuid[]) is null or b.id = any(cast(:bookIds as uuid[])))
-            and (cast(:topicIds as uuid[]) is null or tc.topic = any(cast(:topicIds as uuid[])))
+            and (
+                cast(:topicIds as uuid[]) is null
+                or exists (
+                    select 1
+                    from public.topic_classes tc
+                    where tc.hadith = h.id
+                      and tc.topic = any(cast(:topicIds as uuid[]))
+                )
+            )
             """;
 
     String ADMIN_SEARCH_WHERE = """
@@ -74,7 +80,6 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             value = """
                     select h.id
                     """ + SEARCH_FROM + PUBLIC_SEARCH_WHERE + """
-                    group by h.id, h.hadith_number, h.search_vector
                     order by
                         case
                             when cast(:sort as text) = 'RELEVANCE'
@@ -86,7 +91,7 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
                         case when cast(:sort as text) <> 'HADITH_NUMBER_DESC' then h.hadith_number end asc nulls last,
                         h.id asc
                     """,
-            countQuery = "select count(distinct h.id) " + SEARCH_FROM + PUBLIC_SEARCH_WHERE,
+            countQuery = "select count(h.id) " + SEARCH_FROM + PUBLIC_SEARCH_WHERE,
             nativeQuery = true
     )
     Page<UUID> searchPublicIds(
@@ -107,10 +112,9 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             value = """
                     select h.id
                     """ + SEARCH_FROM + ADMIN_SEARCH_WHERE + """
-                    group by h.id, h.hadith_number
                     order by h.hadith_number asc nulls last, h.id asc
                     """,
-            countQuery = "select count(distinct h.id) " + SEARCH_FROM + ADMIN_SEARCH_WHERE,
+            countQuery = "select count(h.id) " + SEARCH_FROM + ADMIN_SEARCH_WHERE,
             nativeQuery = true
     )
     Page<UUID> searchAdminIds(

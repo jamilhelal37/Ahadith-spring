@@ -71,7 +71,7 @@ app:
     search-history-max-per-user: 50
     login-max-failures: 5
     login-lock-duration: 15m
-    trusted-proxy-headers: false
+    trusted-proxy-headers: ${APP_SECURITY_TRUSTED_PROXY_HEADERS:false}
   rate-limit:
     # In-memory limits are scoped to one running instance. Use a shared Redis-backed implementation when scaling out.
     enabled: ${APP_RATE_LIMIT_ENABLED:true}

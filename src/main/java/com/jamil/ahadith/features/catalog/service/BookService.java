@@ -15,9 +15,10 @@ import com.jamil.ahadith.features.catalog.exception.MuhaddithNotFoundException;
 import com.jamil.ahadith.features.catalog.mapper.BookMapper;
 import com.jamil.ahadith.features.catalog.repository.BookRepository;
 import com.jamil.ahadith.features.catalog.repository.MuhaddithRepository;
-import com.jamil.ahadith.features.search.service.SearchFiltersService;
+import com.jamil.ahadith.features.search.event.ReferenceDataChangedEvent;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Pageable;
@@ -34,7 +35,7 @@ public class BookService {
     private final CurrentUserService currentUserService;
     private final AdminPageService adminPageService;
     private final MuhaddithRepository muhaddithRepository;
-    private final SearchFiltersService searchFiltersService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public SearchResponse<BookResponseDto> getBooks(Pageable pageable) {
         return adminPageService.response(bookRepository.findAll(pageable).map(bookMapper::toResponseDto));
@@ -53,7 +54,7 @@ public class BookService {
         currentUserService.getCurrentUser().ifPresent(book::setCreatedBy);
         book = bookRepository.saveAndFlush(book);
         entityManager.refresh(book);
-        searchFiltersService.evictReferenceCaches();
+        publishReferenceDataChanged();
         return bookMapper.toResponseDto(book);
     }
 
@@ -67,7 +68,7 @@ public class BookService {
         currentUserService.getCurrentUser().ifPresent(book::setUpdatedBy);
         var savedBook = bookRepository.saveAndFlush(book);
         entityManager.refresh(savedBook);
-        searchFiltersService.evictReferenceCaches();
+        publishReferenceDataChanged();
         return bookMapper.toResponseDto(savedBook);
     }
 
@@ -76,6 +77,10 @@ public class BookService {
             throw new BookNotFoundException();
         }
         bookRepository.deleteById(id);
-        searchFiltersService.evictReferenceCaches();
+        publishReferenceDataChanged();
+    }
+
+    private void publishReferenceDataChanged() {
+        eventPublisher.publishEvent(new ReferenceDataChangedEvent());
     }
 }

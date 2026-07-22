@@ -6,10 +6,12 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
@@ -33,8 +35,36 @@ public class OpenApiConfig {
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
                                 .bearerFormat("JWT")
-                ))
-                .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH));
+                ));
+    }
+
+    @Bean
+    public OpenApiCustomizer v1SecurityCustomizer() {
+        return openApi -> {
+            if (openApi.getPaths() == null) {
+                return;
+            }
+            openApi.getPaths().forEach((path, pathItem) -> {
+                if (!path.startsWith("/api/v1/")) {
+                    return;
+                }
+                pathItem.readOperations().forEach(operation -> {
+                    operation.setSecurity(new ArrayList<>());
+                    if (isProtectedV1Path(path)) {
+                        operation.addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH));
+                    }
+                });
+            });
+        };
+    }
+
+    private boolean isProtectedV1Path(String path) {
+        return path.startsWith("/api/v1/me/")
+                || path.equals("/api/v1/me")
+                || path.startsWith("/api/v1/scholar/")
+                || path.equals("/api/v1/scholar")
+                || path.startsWith("/api/v1/admin/")
+                || path.equals("/api/v1/admin");
     }
 
     @Bean

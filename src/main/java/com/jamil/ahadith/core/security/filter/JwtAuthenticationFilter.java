@@ -3,6 +3,7 @@ package com.jamil.ahadith.core.security.filter;
 import com.jamil.ahadith.features.user.entity.User;
 import com.jamil.ahadith.features.user.entity.UserStatus;
 import com.jamil.ahadith.features.user.repository.UserRepository;
+import com.jamil.ahadith.core.security.SecurityExceptionResponder;
 import com.jamil.ahadith.core.security.jwt.JwtService;
 import com.jamil.ahadith.core.security.SecurityRoleUtils;
 import io.jsonwebtoken.Claims;
@@ -13,19 +14,16 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.lang.NonNull;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 
@@ -40,16 +38,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final SecurityExceptionResponder securityExceptionResponder;
 
     @Override
     protected boolean shouldNotFilter(
-            @NonNull HttpServletRequest request
+            HttpServletRequest request
     ) {
         String path = resolveRequestPath(request);
 
         return "OPTIONS".equalsIgnoreCase(request.getMethod())
                 || path.equals("/auth")
                 || path.startsWith("/auth/")
+                || path.equals("/api/v1/auth")
+                || path.startsWith("/api/v1/auth/")
                 || path.startsWith("/v3/api-docs")
                 || path.startsWith("/swagger-ui")
                 || path.equals("/swagger-ui.html");
@@ -57,9 +58,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
     ) throws ServletException, IOException {
 
         String authorizationHeader =
@@ -84,6 +85,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (token.isBlank()) {
             writeUnauthorized(
+                    request,
                     response,
                     "Bearer token is missing"
             );
@@ -96,6 +98,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             claims = jwtService.parseClaims(token);
         } catch (JwtException | IllegalArgumentException exception) {
             writeUnauthorized(
+                    request,
                     response,
                     "Invalid or expired access token"
             );
@@ -107,6 +110,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (!ACCESS_TOKEN_TYPE.equals(tokenType)) {
             writeUnauthorized(
+                    request,
                     response,
                     "Invalid token type"
             );
@@ -117,6 +121,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (email == null || email.isBlank()) {
             writeUnauthorized(
+                    request,
                     response,
                     "Token subject is missing"
             );
@@ -128,6 +133,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (optionalUser.isEmpty()) {
             writeUnauthorized(
+                    request,
                     response,
                     "Authentication failed"
             );
@@ -137,6 +143,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         User user = optionalUser.get();
         if (user.getStatus() != UserStatus.active) {
             writeUnauthorized(
+                    request,
                     response,
                     "Authentication failed"
             );
@@ -145,8 +152,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (user.getType() == null) {
             writeUnauthorized(
+                    request,
                     response,
                     "Authentication failed"
+            );
+            return;
+        }
+
+        Integer tokenVersion = readTokenVersion(claims);
+        if (tokenVersion == null || tokenVersion != user.getTokenVersion()) {
+            writeUnauthorized(
+                    request,
+                    response,
+                    "Invalid or expired access token"
             );
             return;
         }
@@ -158,15 +176,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         );
 
         var authentication =
-                new UsernamePasswordAuthenticationToken(
+                UsernamePasswordAuthenticationToken.authenticated(
                         user.getEmail(),
                         null,
                         authorities
                 );
-        authentication.setDetails(
-                new WebAuthenticationDetailsSource()
-                        .buildDetails(request)
-        );
         SecurityContext securityContext =
                 SecurityContextHolder.createEmptyContext();
 
@@ -205,32 +219,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void writeUnauthorized(
+            HttpServletRequest request,
             HttpServletResponse response,
             String message
     ) throws IOException {
 
         SecurityContextHolder.clearContext();
-
-        response.setStatus(
-                HttpServletResponse.SC_UNAUTHORIZED
+        securityExceptionResponder.write(
+                request,
+                response,
+                HttpStatus.UNAUTHORIZED,
+                "Unauthorized",
+                message
         );
+    }
 
-        response.setContentType(
-                MediaType.APPLICATION_JSON_VALUE
-        );
-
-        response.setCharacterEncoding(
-                StandardCharsets.UTF_8.name()
-        );
-
-        response.getWriter().write(
-                """
-                {
-                  "status": 401,
-                  "error": "Unauthorized",
-                  "message": "%s"
-                }
-                """.formatted(message)
-        );
+    private Integer readTokenVersion(Claims claims) {
+        Object value = claims.get("tokenVersion");
+        if (value instanceof Integer integer) {
+            return integer;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        return null;
     }
 }

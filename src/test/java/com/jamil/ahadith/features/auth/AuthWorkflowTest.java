@@ -151,6 +151,42 @@ class AuthWorkflowTest {
     }
 
     @Test
+    void v1AuthEndpointsShouldIgnoreInvalidAuthorizationHeader() throws Exception {
+        String email = unique("v1-ignore-auth");
+        createUser(email, UserStatus.active);
+        JsonNode login = login(email);
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .header("Authorization", "Bearer invalid-expired-access-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + login.get("refreshToken").asText() + "\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .header("Authorization", "Bearer invalid-expired-access-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginJson(email, "12345678")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                        .header("Authorization", "Bearer invalid-expired-access-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email + "\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void protectedEndpointWithInvalidAccessTokenShouldReturnUnifiedErrorResponse() throws Exception {
+        mockMvc.perform(get("/me").header("Authorization", "Bearer invalid-expired-access-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.path").value("/me"))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.requestId").exists());
+    }
+
+    @Test
     void emailVerificationTokenLifecycleShouldActivateUserOnce() throws Exception {
         String email = unique("verify");
         mockMvc.perform(post("/auth/register")
@@ -271,6 +307,7 @@ class AuthWorkflowTest {
         createUser(email, UserStatus.active);
         JsonNode session = login(email);
         JsonNode secondSession = login(email);
+        String oldAccessToken = session.get("accessToken").asText();
 
         mockMvc.perform(post("/auth/forgot-password")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -287,6 +324,9 @@ class AuthWorkflowTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"token\":\"" + token + "\",\"newPassword\":\"87654321\"}"))
                 .andExpect(status().isOk());
+
+        mockMvc.perform(get("/me").header("Authorization", "Bearer " + oldAccessToken))
+                .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)

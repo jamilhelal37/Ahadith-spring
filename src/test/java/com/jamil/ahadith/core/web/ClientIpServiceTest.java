@@ -30,4 +30,16 @@ class ClientIpServiceTest {
 
         assertThat(service.resolve(request)).isEqualTo("203.0.113.20");
     }
+
+    @Test
+    void shouldFallbackToRemoteAddressWhenForwardedHeaderIsMalformed() {
+        SecurityProperties properties = new SecurityProperties();
+        properties.setTrustedProxyHeaders(true);
+        ClientIpService service = new ClientIpService(properties);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("198.51.100.10");
+        request.addHeader("X-Forwarded-For", "not a valid ip, 203.0.113.20");
+
+        assertThat(service.resolve(request)).isEqualTo("198.51.100.10");
+    }
 }

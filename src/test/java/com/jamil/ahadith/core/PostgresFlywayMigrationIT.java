@@ -62,10 +62,10 @@ class PostgresFlywayMigrationIT {
                 .toList();
 
         assertThat(migrations)
-                .hasSize(4)
+                .hasSize(5)
                 .allSatisfy(migration -> assertThat(migration.getState()).isNotEqualTo(MigrationState.FAILED));
         assertThat(Arrays.stream(migrations).filter(migration -> migration.getState() == MigrationState.PENDING)).isEmpty();
-        assertThat(successfulVersions).containsExactly("1", "2", "3", "4");
+        assertThat(successfulVersions).containsExactly("1", "2", "3", "4", "5");
 
         assertThat(jdbc.queryForObject("select current_setting('server_version_num')::int", Integer.class))
                 .isGreaterThanOrEqualTo(160000);
@@ -152,7 +152,7 @@ class PostgresFlywayMigrationIT {
                 from information_schema.columns
                 where table_schema = 'public'
                   and (
-                      (table_name = 'users' and column_name = 'avatar_public_id')
+                      (table_name = 'users' and column_name in ('avatar_public_id', 'token_version'))
                       or (table_name = 'upgrade_requests' and column_name in ('review_notes', 'rejection_reason', 'reviewed_at'))
                       or (table_name = 'notifications' and column_name = 'user_id')
                       or (table_name = 'refresh_token_sessions' and column_name in ('token_hash', 'token_id', 'family_id'))
@@ -163,7 +163,7 @@ class PostgresFlywayMigrationIT {
                   )
                 """,
                 Integer.class))
-                .isEqualTo(19);
+                .isEqualTo(20);
         assertThat(jdbc.queryForObject(
                 """
                 select count(*)
