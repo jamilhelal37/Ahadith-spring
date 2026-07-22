@@ -13,9 +13,10 @@ import com.jamil.ahadith.features.catalog.dto.update.MuhaddithUpdateDto;
 import com.jamil.ahadith.features.catalog.exception.MuhaddithNotFoundException;
 import com.jamil.ahadith.features.catalog.mapper.MuhaddithMapper;
 import com.jamil.ahadith.features.catalog.repository.MuhaddithRepository;
-import com.jamil.ahadith.features.search.service.SearchFiltersService;
+import com.jamil.ahadith.features.search.event.ReferenceDataChangedEvent;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Pageable;
@@ -31,7 +32,7 @@ public class MuhaddithService {
     private final EntityManager entityManager;
     private final CurrentUserService currentUserService;
     private final AdminPageService adminPageService;
-    private final SearchFiltersService searchFiltersService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public SearchResponse<MuhaddithResponseDto> getMuhaddiths(Pageable pageable) {
         return adminPageService.response(muhaddithRepository.findAll(pageable).map(muhaddithMapper::toResponseDto));
@@ -48,7 +49,7 @@ public class MuhaddithService {
         currentUserService.getCurrentUser().ifPresent(muhaddith::setCreatedBy);
         muhaddith = muhaddithRepository.saveAndFlush(muhaddith);
         entityManager.refresh(muhaddith);
-        searchFiltersService.evictReferenceCaches();
+        publishReferenceDataChanged();
         return muhaddithMapper.toResponseDto(muhaddith);
     }
 
@@ -58,7 +59,7 @@ public class MuhaddithService {
         currentUserService.getCurrentUser().ifPresent(muhaddith::setUpdatedBy);
         var savedMuhaddith = muhaddithRepository.saveAndFlush(muhaddith);
         entityManager.refresh(savedMuhaddith);
-        searchFiltersService.evictReferenceCaches();
+        publishReferenceDataChanged();
         return muhaddithMapper.toResponseDto(savedMuhaddith);
     }
 
@@ -67,6 +68,10 @@ public class MuhaddithService {
             throw new MuhaddithNotFoundException();
         }
         muhaddithRepository.deleteById(id);
-        searchFiltersService.evictReferenceCaches();
+        publishReferenceDataChanged();
+    }
+
+    private void publishReferenceDataChanged() {
+        eventPublisher.publishEvent(new ReferenceDataChangedEvent());
     }
 }

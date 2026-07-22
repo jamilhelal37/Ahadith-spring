@@ -5,6 +5,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
 @Service
 @RequiredArgsConstructor
 public class ClientIpService {
@@ -17,9 +20,27 @@ public class ClientIpService {
         if (securityProperties.isTrustedProxyHeaders()) {
             String forwardedFor = request.getHeader("X-Forwarded-For");
             if (forwardedFor != null && !forwardedFor.isBlank()) {
-                return forwardedFor.split(",")[0].trim();
+                String firstCandidate = forwardedFor.split(",", 2)[0].trim();
+                if (isValidIp(firstCandidate)) {
+                    return firstCandidate;
+                }
             }
         }
         return request.getRemoteAddr();
+    }
+
+    private boolean isValidIp(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        try {
+            InetAddress.getByName(value);
+            return value.chars().allMatch(character ->
+                    Character.digit(character, 16) >= 0
+                            || character == '.'
+                            || character == ':');
+        } catch (UnknownHostException ex) {
+            return false;
+        }
     }
 }

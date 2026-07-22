@@ -33,7 +33,7 @@ public class MeFavoriteController {
     public ResponseEntity<FavoriteResponseDto> addFavorite(@PathVariable UUID hadithId,
                                                            UriComponentsBuilder uriBuilder) {
         var favorite = favoriteService.createCurrentUserFavorite(hadithId);
-        var uri = uriBuilder.path("/me/favorites/{hadithId}").buildAndExpand(hadithId).toUri();
+        var uri = uriBuilder.path("/api/v1/me/favorites/{hadithId}").buildAndExpand(hadithId).toUri();
         return ResponseEntity.created(uri).body(favorite);
     }
 

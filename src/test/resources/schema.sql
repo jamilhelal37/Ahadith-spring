@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS "users" (
     gender VARCHAR(50),
     type VARCHAR(50),
     birth_date DATE,
+    token_version INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 );

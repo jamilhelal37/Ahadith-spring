@@ -1,10 +1,12 @@
 package com.jamil.ahadith.core.config;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -13,13 +15,35 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 @Component
-@RequiredArgsConstructor
 public class ProductionConfigurationValidator implements ApplicationRunner {
+    private static final Logger log = LoggerFactory.getLogger(ProductionConfigurationValidator.class);
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
     private final Environment environment;
     private final JwtConfig jwtConfig;
     private final MailConfigProperties mailProperties;
+    private final SecurityProperties securityProperties;
+
+    @Autowired
+    public ProductionConfigurationValidator(
+            Environment environment,
+            JwtConfig jwtConfig,
+            MailConfigProperties mailProperties,
+            SecurityProperties securityProperties
+    ) {
+        this.environment = environment;
+        this.jwtConfig = jwtConfig;
+        this.mailProperties = mailProperties;
+        this.securityProperties = securityProperties;
+    }
+
+    public ProductionConfigurationValidator(
+            Environment environment,
+            JwtConfig jwtConfig,
+            MailConfigProperties mailProperties
+    ) {
+        this(environment, jwtConfig, mailProperties, new SecurityProperties());
+    }
 
     @Override
     public void run(ApplicationArguments args) {
@@ -34,6 +58,7 @@ public class ProductionConfigurationValidator implements ApplicationRunner {
         require("SPRING_DATASOURCE_PASSWORD", environment.getProperty("spring.datasource.password"));
 
         validateMailConfiguration();
+        warnIfProxyHeadersDisabled();
 
         require("CLOUDINARY_CLOUD_NAME", environment.getProperty("app.cloudinary.cloud-name"));
         require("CLOUDINARY_API_KEY", environment.getProperty("app.cloudinary.api-key"));
@@ -126,5 +151,11 @@ public class ProductionConfigurationValidator implements ApplicationRunner {
             return "resend";
         }
         return provider.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private void warnIfProxyHeadersDisabled() {
+        if (!securityProperties.isTrustedProxyHeaders()) {
+            log.warn("APP_SECURITY_TRUSTED_PROXY_HEADERS is false while prod profile is active; client IP resolution will ignore proxy headers.");
+        }
     }
 }

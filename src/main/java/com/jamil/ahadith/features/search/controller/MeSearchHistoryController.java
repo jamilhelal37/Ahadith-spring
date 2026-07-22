@@ -1,7 +1,7 @@
 package com.jamil.ahadith.features.search.controller;
 
 import com.jamil.ahadith.features.search.dto.response.SearchHistoryResponseDto;
-import com.jamil.ahadith.features.search.service.SearchService;
+import com.jamil.ahadith.features.search.service.SearchHistoryService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -18,22 +18,28 @@ import java.util.UUID;
 @AllArgsConstructor
 @RequestMapping({"/me/search-history", "/api/v1/me/search-history"})
 public class MeSearchHistoryController {
-    private final SearchService searchService;
+    private final SearchHistoryService searchHistoryService;
 
     @GetMapping
     public List<SearchHistoryResponseDto> getRecentSearchHistory(@RequestParam(defaultValue = "10") int limit) {
-        return searchService.getRecentSearchHistory(limit);
+        return searchHistoryService.getRecentSearchHistory(limit);
+    }
+
+    @GetMapping("/search")
+    public List<SearchHistoryResponseDto> searchSearchHistory(@RequestParam(required = false) String keyword,
+                                                              @RequestParam(defaultValue = "10") int limit) {
+        return searchHistoryService.searchSearchHistory(keyword, limit);
     }
 
     @DeleteMapping
     public ResponseEntity<Void> deleteSearchHistory() {
-        searchService.deleteCurrentUserSearchHistory();
+        searchHistoryService.deleteCurrentUserSearchHistory();
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSearchHistoryItem(@PathVariable UUID id) {
-        searchService.deleteCurrentUserSearchHistoryItem(id);
+        searchHistoryService.deleteCurrentUserSearchHistoryItem(id);
         return ResponseEntity.noContent().build();
     }
 }

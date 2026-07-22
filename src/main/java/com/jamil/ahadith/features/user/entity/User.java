@@ -60,6 +60,9 @@ public class User {
     @Column(name = "birth_date")
     private LocalDate birthDate;
 
+    @Column(name = "token_version", nullable = false)
+    private int tokenVersion;
+
     @Column(name = "created_at", updatable = false,insertable = false)
     private LocalDateTime createdAt;
 

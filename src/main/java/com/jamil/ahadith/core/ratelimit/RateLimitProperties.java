@@ -26,8 +26,7 @@ public class RateLimitProperties {
     @NotNull
     private Duration cacheExpireAfterAccess = Duration.ofHours(2);
 
-    @Valid
-    private Map<String, RateLimitPolicy> policies = defaultPolicies();
+    private Map<String, @Valid RateLimitPolicy> policies = defaultPolicies();
 
     public RateLimitPolicy policy(String name) {
         return policies.get(name);

@@ -1,7 +1,5 @@
 package com.jamil.ahadith.features.catalog.controller;
 
-import com.jamil.ahadith.features.catalog.entity.Ruling;
-import java.util.UUID;
 import com.jamil.ahadith.features.catalog.dto.request.RulingRequestDto;
 import com.jamil.ahadith.features.catalog.dto.response.RulingResponseDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
@@ -24,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Set;
+import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
@@ -50,7 +49,7 @@ class RulingController {
         public ResponseEntity<RulingResponseDto> createRuling(@Valid @RequestBody RulingRequestDto rulingRequest,
                                                           UriComponentsBuilder uriBuilder) {
             var ruling = rulingService.createRuling(rulingRequest);
-            var uri = uriBuilder.path("/admin/rulings/{id}").buildAndExpand(ruling.getId()).toUri();
+        var uri = uriBuilder.path("/api/v1/admin/rulings/{id}").buildAndExpand(ruling.getId()).toUri();
             return ResponseEntity.created(uri).body(ruling);
         }
 
