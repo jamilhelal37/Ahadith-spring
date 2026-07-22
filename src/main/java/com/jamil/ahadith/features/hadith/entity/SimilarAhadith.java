@@ -3,7 +3,6 @@ package com.jamil.ahadith.features.hadith.entity;
 import com.jamil.ahadith.features.user.entity.User;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -47,14 +46,12 @@ public class SimilarAhadith {
     @JoinColumn(name = "updated_by")
     private User updatedBy;
 
-    @NotNull
     @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @NotNull
     @ColumnDefault("CURRENT_TIMESTAMP")
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime updatedAt;
 
 

@@ -553,7 +553,7 @@ class PublicMobileCatalogTest {
     }
 
     @Test
-    void publicBookAhadithShouldDefaultAndClampSizeAndRejectInvalidPagination() throws Exception {
+    void publicBookAhadithShouldDefaultSizeAndRejectInvalidPagination() throws Exception {
         Book book = saveBook("Paged", null);
         for (int i = 1; i <= 55; i++) {
             saveHadith(book, i, "hadith " + i);
@@ -566,9 +566,7 @@ class PublicMobileCatalogTest {
                 .andExpect(jsonPath("$.pagination.hasNext").value(true));
 
         mockMvc.perform(get("/books/{bookId}/ahadith", book.getId()).param("size", "100"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items", hasSize(50)))
-                .andExpect(jsonPath("$.pagination.size").value(50));
+                .andExpect(status().isBadRequest());
 
         mockMvc.perform(get("/books/{bookId}/ahadith", book.getId()).param("page", "-1"))
                 .andExpect(status().isBadRequest());

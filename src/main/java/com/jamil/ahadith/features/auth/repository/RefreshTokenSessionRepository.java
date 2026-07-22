@@ -31,4 +31,17 @@ public interface RefreshTokenSessionRepository extends JpaRepository<RefreshToke
     @Modifying
     @Query("delete from RefreshTokenSession s where s.expiresAt < :cutoff")
     int deleteExpiredBefore(@Param("cutoff") Instant cutoff);
+
+    @Modifying
+    @Query(value = """
+            delete from refresh_token_sessions
+            where id in (
+                select id
+                from refresh_token_sessions
+                where expires_at < :cutoff
+                order by expires_at asc
+                limit :batchSize
+            )
+            """, nativeQuery = true)
+    int deleteExpiredBefore(@Param("cutoff") Instant cutoff, @Param("batchSize") int batchSize);
 }

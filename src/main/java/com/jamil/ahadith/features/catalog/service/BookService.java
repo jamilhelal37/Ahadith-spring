@@ -4,6 +4,8 @@ import com.jamil.ahadith.core.web.AdminPageService;
 
 import com.jamil.ahadith.features.user.service.CurrentUserService;
 
+import com.jamil.ahadith.features.audit.service.AuditData;
+import com.jamil.ahadith.features.audit.service.AuditEventPublisher;
 import com.jamil.ahadith.features.catalog.entity.Book;
 
 import com.jamil.ahadith.features.catalog.dto.request.BookRequestDto;
@@ -36,6 +38,7 @@ public class BookService {
     private final AdminPageService adminPageService;
     private final MuhaddithRepository muhaddithRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditEventPublisher auditEventPublisher;
 
     public SearchResponse<BookResponseDto> getBooks(Pageable pageable) {
         return adminPageService.response(bookRepository.findAll(pageable).map(bookMapper::toResponseDto));
@@ -55,11 +58,13 @@ public class BookService {
         book = bookRepository.saveAndFlush(book);
         entityManager.refresh(book);
         publishReferenceDataChanged();
+        auditEventPublisher.publishCreate("books", book.getId(), AuditData.snapshot(book));
         return bookMapper.toResponseDto(book);
     }
 
     public BookResponseDto updateBook(UUID id, BookUpdateDto request) {
         var book = bookRepository.findById(id).orElseThrow(BookNotFoundException::new);
+        var oldData = AuditData.snapshot(book);
         bookMapper.updateEntity(request, book);
         if (request.getMuhaddith() != null) {
             book.setMuhaddith(muhaddithRepository.findById(request.getMuhaddith().getId())
@@ -69,15 +74,16 @@ public class BookService {
         var savedBook = bookRepository.saveAndFlush(book);
         entityManager.refresh(savedBook);
         publishReferenceDataChanged();
+        auditEventPublisher.publishUpdate("books", savedBook.getId(), oldData, AuditData.snapshot(savedBook));
         return bookMapper.toResponseDto(savedBook);
     }
 
     public void deleteBook(UUID id) {
-        if (!bookRepository.existsById(id)) {
-            throw new BookNotFoundException();
-        }
-        bookRepository.deleteById(id);
+        var book = bookRepository.findById(id).orElseThrow(BookNotFoundException::new);
+        var oldData = AuditData.snapshot(book);
+        bookRepository.delete(book);
         publishReferenceDataChanged();
+        auditEventPublisher.publishDelete("books", id, oldData);
     }
 
     private void publishReferenceDataChanged() {

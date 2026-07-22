@@ -4,6 +4,8 @@ import com.jamil.ahadith.core.web.AdminPageService;
 
 import com.jamil.ahadith.features.user.service.CurrentUserService;
 
+import com.jamil.ahadith.features.audit.service.AuditData;
+import com.jamil.ahadith.features.audit.service.AuditEventPublisher;
 import com.jamil.ahadith.features.catalog.entity.Topic;
 
 import com.jamil.ahadith.features.catalog.dto.request.TopicRequestDto;
@@ -33,6 +35,7 @@ public class TopicService {
     private final CurrentUserService currentUserService;
     private final AdminPageService adminPageService;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditEventPublisher auditEventPublisher;
 
     public SearchResponse<TopicResponseDto> getTopics(Pageable pageable) {
         return adminPageService.response(topicRepository.findAll(pageable).map(topicMapper::toResponseDto));
@@ -50,25 +53,28 @@ public class TopicService {
         topic = topicRepository.saveAndFlush(topic);
         entityManager.refresh(topic);
         publishReferenceDataChanged();
+        auditEventPublisher.publishCreate("topics", topic.getId(), AuditData.snapshot(topic));
         return topicMapper.toResponseDto(topic);
     }
 
     public TopicResponseDto updateTopic(UUID id, TopicUpdateDto request) {
         var topic = topicRepository.findById(id).orElseThrow(TopicNotFoundException::new);
+        var oldData = AuditData.snapshot(topic);
         topicMapper.updateEntity(request, topic);
         currentUserService.getCurrentUser().ifPresent(topic::setUpdatedBy);
         var savedTopic = topicRepository.saveAndFlush(topic);
         entityManager.refresh(savedTopic);
         publishReferenceDataChanged();
+        auditEventPublisher.publishUpdate("topics", savedTopic.getId(), oldData, AuditData.snapshot(savedTopic));
         return topicMapper.toResponseDto(savedTopic);
     }
 
     public void deleteTopic(UUID id) {
-        if (!topicRepository.existsById(id)) {
-            throw new TopicNotFoundException();
-        }
-        topicRepository.deleteById(id);
+        var topic = topicRepository.findById(id).orElseThrow(TopicNotFoundException::new);
+        var oldData = AuditData.snapshot(topic);
+        topicRepository.delete(topic);
         publishReferenceDataChanged();
+        auditEventPublisher.publishDelete("topics", id, oldData);
     }
 
     private void publishReferenceDataChanged() {

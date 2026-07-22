@@ -73,7 +73,8 @@ public class OpenApiConfig {
                 .group("Public API")
                 .pathsToMatch("/api/v1/auth/**", "/api/v1/ahadith/**", "/api/v1/books/**",
                         "/api/v1/rawis/**", "/api/v1/rulings/**", "/api/v1/topics/**",
-                        "/api/v1/muhaddiths/**", "/api/v1/search/filters")
+                        "/api/v1/muhaddiths/**", "/api/v1/explaining/**",
+                        "/api/v1/fake-ahadith/**", "/api/v1/search/filters")
                 .build();
     }
 

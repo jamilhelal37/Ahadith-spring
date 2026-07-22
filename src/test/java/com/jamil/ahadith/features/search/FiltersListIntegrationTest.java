@@ -110,12 +110,18 @@ class FiltersListIntegrationTest {
                 .getContentAsString();
 
         JsonNode root = objectMapper.readTree(response);
-        assertThat(root.size()).isEqualTo(5);
+        assertThat(root.size()).isEqualTo(6);
         assertReferenceListOnly(root.get("rulings"));
         assertReferenceListOnly(root.get("rawis"));
         assertReferenceListOnly(root.get("muhaddiths"));
         assertReferenceListOnly(root.get("books"));
         assertReferenceListOnly(root.get("topics"));
+        assertThat(root.get("types").isArray()).isTrue();
+        for (JsonNode type : root.get("types")) {
+            assertThat(type.size()).isEqualTo(2);
+            assertThat(type.has("id")).isTrue();
+            assertThat(type.has("label")).isTrue();
+        }
     }
 
     @Test

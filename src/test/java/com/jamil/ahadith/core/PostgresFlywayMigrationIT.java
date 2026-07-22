@@ -62,10 +62,10 @@ class PostgresFlywayMigrationIT {
                 .toList();
 
         assertThat(migrations)
-                .hasSize(5)
+                .hasSize(7)
                 .allSatisfy(migration -> assertThat(migration.getState()).isNotEqualTo(MigrationState.FAILED));
         assertThat(Arrays.stream(migrations).filter(migration -> migration.getState() == MigrationState.PENDING)).isEmpty();
-        assertThat(successfulVersions).containsExactly("1", "2", "3", "4", "5");
+        assertThat(successfulVersions).containsExactly("1", "2", "3", "4", "5", "6", "7");
 
         assertThat(jdbc.queryForObject("select current_setting('server_version_num')::int", Integer.class))
                 .isGreaterThanOrEqualTo(160000);
@@ -118,6 +118,11 @@ class PostgresFlywayMigrationIT {
                       'idx_email_verification_tokens_user_id',
                       'idx_email_verification_tokens_expires_at',
                       'idx_password_reset_tokens_expires_at',
+                      'idx_login_attempts_updated_at',
+                      'idx_password_reset_tokens_expires_consumed',
+                      'idx_email_verification_tokens_expires_consumed',
+                      'idx_upgrade_requests_document_public_id',
+                      'idx_upgrade_requests_user_created_at',
                       'idx_questions_asker_created_at',
                       'idx_comments_user_created_at',
                       'idx_search_history_user_created_at',
@@ -125,7 +130,7 @@ class PostgresFlywayMigrationIT {
                   )
                 """,
                 Integer.class))
-                .isEqualTo(14);
+                .isEqualTo(19);
 
         assertThat(jdbc.queryForObject(
                 """
@@ -153,7 +158,18 @@ class PostgresFlywayMigrationIT {
                 where table_schema = 'public'
                   and (
                       (table_name = 'users' and column_name in ('avatar_public_id', 'token_version'))
-                      or (table_name = 'upgrade_requests' and column_name in ('review_notes', 'rejection_reason', 'reviewed_at'))
+                      or (table_name = 'upgrade_requests' and column_name in (
+                          'review_notes',
+                          'rejection_reason',
+                          'reviewed_at',
+                          'document_asset_id',
+                          'document_public_id',
+                          'document_resource_type',
+                          'document_delivery_type',
+                          'document_format',
+                          'document_original_name',
+                          'document_size_bytes'
+                      ))
                       or (table_name = 'notifications' and column_name = 'user_id')
                       or (table_name = 'refresh_token_sessions' and column_name in ('token_hash', 'token_id', 'family_id'))
                       or (table_name = 'email_verification_tokens' and column_name in ('token_hash', 'last_sent_at'))
@@ -163,7 +179,7 @@ class PostgresFlywayMigrationIT {
                   )
                 """,
                 Integer.class))
-                .isEqualTo(20);
+                .isEqualTo(27);
         assertThat(jdbc.queryForObject(
                 """
                 select count(*)

@@ -20,4 +20,18 @@ public class FiltersListResponseDto {
     private List<MuhaddithReferenceResponseDto> muhaddiths;
     private List<BookReferenceResponseDto> books;
     private List<TopicReferenceResponseDto> topics;
+    private List<TypeOptionDto> types;
+
+    public FiltersListResponseDto(List<RulingReferenceResponseDto> rulings,
+                                  List<RawiReferenceResponseDto> rawis,
+                                  List<MuhaddithReferenceResponseDto> muhaddiths,
+                                  List<BookReferenceResponseDto> books,
+                                  List<TopicReferenceResponseDto> topics) {
+        this(rulings, rawis, muhaddiths, books, topics, List.of(
+                new TypeOptionDto("marfu", "marfu"),
+                new TypeOptionDto("mawquf", "mawquf"),
+                new TypeOptionDto("qudsi", "qudsi"),
+                new TypeOptionDto("atharSahaba", "atharSahaba")
+        ));
+    }
 }

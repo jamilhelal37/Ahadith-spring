@@ -3,7 +3,7 @@ package com.jamil.ahadith.features.account.service;
 import com.jamil.ahadith.core.config.MailConfigProperties;
 import com.jamil.ahadith.features.account.dto.request.ResetPasswordRequestDto;
 import com.jamil.ahadith.core.web.dto.MessageResponseDto;
-import com.jamil.ahadith.features.audit.entity.ActivityLog;
+import com.jamil.ahadith.features.audit.service.AuditEventPublisher;
 import com.jamil.ahadith.features.account.entity.EmailVerificationToken;
 import com.jamil.ahadith.features.account.entity.PasswordResetToken;
 import com.jamil.ahadith.features.user.entity.User;
@@ -14,7 +14,6 @@ import com.jamil.ahadith.core.mail.EmailService;
 import com.jamil.ahadith.core.ratelimit.RateLimitKeyResolver;
 import com.jamil.ahadith.core.ratelimit.RateLimitService;
 import com.jamil.ahadith.core.security.RefreshTokenRevoker;
-import com.jamil.ahadith.features.audit.repository.ActivityLogRepository;
 import com.jamil.ahadith.features.account.repository.EmailVerificationTokenRepository;
 import com.jamil.ahadith.features.account.repository.PasswordResetTokenRepository;
 import com.jamil.ahadith.features.user.repository.UserRepository;
@@ -58,7 +57,7 @@ public class AccountSecurityService {
     private final MailConfigProperties mailProperties;
     private final PasswordPolicyService passwordPolicyService;
     private final RefreshTokenRevoker refreshTokenRevoker;
-    private final ActivityLogRepository activityLogRepository;
+    private final AuditEventPublisher auditEventPublisher;
     private final RateLimitService rateLimitService;
     private final RateLimitKeyResolver rateLimitKeyResolver;
 
@@ -202,7 +201,7 @@ public class AccountSecurityService {
 
         refreshTokenRevoker.revokeAllForUser(user);
 
-        createPasswordResetAuditLog(user);
+        createPasswordResetAuditLog(user, resetToken.getUser().getTokenVersion() - 1);
 
         passwordResetTokenRepository.consumeActiveForUser(user, now);
         passwordResetTokenRepository.save(resetToken);
@@ -411,31 +410,14 @@ public class AccountSecurityService {
                   .toLowerCase(Locale.ROOT);
     }
 
-    private void createPasswordResetAuditLog(
-            User user
-    ) {
-        ActivityLog log = new ActivityLog();
-
-        log.setActorUserId(user.getId());
-        log.setActorName(user.getName());
-        log.setActorEmail(user.getEmail());
-        log.setActorAvatarUrl(
-                user.getAvatarUrl()
-        );
-        log.setMessage(
+    private void createPasswordResetAuditLog(User user, int previousTokenVersion) {
+        auditEventPublisher.publishUpdateAs(
+                user,
+                USERS_TABLE_NAME,
+                user.getId(),
+                Map.of("tokenVersion", previousTokenVersion),
+                Map.of("event", PASSWORD_RESET_AUDIT_EVENT, "tokenVersion", user.getTokenVersion()),
                 PASSWORD_RESET_AUDIT_EVENT
         );
-        log.setTableName(
-                USERS_TABLE_NAME
-        );
-        log.setRecordId(user.getId());
-        log.setNewData(
-                Map.of(
-                        "event",
-                        PASSWORD_RESET_AUDIT_EVENT
-                )
-        );
-
-        activityLogRepository.save(log);
     }
 }

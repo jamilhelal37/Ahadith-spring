@@ -4,6 +4,8 @@ import com.jamil.ahadith.core.web.AdminPageService;
 
 import com.jamil.ahadith.features.catalog.entity.Muhaddith;
 
+import com.jamil.ahadith.features.audit.service.AuditData;
+import com.jamil.ahadith.features.audit.service.AuditEventPublisher;
 import com.jamil.ahadith.features.user.service.CurrentUserService;
 
 import com.jamil.ahadith.features.catalog.dto.request.MuhaddithRequestDto;
@@ -33,6 +35,7 @@ public class MuhaddithService {
     private final CurrentUserService currentUserService;
     private final AdminPageService adminPageService;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditEventPublisher auditEventPublisher;
 
     public SearchResponse<MuhaddithResponseDto> getMuhaddiths(Pageable pageable) {
         return adminPageService.response(muhaddithRepository.findAll(pageable).map(muhaddithMapper::toResponseDto));
@@ -50,25 +53,28 @@ public class MuhaddithService {
         muhaddith = muhaddithRepository.saveAndFlush(muhaddith);
         entityManager.refresh(muhaddith);
         publishReferenceDataChanged();
+        auditEventPublisher.publishCreate("muhaddiths", muhaddith.getId(), AuditData.snapshot(muhaddith));
         return muhaddithMapper.toResponseDto(muhaddith);
     }
 
     public MuhaddithResponseDto updateMuhaddith(UUID id, MuhaddithUpdateDto request) {
         var muhaddith = muhaddithRepository.findById(id).orElseThrow(MuhaddithNotFoundException::new);
+        var oldData = AuditData.snapshot(muhaddith);
         muhaddithMapper.updateEntity(request, muhaddith);
         currentUserService.getCurrentUser().ifPresent(muhaddith::setUpdatedBy);
         var savedMuhaddith = muhaddithRepository.saveAndFlush(muhaddith);
         entityManager.refresh(savedMuhaddith);
         publishReferenceDataChanged();
+        auditEventPublisher.publishUpdate("muhaddiths", savedMuhaddith.getId(), oldData, AuditData.snapshot(savedMuhaddith));
         return muhaddithMapper.toResponseDto(savedMuhaddith);
     }
 
     public void deleteMuhaddith(UUID id) {
-        if (!muhaddithRepository.existsById(id)) {
-            throw new MuhaddithNotFoundException();
-        }
-        muhaddithRepository.deleteById(id);
+        var muhaddith = muhaddithRepository.findById(id).orElseThrow(MuhaddithNotFoundException::new);
+        var oldData = AuditData.snapshot(muhaddith);
+        muhaddithRepository.delete(muhaddith);
         publishReferenceDataChanged();
+        auditEventPublisher.publishDelete("muhaddiths", id, oldData);
     }
 
     private void publishReferenceDataChanged() {

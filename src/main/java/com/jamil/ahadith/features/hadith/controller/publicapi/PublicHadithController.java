@@ -6,6 +6,7 @@ import com.jamil.ahadith.features.search.dto.request.HadithSearchRequest;
 import com.jamil.ahadith.features.search.dto.response.HadithSearchItemDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
 import com.jamil.ahadith.features.search.service.PublicHadithSearchFacade;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
@@ -27,7 +28,7 @@ public class PublicHadithController {
     private final PublicHadithDetailsService publicHadithDetailsService;
 
     @PostMapping("/search")
-    public SearchResponse<HadithSearchItemDto> search(@RequestBody(required = false) HadithSearchRequest request) {
+    public SearchResponse<HadithSearchItemDto> search(@Valid @RequestBody(required = false) HadithSearchRequest request) {
         return publicHadithSearchFacade.search(request);
     }
 

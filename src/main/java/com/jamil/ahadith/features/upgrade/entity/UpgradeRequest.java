@@ -41,6 +41,27 @@ public class UpgradeRequest {
     @Column(name = "file_path")
     private String filePath;
 
+    @Column(name = "document_asset_id")
+    private String documentAssetId;
+
+    @Column(name = "document_public_id")
+    private String documentPublicId;
+
+    @Column(name = "document_resource_type")
+    private String documentResourceType;
+
+    @Column(name = "document_delivery_type")
+    private String documentDeliveryType;
+
+    @Column(name = "document_format")
+    private String documentFormat;
+
+    @Column(name = "document_original_name")
+    private String documentOriginalName;
+
+    @Column(name = "document_size_bytes")
+    private Long documentSizeBytes;
+
     @ManyToOne
     @JoinColumn(name = "reviewed_by")
     private User reviewedBy;

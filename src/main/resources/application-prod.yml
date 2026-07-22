@@ -26,6 +26,11 @@ app:
     cloud-name: ${CLOUDINARY_CLOUD_NAME}
     api-key: ${CLOUDINARY_API_KEY}
     api-secret: ${CLOUDINARY_API_SECRET}
+  upgrade:
+    document:
+      max-size: ${APP_UPGRADE_DOCUMENT_MAX_SIZE:10MB}
+      max-pages: ${APP_UPGRADE_DOCUMENT_MAX_PAGES:20}
+      download-ttl: ${APP_UPGRADE_DOCUMENT_DOWNLOAD_TTL:5m}
   mail:
     enabled: ${APP_MAIL_ENABLED:true}
     provider: ${APP_MAIL_PROVIDER:resend}
@@ -42,3 +47,8 @@ app:
     login-max-failures: 5
     login-lock-duration: 15m
     trusted-proxy-headers: ${APP_SECURITY_TRUSTED_PROXY_HEADERS:false}
+  rate-limit:
+    policies:
+      upgrade-request-create:
+        capacity: ${APP_RATE_LIMIT_UPGRADE_REQUEST_CREATE_CAPACITY:5}
+        window: ${APP_RATE_LIMIT_UPGRADE_REQUEST_CREATE_WINDOW:1d}

@@ -1,6 +1,7 @@
 package com.jamil.ahadith.features.catalog.dto.update;
 
 
+import com.jamil.ahadith.core.validation.ValidationLimits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -8,7 +9,7 @@ import lombok.Data;
 @Data
 public class RulingUpdateDto {
     @NotBlank(message = "Ruling name is required")
-    @Size(max = 255, message = "Ruling name must be less than 255 characters")
+    @Size(max = ValidationLimits.NAME_MAX)
     private String name;
 }
 

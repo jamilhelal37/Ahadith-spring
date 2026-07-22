@@ -11,7 +11,7 @@ Spring Boot API for browsing and managing Hadith content, authentication, user p
 - PostgreSQL 16
 - Flyway
 - Maven Wrapper
-- Cloudinary integration for profile images
+- Cloudinary integration for profile images and authenticated upgrade PDFs
 - Resend email integration
 - Docker / Docker Compose
 
@@ -48,6 +48,11 @@ APP_CORS_ALLOWED_ORIGINS
 APP_CORS_ALLOW_CREDENTIALS
 APP_CORS_MAX_AGE
 APP_SECURITY_TRUSTED_PROXY_HEADERS
+APP_UPGRADE_DOCUMENT_MAX_SIZE
+APP_UPGRADE_DOCUMENT_MAX_PAGES
+APP_UPGRADE_DOCUMENT_DOWNLOAD_TTL
+APP_RATE_LIMIT_UPGRADE_REQUEST_CREATE_CAPACITY
+APP_RATE_LIMIT_UPGRADE_REQUEST_CREATE_WINDOW
 ```
 
 Generate a strong local JWT secret with at least 64 random characters:
@@ -165,7 +170,7 @@ POST /api/v1/ahadith/search
 }
 ```
 
-Search runs in PostgreSQL. Authenticated users get one compatible `search_history` entry; anonymous users do not create history.
+Search runs in PostgreSQL. Authenticated users get one compatible `search_history` entry; anonymous users do not create history. `FLEXIBLE` mode searches the hadith text only. `EXACT` mode can also search explanation text when `includeExplanation=true`; `includeExplanation` does not expand `FLEXIBLE` search into explanations.
 
 History endpoints:
 
@@ -208,6 +213,93 @@ Relationship fields remain nested reference objects:
 
 For `PATCH`, an omitted field is unchanged, a present `null` clears a nullable relationship, and a present `{ "id": "..." }` links the referenced row.
 
+## Scholar Upgrade Requests
+
+Members create upgrade requests by uploading a PDF from the backend. The client must not send `status`, `filePath`, Cloudinary public IDs, URLs, or asset IDs.
+
+```http
+POST /api/v1/me/upgrade-requests
+Content-Type: multipart/form-data
+```
+
+Parts:
+
+```text
+document=@credentials.pdf;type=application/pdf
+notes=optional text
+```
+
+Example:
+
+```bash
+curl -X POST "$API_BASE/api/v1/me/upgrade-requests" \
+  -H "Authorization: Bearer <access-token>" \
+  -F "document=@credentials.pdf;type=application/pdf" \
+  -F "notes=Optional review notes"
+```
+
+Successful creation returns `201 Created`, sets `status` to `under_review`, and stores only Cloudinary document metadata.
+
+```json
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "status": "under_review",
+  "notes": "Optional review notes",
+  "reviewNotes": null,
+  "rejectionReason": null,
+  "documentAvailable": true,
+  "documentOriginalName": "credentials.pdf",
+  "documentSizeBytes": 12345,
+  "reviewedAt": null,
+  "createdAt": "2026-07-22T19:00:00",
+  "updatedAt": "2026-07-22T19:00:00"
+}
+```
+
+Member endpoints:
+
+```http
+GET /api/v1/me/upgrade-requests
+GET /api/v1/me/upgrade-requests/current
+GET /api/v1/me/upgrade-requests/{id}/document
+```
+
+Admin endpoints:
+
+```http
+GET    /api/v1/admin/upgrade-requests
+GET    /api/v1/admin/upgrade-requests/{id}
+GET    /api/v1/admin/upgrade-requests/{id}/document
+PATCH  /api/v1/admin/upgrade-requests/{id}/review
+DELETE /api/v1/admin/upgrade-requests/{id}
+```
+
+Review example:
+
+```bash
+curl -X PATCH "$API_BASE/api/v1/admin/upgrade-requests/<id>/review" \
+  -H "Authorization: Bearer <admin-access-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"decision":"APPROVE","reviewNotes":"Credentials verified"}'
+```
+
+Temporary document links are returned only by the `/document` endpoints, use `Cache-Control: no-store`, and expire after `APP_UPGRADE_DOCUMENT_DOWNLOAD_TTL` (default `5m`). Do not persist these links in web or mobile clients. Normal list/detail responses never expose Cloudinary `publicId`, `assetId`, or URLs.
+
+Document validation accepts PDF only, checks content type, extension, PDF magic bytes, parses the file with PDFBox, rejects encrypted files, caps size with `APP_UPGRADE_DOCUMENT_MAX_SIZE`, and caps pages with `APP_UPGRADE_DOCUMENT_MAX_PAGES`.
+
+Cloudinary uploads use `resource_type=raw`, `type=authenticated`, and server-generated public IDs under `upgrade-requests/{userId}/{randomUuid}`. For PDF delivery on Cloudinary free plans, enable: Settings -> Security -> Allow delivery of PDF and ZIP files.
+
+## Public Text Pagination
+
+These public text list endpoints return `SearchResponse<PublicTextDto>`:
+
+```http
+GET /api/v1/explaining?page=0&size=20
+GET /api/v1/fake-ahadith?page=0&size=20
+```
+
+`page` starts at `0`; `size` must be between `1` and `50`. Invalid pagination returns the shared `ErrorResponseDto` with `requestId`.
+
 ## Security Notes
 
 - Roles are `MEMBER`, `SCHOLAR`, and `ADMIN`, mapped to Spring authorities.
@@ -228,13 +320,32 @@ APP_CORS_ALLOWED_ORIGINS=<comma-separated production origins>
 APP_CORS_ALLOW_CREDENTIALS=false
 APP_CORS_MAX_AGE=1h
 APP_SECURITY_TRUSTED_PROXY_HEADERS=true
+APP_API_LEGACY_SUNSET=
+APP_UPGRADE_DOCUMENT_MAX_SIZE=10MB
+APP_UPGRADE_DOCUMENT_MAX_PAGES=20
+APP_UPGRADE_DOCUMENT_DOWNLOAD_TTL=5m
+APP_RATE_LIMIT_UPGRADE_REQUEST_CREATE_CAPACITY=5
+APP_RATE_LIMIT_UPGRADE_REQUEST_CREATE_WINDOW=1d
 ```
 
-`X-Forwarded-For` is used only when `APP_SECURITY_TRUSTED_PROXY_HEADERS=true`; otherwise the application uses `remoteAddr`. When the prod profile starts with proxy headers disabled, the app logs a warning and continues.
+`X-Forwarded-For` is used only when `APP_SECURITY_TRUSTED_PROXY_HEADERS=true`; otherwise the application uses `remoteAddr`. Behind Render, the application assumes the trusted proxy cleans forwarded headers before passing requests. When the prod profile starts with proxy headers disabled, the app logs a warning and continues. Legacy aliases include `Deprecation: true`; `Sunset` is emitted only when `APP_API_LEGACY_SUNSET` is configured.
 
 ## Email
 
-Email is sent through Resend. Keep `RESEND_API_KEY` secret. Password-reset emails use `${APP_MAIL_FRONTEND_BASE_URL}/reset-password?token=...`. The database stores only token hashes.
+Email is sent through Resend. Keep `RESEND_API_KEY` secret. Password-reset emails use `${APP_MAIL_FRONTEND_BASE_URL}/reset-password?token=...`. Verification links can use `APP_MAIL_VERIFICATION_BASE_URL` when they need a different base URL. Configure Resend HTTP timeouts with `APP_MAIL_CONNECT_TIMEOUT` and `APP_MAIL_READ_TIMEOUT`. The database stores only token hashes.
+
+## Cleanup
+
+Scheduled cleanup removes old login attempts, expired refresh sessions, and expired or consumed email/password tokens in batches. Configure it with:
+
+```text
+APP_CLEANUP_ENABLED
+APP_CLEANUP_INITIAL_DELAY
+APP_CLEANUP_FIXED_DELAY
+APP_CLEANUP_TOKEN_RETENTION
+APP_CLEANUP_LOGIN_ATTEMPT_RETENTION
+APP_CLEANUP_BATCH_SIZE
+```
 
 ## Actuator
 
@@ -247,6 +358,8 @@ Email is sent through Resend. Keep `RESEND_API_KEY` secret. Password-reset email
 - `V3__seed_core_hadith_data.sql`
 - `V4__create_activity_log.sql`
 - `V5__add_user_token_version.sql`
+- `V6__security_cleanup_indexes.sql`
+- `V7__add_upgrade_request_document_metadata.sql`
 
 Do not edit already-applied migrations. New database changes must use a later migration.
 

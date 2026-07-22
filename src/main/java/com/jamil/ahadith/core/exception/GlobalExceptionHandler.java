@@ -16,6 +16,9 @@ import com.jamil.ahadith.features.interaction.exception.CommentNotFoundException
 import com.jamil.ahadith.features.interaction.exception.FavoriteNotFoundException;
 import com.jamil.ahadith.features.interaction.exception.QuestionNotFoundException;
 import com.jamil.ahadith.features.notification.exception.NotificationNotFoundException;
+import com.jamil.ahadith.features.upgrade.exception.UpgradeDocumentStorageException;
+import com.jamil.ahadith.features.upgrade.exception.UpgradeDocumentTooLargeException;
+import com.jamil.ahadith.features.upgrade.exception.UpgradeDocumentValidationException;
 import com.jamil.ahadith.features.upgrade.exception.UpgradeRequestNotFoundException;
 import com.jamil.ahadith.features.user.exception.UserNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -71,6 +74,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler({
             ProfileImageValidationException.class,
+            UpgradeDocumentValidationException.class,
             InvalidRequestException.class,
             HttpMessageNotReadableException.class,
             MissingServletRequestParameterException.class,
@@ -107,15 +111,31 @@ class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         return buildErrorResponse(
-                HttpStatus.BAD_REQUEST,
-                "Bad Request",
-                "Profile image size must not exceed 2MB",
+                HttpStatus.PAYLOAD_TOO_LARGE,
+                "Payload Too Large",
+                "Uploaded file exceeds the configured size limit",
                 request);
+    }
+
+    @ExceptionHandler(UpgradeDocumentTooLargeException.class)
+    public ResponseEntity<ErrorResponseDto> handleUpgradeDocumentTooLarge(
+            UpgradeDocumentTooLargeException ex,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(HttpStatus.PAYLOAD_TOO_LARGE, "Payload Too Large", ex.getMessage(), request);
     }
 
     @ExceptionHandler(ProfileImageStorageException.class)
     public ResponseEntity<ErrorResponseDto> handleStorage(RuntimeException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(UpgradeDocumentStorageException.class)
+    public ResponseEntity<ErrorResponseDto> handleUpgradeDocumentStorage(
+            UpgradeDocumentStorageException ex,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(HttpStatus.BAD_GATEWAY, "Bad Gateway", "Upgrade document storage failed", request);
     }
 
     @ExceptionHandler(EmailDeliveryException.class)

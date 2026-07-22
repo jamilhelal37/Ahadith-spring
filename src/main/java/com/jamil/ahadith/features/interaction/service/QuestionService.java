@@ -3,6 +3,8 @@ package com.jamil.ahadith.features.interaction.service;
 import com.jamil.ahadith.core.exception.InvalidRequestException;
 import com.jamil.ahadith.core.web.AdminPageService;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
+import com.jamil.ahadith.features.audit.service.AuditData;
+import com.jamil.ahadith.features.audit.service.AuditEventPublisher;
 import com.jamil.ahadith.features.hadith.exception.HadithNotFoundException;
 import com.jamil.ahadith.features.hadith.repository.HadithRepository;
 import com.jamil.ahadith.features.interaction.dto.request.QuestionAnswerRequestDto;
@@ -40,6 +42,7 @@ public class QuestionService {
     private final CurrentUserService currentUserService;
     private final HadithRepository hadithRepository;
     private final AdminPageService adminPageService;
+    private final AuditEventPublisher auditEventPublisher;
 
     @Transactional(readOnly = true)
     public SearchResponse<ScholarQuestionResponseDto> getQuestions(int page, int size, String sort) {
@@ -87,16 +90,19 @@ public class QuestionService {
     public ScholarQuestionResponseDto answerQuestion(UUID id, QuestionAnswerRequestDto request) {
         Question question = questionRepository.findScholarQuestionById(id)
                 .orElseThrow(QuestionNotFoundException::new);
+        var oldData = AuditData.snapshot(question);
         question.setAnswerText(request.getAnswerText());
         question.setUpdatedBy(currentUserService.requireCurrentUser());
         Question savedQuestion = questionRepository.saveAndFlush(question);
         entityManager.refresh(savedQuestion);
+        auditEventPublisher.publishUpdate("questions", savedQuestion.getId(), oldData, AuditData.snapshot(savedQuestion));
         return questionMapper.toScholarResponseDto(savedQuestion);
     }
 
     public ScholarQuestionResponseDto updateQuestionStatus(UUID id, QuestionStatusUpdateRequestDto request) {
         Question question = questionRepository.findScholarQuestionById(id)
                 .orElseThrow(QuestionNotFoundException::new);
+        var oldData = AuditData.snapshot(question);
         if (Boolean.TRUE.equals(request.getIsActive()) && isBlank(question.getAnswerText())) {
             throw new InvalidRequestException("answerText is required before activating question");
         }
@@ -104,14 +110,15 @@ public class QuestionService {
         question.setUpdatedBy(currentUserService.requireCurrentUser());
         Question savedQuestion = questionRepository.saveAndFlush(question);
         entityManager.refresh(savedQuestion);
+        auditEventPublisher.publishUpdate("questions", savedQuestion.getId(), oldData, AuditData.snapshot(savedQuestion));
         return questionMapper.toScholarResponseDto(savedQuestion);
     }
 
     public void deleteQuestion(UUID id) {
-        if (!questionRepository.existsById(id)) {
-            throw new QuestionNotFoundException();
-        }
-        questionRepository.deleteById(id);
+        var question = questionRepository.findById(id).orElseThrow(QuestionNotFoundException::new);
+        var oldData = AuditData.snapshot(question);
+        questionRepository.delete(question);
+        auditEventPublisher.publishDelete("questions", id, oldData);
     }
 
     public void deleteCurrentUserQuestion(UUID id) {

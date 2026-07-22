@@ -2,6 +2,8 @@ package com.jamil.ahadith.features.hadith.service;
 
 import com.jamil.ahadith.core.web.AdminPageService;
 
+import com.jamil.ahadith.features.audit.service.AuditData;
+import com.jamil.ahadith.features.audit.service.AuditEventPublisher;
 import com.jamil.ahadith.features.catalog.entity.Ruling;
 import com.jamil.ahadith.features.catalog.exception.RulingNotFoundException;
 import com.jamil.ahadith.features.catalog.repository.RulingRepository;
@@ -17,13 +19,13 @@ import com.jamil.ahadith.features.hadith.exception.HadithNotFoundException;
 import com.jamil.ahadith.features.hadith.mapper.FakeHadithMapper;
 import com.jamil.ahadith.features.hadith.repository.FakeHadithRepository;
 import com.jamil.ahadith.features.hadith.repository.HadithRepository;
+import com.jamil.ahadith.features.user.service.CurrentUserService;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.UUID;
 
 @Transactional
@@ -36,6 +38,8 @@ public class FakeHadithService {
     private final AdminPageService adminPageService;
     private final HadithRepository hadithRepository;
     private final RulingRepository rulingRepository;
+    private final CurrentUserService currentUserService;
+    private final AuditEventPublisher auditEventPublisher;
 
     public SearchResponse<FakeHadithResponseDto> getFakeAhadith(Pageable pageable) {
         return adminPageService.response(fakeHadithRepository.findAll(pageable).map(fakeHadithMapper::toResponseDto));
@@ -50,25 +54,30 @@ public class FakeHadithService {
     public FakeHadithResponseDto createFakeHadith(FakeHadithRequestDto request) {
         var entity = fakeHadithMapper.toEntity(request);
         applyCreateRelations(request, entity);
+        currentUserService.getCurrentUser().ifPresent(entity::setCreatedBy);
         var fakeHadith = fakeHadithRepository.saveAndFlush(entity);
         entityManager.refresh(fakeHadith);
+        auditEventPublisher.publishCreate("fake_ahadith", fakeHadith.getId(), AuditData.snapshot(fakeHadith));
         return fakeHadithMapper.toResponseDto(fakeHadith);
     }
 
     public FakeHadithResponseDto updateFakeHadith(UUID id, FakeHadithUpdateDto request) {
         var fakeHadith = fakeHadithRepository.findById(id).orElseThrow(FakeHadithNotFoundException::new);
+        var oldData = AuditData.snapshot(fakeHadith);
         fakeHadithMapper.updateEntity(request, fakeHadith);
         applyUpdateRelations(request, fakeHadith);
+        currentUserService.getCurrentUser().ifPresent(fakeHadith::setUpdatedBy);
         var savedFakeHadith = fakeHadithRepository.saveAndFlush(fakeHadith);
         entityManager.refresh(savedFakeHadith);
+        auditEventPublisher.publishUpdate("fake_ahadith", savedFakeHadith.getId(), oldData, AuditData.snapshot(savedFakeHadith));
         return fakeHadithMapper.toResponseDto(savedFakeHadith);
     }
 
     public void deleteFakeHadith(UUID id) {
-        if (!fakeHadithRepository.existsById(id)) {
-            throw new FakeHadithNotFoundException();
-        }
-        fakeHadithRepository.deleteById(id);
+        var fakeHadith = fakeHadithRepository.findById(id).orElseThrow(FakeHadithNotFoundException::new);
+        var oldData = AuditData.snapshot(fakeHadith);
+        fakeHadithRepository.delete(fakeHadith);
+        auditEventPublisher.publishDelete("fake_ahadith", id, oldData);
     }
 
     private void applyCreateRelations(FakeHadithRequestDto request, FakeHadith entity) {

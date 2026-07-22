@@ -43,6 +43,7 @@ public class RateLimitProperties {
         Map<String, RateLimitPolicy> defaults = new LinkedHashMap<>();
         defaults.put("register", policy(5, Duration.ofMinutes(15)));
         defaults.put("login", policy(20, Duration.ofMinutes(1)));
+        defaults.put("login-email", policy(10, Duration.ofMinutes(1)));
         defaults.put("forgot-password-ip", policy(3, Duration.ofMinutes(15)));
         defaults.put("forgot-password-email", policy(3, Duration.ofHours(1)));
         defaults.put("resend-verification", policy(3, Duration.ofMinutes(15)));
@@ -50,6 +51,7 @@ public class RateLimitProperties {
         defaults.put("reset-password", policy(10, Duration.ofMinutes(15)));
         defaults.put("refresh", policy(30, Duration.ofMinutes(1)));
         defaults.put("public-hadith-search", policy(60, Duration.ofMinutes(1)));
+        defaults.put("upgrade-request-create", policy(5, Duration.ofDays(1)));
         return defaults;
     }
 

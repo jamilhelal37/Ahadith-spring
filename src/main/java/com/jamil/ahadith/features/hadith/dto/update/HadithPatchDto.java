@@ -7,6 +7,7 @@ import com.jamil.ahadith.features.catalog.dto.request.reference.RawiReferenceReq
 import com.jamil.ahadith.features.catalog.dto.request.reference.RulingReferenceRequestDto;
 import com.jamil.ahadith.features.hadith.dto.request.reference.ExplainingReferenceRequestDto;
 import com.jamil.ahadith.features.hadith.dto.request.reference.HadithReferenceRequestDto;
+import com.jamil.ahadith.features.hadith.entity.HadithType;
 import jakarta.validation.Valid;
 import lombok.Data;
 import tools.jackson.databind.annotation.JsonDeserialize;
@@ -22,16 +23,10 @@ public class HadithPatchDto {
     private TriState<ExplainingReferenceRequestDto> explaining = TriState.undefined();
 
     @JsonDeserialize(using = TriStateDeserializer.class)
-    private TriState<String> type = TriState.undefined();
+    private TriState<HadithType> type = TriState.undefined();
 
     @JsonDeserialize(using = TriStateDeserializer.class)
     private TriState<String> text = TriState.undefined();
-
-    @JsonDeserialize(using = TriStateDeserializer.class)
-    private TriState<String> normalText = TriState.undefined();
-
-    @JsonDeserialize(using = TriStateDeserializer.class)
-    private TriState<String> searchText = TriState.undefined();
 
     @JsonDeserialize(using = TriStateDeserializer.class)
     private TriState<Integer> hadithNumber = TriState.undefined();

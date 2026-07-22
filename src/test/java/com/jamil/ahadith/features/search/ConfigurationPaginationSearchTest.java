@@ -10,10 +10,6 @@ import com.jamil.ahadith.features.search.dto.request.SearchMode;
 import com.jamil.ahadith.core.exception.InvalidRequestException;
 import com.jamil.ahadith.features.catalog.repository.BookRepository;
 import com.jamil.ahadith.features.hadith.repository.HadithRepository;
-import com.jamil.ahadith.features.catalog.repository.MuhaddithRepository;
-import com.jamil.ahadith.features.catalog.repository.RawiRepository;
-import com.jamil.ahadith.features.catalog.repository.RulingRepository;
-import com.jamil.ahadith.features.catalog.repository.TopicRepository;
 import com.jamil.ahadith.core.web.AdminPageService;
 import com.jamil.ahadith.features.search.service.HadithSearchService;
 import org.junit.jupiter.api.Test;
@@ -45,15 +41,7 @@ class ConfigurationPaginationSearchTest {
     @Mock
     private HadithRepository hadithRepository;
     @Mock
-    private MuhaddithRepository muhaddithRepository;
-    @Mock
-    private RawiRepository rawiRepository;
-    @Mock
-    private RulingRepository rulingRepository;
-    @Mock
     private BookRepository bookRepository;
-    @Mock
-    private TopicRepository topicRepository;
 
     @Test
     void productionValidatorShouldFailFastForMissingSensitiveConfiguration() {
@@ -214,11 +202,7 @@ class ConfigurationPaginationSearchTest {
     void publicSearchShouldPreserveExactAndFlexibleModesAsDistinctRepositoryStrategies() {
         HadithSearchService service = new HadithSearchService(
                 hadithRepository,
-                muhaddithRepository,
-                rawiRepository,
-                rulingRepository,
-                bookRepository,
-                topicRepository);
+                bookRepository);
         when(hadithRepository.searchPublicIds(
                 any(), any(), any(), anyBoolean(), any(), any(), any(), any(), any(), any(), any(Pageable.class)))
                 .thenReturn(Page.empty(PageRequest.of(0, 20)));

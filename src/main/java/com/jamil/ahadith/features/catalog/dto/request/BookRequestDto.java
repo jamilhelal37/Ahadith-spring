@@ -1,5 +1,6 @@
 package com.jamil.ahadith.features.catalog.dto.request;
 
+import com.jamil.ahadith.core.validation.ValidationLimits;
 import com.jamil.ahadith.features.catalog.dto.request.reference.MuhaddithReferenceRequestDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -11,6 +12,7 @@ import lombok.Data;
 public class BookRequestDto {
     @NotBlank(message = "Book name is required")
     @Size(min = 2, message = "Book name must be at least 2 characters")
+    @Size(max = ValidationLimits.NAME_MAX)
     private String name;
     @Valid
     @NotNull(message = "Muhaddith is required")

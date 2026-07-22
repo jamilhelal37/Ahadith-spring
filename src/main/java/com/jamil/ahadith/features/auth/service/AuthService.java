@@ -14,6 +14,8 @@ import com.jamil.ahadith.features.user.entity.UserStatus;
 import com.jamil.ahadith.features.user.entity.UserType;
 import com.jamil.ahadith.core.exception.ForbiddenException;
 import com.jamil.ahadith.core.exception.UserAlreadyExistsException;
+import com.jamil.ahadith.core.ratelimit.RateLimitKeyResolver;
+import com.jamil.ahadith.core.ratelimit.RateLimitService;
 import com.jamil.ahadith.features.auth.mapper.AuthUserMapper;
 import com.jamil.ahadith.features.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +44,8 @@ public class AuthService {
     private final PasswordPolicyService passwordPolicyService;
     private final AccountSecurityService accountSecurityService;
     private final AuthUserMapper authUserMapper;
+    private final RateLimitService rateLimitService;
+    private final RateLimitKeyResolver rateLimitKeyResolver;
 
     @Transactional
     public AuthResponseDto register(RegisterRequestDto request) {
@@ -75,6 +79,11 @@ public class AuthService {
     ) {
         String email = normalizeEmail(
                 request.getEmail()
+        );
+
+        rateLimitService.assertAllowed(
+                "login-email",
+                rateLimitKeyResolver.emailHashKey(email)
         );
 
         loginAttemptService.assertNotLocked(

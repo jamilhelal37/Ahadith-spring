@@ -4,6 +4,8 @@ import com.jamil.ahadith.core.web.AdminPageService;
 
 import com.jamil.ahadith.features.catalog.entity.Rawi;
 
+import com.jamil.ahadith.features.audit.service.AuditData;
+import com.jamil.ahadith.features.audit.service.AuditEventPublisher;
 import com.jamil.ahadith.features.user.service.CurrentUserService;
 
 import com.jamil.ahadith.features.catalog.dto.request.RawiRequestDto;
@@ -32,6 +34,7 @@ public class RawiService {
     private final CurrentUserService currentUserService;
     private final AdminPageService adminPageService;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditEventPublisher auditEventPublisher;
 
     public SearchResponse<RawiResponseDto> getRawis(Pageable pageable) {
         return adminPageService.response(rawiRepository.findAll(pageable).map(rawiMapper::toResponseDto));
@@ -49,25 +52,28 @@ public class RawiService {
         rawi = rawiRepository.saveAndFlush(rawi);
         entityManager.refresh(rawi);
         publishReferenceDataChanged();
+        auditEventPublisher.publishCreate("rawis", rawi.getId(), AuditData.snapshot(rawi));
         return rawiMapper.toResponseDto(rawi);
     }
 
     public RawiResponseDto updateRawi(UUID id, RawiUpdateDto request) {
         var rawi = rawiRepository.findById(id).orElseThrow(RawiNotFoundException::new);
+        var oldData = AuditData.snapshot(rawi);
         rawiMapper.updateEntity(request, rawi);
         currentUserService.getCurrentUser().ifPresent(rawi::setUpdatedBy);
         var savedRawi = rawiRepository.saveAndFlush(rawi);
         entityManager.refresh(savedRawi);
         publishReferenceDataChanged();
+        auditEventPublisher.publishUpdate("rawis", savedRawi.getId(), oldData, AuditData.snapshot(savedRawi));
         return rawiMapper.toResponseDto(savedRawi);
     }
 
     public void deleteRawi(UUID id) {
-        if (!rawiRepository.existsById(id)) {
-            throw new RawiNotFoundException();
-        }
-        rawiRepository.deleteById(id);
+        var rawi = rawiRepository.findById(id).orElseThrow(RawiNotFoundException::new);
+        var oldData = AuditData.snapshot(rawi);
+        rawiRepository.delete(rawi);
         publishReferenceDataChanged();
+        auditEventPublisher.publishDelete("rawis", id, oldData);
     }
 
     private void publishReferenceDataChanged() {

@@ -23,4 +23,18 @@ public interface PasswordResetTokenRepository extends JpaRepository<PasswordRese
     @Modifying(flushAutomatically = true)
     @Query("update PasswordResetToken t set t.consumedAt = :consumedAt where t.user = :user and t.consumedAt is null")
     int consumeActiveForUser(@Param("user") User user, @Param("consumedAt") Instant consumedAt);
+
+    @Modifying
+    @Query(value = """
+            delete from password_reset_tokens
+            where id in (
+                select id
+                from password_reset_tokens
+                where expires_at < :cutoff
+                   or consumed_at < :cutoff
+                order by created_at asc
+                limit :batchSize
+            )
+            """, nativeQuery = true)
+    int deleteExpiredOrConsumedBefore(@Param("cutoff") Instant cutoff, @Param("batchSize") int batchSize);
 }

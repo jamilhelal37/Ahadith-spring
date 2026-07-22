@@ -3,7 +3,11 @@ package com.jamil.ahadith.features.account.repository;
 import com.jamil.ahadith.features.account.entity.EmailVerificationToken;
 import com.jamil.ahadith.features.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -12,4 +16,18 @@ public interface EmailVerificationTokenRepository extends JpaRepository<EmailVer
     Optional<EmailVerificationToken> findByTokenHash(String tokenHash);
 
     List<EmailVerificationToken> findByUserAndConsumedAtIsNullOrderByCreatedAtDesc(User user);
+
+    @Modifying
+    @Query(value = """
+            delete from email_verification_tokens
+            where id in (
+                select id
+                from email_verification_tokens
+                where expires_at < :cutoff
+                   or consumed_at < :cutoff
+                order by created_at asc
+                limit :batchSize
+            )
+            """, nativeQuery = true)
+    int deleteExpiredOrConsumedBefore(@Param("cutoff") Instant cutoff, @Param("batchSize") int batchSize);
 }

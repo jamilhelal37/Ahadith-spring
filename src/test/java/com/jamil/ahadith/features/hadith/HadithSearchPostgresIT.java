@@ -17,6 +17,7 @@ import com.jamil.ahadith.features.catalog.entity.TopicClass;
 import com.jamil.ahadith.features.catalog.entity.Book;
 
 import com.jamil.ahadith.features.hadith.entity.Explaining;
+import com.jamil.ahadith.features.hadith.entity.HadithType;
 
 import com.jamil.ahadith.features.catalog.entity.Topic;
 
@@ -102,16 +103,20 @@ class HadithSearchPostgresIT extends PostgresIntegrationTestBase {
     }
 
     @Test
-    void explanationSearchShouldHonorIncludeExplanationFlag() {
+    void explanationSearchShouldOnlyUseExplanationForExactModeWhenIncluded() {
         UUID bookId = book(1, "Explanation Book", null);
         UUID explanationId = explaining(50, "شرح فيه الرحمة");
         UUID hadithId = hadith(51, "نص لا يحتوي كلمة البحث", 1, bookId, null, null, explanationId);
 
-        HadithSearchRequest excluded = request("الرحمة", SearchMode.FLEXIBLE);
+        HadithSearchRequest flexibleIncluded = request("الرحمة", SearchMode.FLEXIBLE);
+        flexibleIncluded.setIncludeExplanation(true);
+        assertThat(search(flexibleIncluded).getItems()).isEmpty();
+
+        HadithSearchRequest excluded = request("الرحمة", SearchMode.EXACT);
         excluded.setIncludeExplanation(false);
         assertThat(search(excluded).getItems()).isEmpty();
 
-        HadithSearchRequest included = request("الرحمة", SearchMode.FLEXIBLE);
+        HadithSearchRequest included = request("الرحمة", SearchMode.EXACT);
         included.setIncludeExplanation(true);
         SearchResponse<HadithSearchItemDto> response = search(included);
 
@@ -138,7 +143,7 @@ class HadithSearchPostgresIT extends PostgresIntegrationTestBase {
 
         assertOnly(filterRequest(r -> r.setMuhaddithIds(List.of(muhaddithId))), matchingId);
         assertOnly(filterRequest(r -> r.setRawiIds(List.of(rawiId))), matchingId);
-        assertOnly(filterRequest(r -> r.setTypes(List.of("marfu"))), matchingId, otherId);
+        assertOnly(filterRequest(r -> r.setTypes(List.of(HadithType.marfu))), matchingId, otherId);
         assertOnly(filterRequest(r -> r.setRulingIds(List.of(rulingId))), matchingId);
         assertOnly(filterRequest(r -> r.setBookIds(List.of(bookId))), matchingId);
         assertOnly(filterRequest(r -> r.setTopicIds(List.of(topicId))), matchingId);
@@ -146,7 +151,7 @@ class HadithSearchPostgresIT extends PostgresIntegrationTestBase {
         HadithSearchRequest combined = new HadithSearchRequest();
         combined.setMuhaddithIds(List.of(muhaddithId));
         combined.setRawiIds(List.of(rawiId));
-        combined.setTypes(List.of("marfu"));
+        combined.setTypes(List.of(HadithType.marfu));
         combined.setRulingIds(List.of(rulingId));
         combined.setBookIds(List.of(bookId));
         combined.setTopicIds(List.of(topicId));
@@ -162,7 +167,7 @@ class HadithSearchPostgresIT extends PostgresIntegrationTestBase {
         HadithSearchRequest request = new HadithSearchRequest();
         request.setMuhaddithIds(List.of());
         request.setRawiIds(List.of());
-        request.setTypes(List.of("", " "));
+        request.setTypes(List.of());
         request.setRulingIds(List.of());
         request.setBookIds(List.of());
         request.setTopicIds(List.of());

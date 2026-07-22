@@ -1,5 +1,7 @@
 package com.jamil.ahadith.features.catalog.service;
 
+import com.jamil.ahadith.core.exception.InvalidRequestException;
+import com.jamil.ahadith.core.web.dto.PaginationMeta;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
 import com.jamil.ahadith.core.web.dto.SimpleReferenceDto;
 import com.jamil.ahadith.features.catalog.dto.projection.PublicBookRow;
@@ -27,6 +29,9 @@ import com.jamil.ahadith.features.hadith.repository.FakeHadithRepository;
 import com.jamil.ahadith.features.search.dto.response.HadithSearchItemDto;
 import com.jamil.ahadith.features.search.service.HadithSearchService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +43,8 @@ import java.util.stream.IntStream;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PublicCatalogService {
+    private static final int MAX_TEXT_SIZE = 50;
+
     private final BookRepository bookRepository;
     private final RawiRepository rawiRepository;
     private final RulingRepository rulingRepository;
@@ -107,6 +114,11 @@ public class PublicCatalogService {
                 .orElseThrow(MuhaddithNotFoundException::new);
     }
 
+    public SearchResponse<PublicTextDto> getExplainings(int page, int size) {
+        Page<PublicTextDto> items = explainingRepository.findAll(textPageRequest(page, size)).map(item -> new PublicTextDto(item.getId(), item.getText()));
+        return response(items);
+    }
+
     public List<PublicTextDto> getExplainings() {
         return explainingRepository.findAll().stream()
                 .map(item -> new PublicTextDto(item.getId(), item.getText()))
@@ -119,6 +131,11 @@ public class PublicCatalogService {
                 .orElseThrow(ExplainingNotFoundException::new);
     }
 
+    public SearchResponse<PublicTextDto> getFakeAhadith(int page, int size) {
+        Page<PublicTextDto> items = fakeHadithRepository.findAll(textPageRequest(page, size)).map(item -> new PublicTextDto(item.getId(), item.getText()));
+        return response(items);
+    }
+
     public List<PublicTextDto> getFakeAhadith() {
         return fakeHadithRepository.findAll().stream()
                 .map(item -> new PublicTextDto(item.getId(), item.getText()))
@@ -129,6 +146,30 @@ public class PublicCatalogService {
         return fakeHadithRepository.findById(id)
                 .map(item -> new PublicTextDto(item.getId(), item.getText()))
                 .orElseThrow(FakeHadithNotFoundException::new);
+    }
+
+    private PageRequest textPageRequest(int page, int size) {
+        if (page < 0) {
+            throw new InvalidRequestException("page must be greater than or equal to 0");
+        }
+        if (size < 1) {
+            throw new InvalidRequestException("size must be greater than 0");
+        }
+        if (size > MAX_TEXT_SIZE) {
+            throw new InvalidRequestException("size must be less than or equal to " + MAX_TEXT_SIZE);
+        }
+        return PageRequest.of(page, size, Sort.by(Sort.Order.asc("createdAt"), Sort.Order.asc("id")));
+    }
+
+    private SearchResponse<PublicTextDto> response(Page<PublicTextDto> page) {
+        return new SearchResponse<>(page.getContent(), new PaginationMeta(
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.hasNext(),
+                page.hasPrevious()
+        ));
     }
 
     private List<PublicMuhaddithListItemDto> withMuhaddithSerialNumbers(List<PublicMuhaddithRow> items) {

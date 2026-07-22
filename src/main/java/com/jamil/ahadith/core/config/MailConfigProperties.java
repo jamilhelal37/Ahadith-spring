@@ -20,6 +20,8 @@ public class MailConfigProperties {
     private Duration verificationTokenTtl = Duration.ofHours(24);
     private Duration resetTokenTtl = Duration.ofMinutes(30);
     private Duration resendThrottle = Duration.ofMinutes(5);
+    private Duration connectTimeout = Duration.ofSeconds(5);
+    private Duration readTimeout = Duration.ofSeconds(10);
 
     public String getFrontendBaseUrl() {
         return frontendBaseUrl;

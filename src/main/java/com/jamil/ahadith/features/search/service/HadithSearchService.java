@@ -6,8 +6,6 @@ import com.jamil.ahadith.features.search.dto.request.HadithSearchRequest;
 import com.jamil.ahadith.features.search.dto.request.HadithSearchSort;
 import com.jamil.ahadith.features.search.dto.request.SearchMode;
 import com.jamil.ahadith.features.search.dto.response.AdminHadithSearchItemDto;
-import com.jamil.ahadith.features.search.dto.response.BookFilterOptionDto;
-import com.jamil.ahadith.features.search.dto.response.HadithFiltersDto;
 import com.jamil.ahadith.features.search.dto.response.HadithSearchItemDto;
 import com.jamil.ahadith.core.web.dto.PaginationMeta;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
@@ -17,24 +15,17 @@ import com.jamil.ahadith.features.catalog.dto.response.reference.MuhaddithRefere
 import com.jamil.ahadith.features.catalog.dto.response.reference.RawiReferenceResponseDto;
 import com.jamil.ahadith.features.catalog.dto.response.reference.RulingReferenceResponseDto;
 import com.jamil.ahadith.features.catalog.dto.response.reference.TopicReferenceResponseDto;
-import com.jamil.ahadith.features.search.dto.response.TypeOptionDto;
-import com.jamil.ahadith.features.catalog.entity.Book;
 import com.jamil.ahadith.features.hadith.entity.HadithType;
 import com.jamil.ahadith.features.catalog.exception.BookNotFoundException;
 import com.jamil.ahadith.core.exception.InvalidRequestException;
 import com.jamil.ahadith.features.catalog.repository.BookRepository;
 import com.jamil.ahadith.features.hadith.repository.HadithRepository;
-import com.jamil.ahadith.features.catalog.repository.MuhaddithRepository;
-import com.jamil.ahadith.features.catalog.repository.RawiRepository;
-import com.jamil.ahadith.features.catalog.repository.RulingRepository;
-import com.jamil.ahadith.features.catalog.repository.TopicRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,11 +42,7 @@ public class HadithSearchService {
     private static final int MAX_SIZE = 50;
 
     private final HadithRepository hadithRepository;
-    private final MuhaddithRepository muhaddithRepository;
-    private final RawiRepository rawiRepository;
-    private final RulingRepository rulingRepository;
     private final BookRepository bookRepository;
-    private final TopicRepository topicRepository;
 
     public SearchResponse<HadithSearchItemDto> publicSearch(HadithSearchRequest request) {
         HadithSearchRequest safeRequest = request == null ? new HadithSearchRequest() : request;
@@ -82,37 +69,6 @@ public class HadithSearchService {
         List<HadithSearchItemDto> items = getHadithCardsByIdsInOrder(idPage.getContent());
 
         return new SearchResponse<>(items, buildPaginationMeta(idPage));
-    }
-
-    public HadithFiltersDto getFilters() {
-        return new HadithFiltersDto(
-                muhaddithRepository.findAll().stream()
-                        .sorted(Comparator.comparing(item -> safe(item.getName())))
-                        .map(item -> new SimpleReferenceDto(item.getId(), item.getName()))
-                        .toList(),
-                rawiRepository.findAll().stream()
-                        .sorted(Comparator.comparing(item -> safe(item.getName())))
-                        .map(item -> new SimpleReferenceDto(item.getId(), item.getName()))
-                        .toList(),
-                List.of(
-                        new TypeOptionDto(HadithType.marfu.name(), "مرفوع"),
-                        new TypeOptionDto(HadithType.mawquf.name(), "موقوف"),
-                        new TypeOptionDto(HadithType.qudsi.name(), "قدسي"),
-                        new TypeOptionDto(HadithType.atharSahaba.name(), "أثر صحابي")
-                ),
-                rulingRepository.findAll().stream()
-                        .sorted(Comparator.comparing(item -> safe(item.getName())))
-                        .map(item -> new SimpleReferenceDto(item.getId(), item.getName()))
-                        .toList(),
-                bookRepository.findAll().stream()
-                        .sorted(Comparator.comparing(item -> safe(item.getName())))
-                        .map(this::toBookFilterOption)
-                        .toList(),
-                topicRepository.findAll().stream()
-                        .sorted(Comparator.comparing(item -> safe(item.getName())))
-                        .map(item -> new SimpleReferenceDto(item.getId(), item.getName()))
-                        .toList()
-        );
     }
 
     public SearchResponse<HadithSearchItemDto> getBookAhadith(UUID bookId, Integer page, Integer size) {
@@ -160,7 +116,13 @@ public class HadithSearchService {
     }
 
     public int normalizePage(Integer page) {
-        return page == null || page < 0 ? 0 : page;
+        if (page == null) {
+            return 0;
+        }
+        if (page < 0) {
+            throw new InvalidRequestException("page must be greater than or equal to 0");
+        }
+        return page;
     }
 
     public int normalizeSize(Integer size) {
@@ -168,9 +130,12 @@ public class HadithSearchService {
             return DEFAULT_SIZE;
         }
         if (size < 1) {
-            return DEFAULT_SIZE;
+            throw new InvalidRequestException("size must be greater than 0");
         }
-        return Math.min(size, MAX_SIZE);
+        if (size > MAX_SIZE) {
+            throw new InvalidRequestException("size must be less than or equal to " + MAX_SIZE);
+        }
+        return size;
     }
 
     public SearchMode normalizeMode(SearchMode mode) {
@@ -185,16 +150,21 @@ public class HadithSearchService {
         if (values == null || values.isEmpty()) {
             return null;
         }
-        return values.toArray(UUID[]::new);
+        UUID[] filtered = values.stream()
+                .filter(value -> value != null)
+                .distinct()
+                .toArray(UUID[]::new);
+        return filtered.length == 0 ? null : filtered;
     }
 
-    public String[] toStringArray(List<String> values) {
+    public String[] toStringArray(List<HadithType> values) {
         if (values == null || values.isEmpty()) {
             return null;
         }
         String[] filtered = values.stream()
-                .filter(value -> value != null && !value.isBlank())
-                .map(String::trim)
+                .filter(value -> value != null)
+                .distinct()
+                .map(Enum::name)
                 .toArray(String[]::new);
         return filtered.length == 0 ? null : filtered;
     }
@@ -279,7 +249,10 @@ public class HadithSearchService {
         if (size < 1) {
             throw new InvalidRequestException("size must be greater than 0");
         }
-        return Math.min(size, MAX_SIZE);
+        if (size > MAX_SIZE) {
+            throw new InvalidRequestException("size must be less than or equal to " + MAX_SIZE);
+        }
+        return size;
     }
 
     private HadithSearchItemDto toSearchItem(HadithSearchRow row, List<TopicReferenceResponseDto> topics) {
@@ -316,13 +289,6 @@ public class HadithSearchService {
         );
     }
 
-    private BookFilterOptionDto toBookFilterOption(Book book) {
-        SimpleReferenceDto muhaddith = book.getMuhaddith() == null
-                ? null
-                : new SimpleReferenceDto(book.getMuhaddith().getId(), book.getMuhaddith().getName());
-        return new BookFilterOptionDto(book.getId(), book.getName(), muhaddith);
-    }
-
     private SimpleReferenceDto toReference(UUID id, String name) {
         return id == null ? null : new SimpleReferenceDto(id, name);
     }
@@ -343,7 +309,5 @@ public class HadithSearchService {
         return id == null ? null : new MuhaddithReferenceResponseDto(id, name);
     }
 
-    private String safe(String value) {
-        return value == null ? "" : value;
-    }
+
 }

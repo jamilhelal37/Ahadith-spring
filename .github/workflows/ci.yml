@@ -35,6 +35,21 @@ jobs:
       - name: Run Maven verify
         run: ./mvnw --batch-mode verify
 
+      - name: Check for obvious committed secrets
+        run: |
+          if git grep -nE '(-----BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY-----|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{36,}|xox[baprs]-|sk-[A-Za-z0-9]{40,}|re_[A-Za-z0-9]{24,}|cloudinary://[0-9]+:)' -- ':!README.md' ':!.env.example'; then
+            echo "Potential committed secret detected"
+            exit 1
+          fi
+
+      - name: Upload JaCoCo report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/**
+          if-no-files-found: error
+
       - name: Upload Maven test reports on failure
         if: failure()
         uses: actions/upload-artifact@v7
@@ -56,3 +71,14 @@ jobs:
 
       - name: Build Docker image
         run: docker build --tag ahadith:ci .
+
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        with:
+          image-ref: ahadith:ci
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH

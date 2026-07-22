@@ -6,7 +6,6 @@ import com.jamil.ahadith.features.search.dto.projection.HadithTopicRow;
 import com.jamil.ahadith.features.hadith.entity.Hadith;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,10 +14,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface HadithRepository extends JpaRepository<Hadith, UUID> {
-    @EntityGraph(attributePaths = {"book", "rawi", "ruling", "explaining"})
-    @Query("select h from Hadith h")
-    List<Hadith> findAllWithRelations();
-
     String SEARCH_FROM = """
             from public.ahadith h
             left join public.books b on b.id = h.book
@@ -43,13 +38,7 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
                 )
                 or (
                     cast(:mode as text) = 'FLEXIBLE'
-                    and (
-                        h.search_vector @@ plainto_tsquery('arabic', public.arab_norm(cast(:query as text)))
-                        or (
-                            cast(:includeExplanation as boolean) = true
-                            and to_tsvector('arabic', coalesce(e.search_text, '')) @@ plainto_tsquery('arabic', public.arab_norm(cast(:query as text)))
-                        )
-                    )
+                    and h.search_vector @@ plainto_tsquery('arabic', public.arab_norm(cast(:query as text)))
                 )
             )
             and (cast(:muhaddithIds as uuid[]) is null or m.id = any(cast(:muhaddithIds as uuid[])))
@@ -130,39 +119,6 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             """)
     Page<UUID> findBookAhadithIds(@Param("bookId") UUID bookId, Pageable pageable);
 
-    @Query(
-            value = """
-                    select
-                        h.id as "id",
-                        h.text as "text",
-                        h.normal_text as "normalText",
-                        h.hadith_number as "hadithNumber",
-                        cast(h.type as text) as "type",
-                        h.sanad as "sanad",
-                        b.id as "bookId",
-                        b.name as "bookName",
-                        r.id as "rawiId",
-                        r.name as "rawiName",
-                        ru.id as "rulingId",
-                        ru.name as "rulingName",
-                        m.id as "muhaddithId",
-                        m.name as "muhaddithName",
-                        e.id as "explanationId",
-                        e.text as "explanationText",
-                        e.normal_text as "explanationNormalText",
-                        h.sub_valid as "subValidId"
-                    from public.ahadith h
-                    left join public.books b on b.id = h.book
-                    left join public.muhaddiths m on m.id = b.muhaddith
-                    left join public.rawis r on r.id = h.rawi
-                    left join public.ruling ru on ru.id = h.ruling
-                    left join public.explaining e on e.id = h.explaining
-                    where h.id = any(cast(:ids as uuid[]))
-                    """,
-            nativeQuery = true
-    )
-    List<HadithSearchRow> findSearchRowsByIds(@Param("ids") UUID[] ids);
-
     @Query("""
             select h.id as id,
                    h.text as text,
@@ -193,39 +149,6 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             """)
     List<HadithSearchRow> findSearchRowsByIdsJpa(@Param("ids") List<UUID> ids);
 
-    @Query(
-            value = """
-                    select
-                        h.id as "id",
-                        h.text as "text",
-                        h.normal_text as "normalText",
-                        h.hadith_number as "hadithNumber",
-                        cast(h.type as text) as "type",
-                        h.sanad as "sanad",
-                        b.id as "bookId",
-                        b.name as "bookName",
-                        r.id as "rawiId",
-                        r.name as "rawiName",
-                        ru.id as "rulingId",
-                        ru.name as "rulingName",
-                        m.id as "muhaddithId",
-                        m.name as "muhaddithName",
-                        e.id as "explanationId",
-                        e.text as "explanationText",
-                        e.normal_text as "explanationNormalText",
-                        h.sub_valid as "subValidId"
-                    from public.ahadith h
-                    left join public.books b on b.id = h.book
-                    left join public.muhaddiths m on m.id = b.muhaddith
-                    left join public.rawis r on r.id = h.rawi
-                    left join public.ruling ru on ru.id = h.ruling
-                    left join public.explaining e on e.id = h.explaining
-                    where h.id = :id
-                    """,
-            nativeQuery = true
-    )
-    HadithSearchRow findSearchRowById(@Param("id") UUID id);
-
     @Query("""
             select h.id as id,
                    h.text as text,
@@ -255,21 +178,6 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             where h.id = :id
             """)
     HadithSearchRow findPublicDetailsRowById(@Param("id") UUID id);
-
-    @Query(
-            value = """
-                    select
-                        tc.hadith as "hadithId",
-                        t.id as "id",
-                        t.name as "name"
-                    from public.topic_classes tc
-                    join public.topics t on t.id = tc.topic
-                    where tc.hadith = any(cast(:ids as uuid[]))
-                    order by t.name asc, t.id asc
-                    """,
-            nativeQuery = true
-    )
-    List<HadithTopicRow> findTopicsByHadithIds(@Param("ids") UUID[] ids);
 
     @Query("""
             select tc.hadith.id as hadithId,

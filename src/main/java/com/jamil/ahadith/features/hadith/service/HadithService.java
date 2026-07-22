@@ -1,5 +1,8 @@
 package com.jamil.ahadith.features.hadith.service;
 
+import com.jamil.ahadith.core.exception.InvalidRequestException;
+import com.jamil.ahadith.features.audit.service.AuditData;
+import com.jamil.ahadith.features.audit.service.AuditEventPublisher;
 import com.jamil.ahadith.features.user.service.CurrentUserService;
 
 import com.jamil.ahadith.features.catalog.entity.Book;
@@ -14,13 +17,11 @@ import com.jamil.ahadith.features.catalog.repository.RulingRepository;
 import com.jamil.ahadith.features.hadith.dto.request.HadithRequestDto;
 import com.jamil.ahadith.features.hadith.dto.request.reference.ExplainingReferenceRequestDto;
 import com.jamil.ahadith.features.hadith.dto.request.reference.HadithReferenceRequestDto;
-import com.jamil.ahadith.features.hadith.dto.response.HadithDto;
 import com.jamil.ahadith.features.hadith.dto.response.HadithResponseDto;
 import com.jamil.ahadith.features.hadith.dto.update.HadithPatchDto;
 import com.jamil.ahadith.features.hadith.dto.update.HadithUpdateDto;
 import com.jamil.ahadith.features.hadith.entity.Explaining;
 import com.jamil.ahadith.features.hadith.entity.Hadith;
-import com.jamil.ahadith.features.hadith.entity.HadithType;
 import com.jamil.ahadith.features.hadith.exception.ExplainingNotFoundException;
 import com.jamil.ahadith.features.hadith.exception.HadithNotFoundException;
 import com.jamil.ahadith.features.hadith.mapper.HadithMapper;
@@ -31,7 +32,6 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 @Transactional
@@ -46,12 +46,7 @@ public class HadithService {
     private final RawiRepository rawiRepository;
     private final RulingRepository rulingRepository;
     private final ExplainingRepository explainingRepository;
-
-    public List<HadithDto> getAhadith() {
-        return hadithRepository.findAllWithRelations().stream()
-                .map(this::toHadithDto)
-                .toList();
-    }
+    private final AuditEventPublisher auditEventPublisher;
 
     public HadithResponseDto getHadithById(UUID id) {
         return hadithRepository.findById(id)
@@ -65,45 +60,38 @@ public class HadithService {
         currentUserService.getCurrentUser().ifPresent(hadith::setCreatedBy);
         hadith = hadithRepository.saveAndFlush(hadith);
         entityManager.refresh(hadith);
+        auditEventPublisher.publishCreate("ahadith", hadith.getId(), AuditData.snapshot(hadith));
         return hadithMapper.toResponseDto(hadith);
     }
 
     public HadithResponseDto updateHadith(UUID id, HadithUpdateDto request) {
         var hadith = hadithRepository.findById(id).orElseThrow(HadithNotFoundException::new);
+        var oldData = AuditData.snapshot(hadith);
         hadithMapper.updateEntity(request, hadith);
         applyUpdateRelations(request, hadith);
         currentUserService.getCurrentUser().ifPresent(hadith::setUpdatedBy);
         var savedHadith = hadithRepository.saveAndFlush(hadith);
         entityManager.refresh(savedHadith);
+        auditEventPublisher.publishUpdate("ahadith", savedHadith.getId(), oldData, AuditData.snapshot(savedHadith));
         return hadithMapper.toResponseDto(savedHadith);
     }
 
     public HadithResponseDto patchHadith(UUID id, HadithPatchDto request) {
         var hadith = hadithRepository.findById(id).orElseThrow(HadithNotFoundException::new);
+        var oldData = AuditData.snapshot(hadith);
         applyPatch(request, hadith);
         currentUserService.getCurrentUser().ifPresent(hadith::setUpdatedBy);
         var savedHadith = hadithRepository.saveAndFlush(hadith);
         entityManager.refresh(savedHadith);
+        auditEventPublisher.publishUpdate("ahadith", savedHadith.getId(), oldData, AuditData.snapshot(savedHadith));
         return hadithMapper.toResponseDto(savedHadith);
     }
 
     public void deleteHadith(UUID id) {
-        if (!hadithRepository.existsById(id)) {
-            throw new HadithNotFoundException();
-        }
-        hadithRepository.deleteById(id);
-    }
-
-    private HadithDto toHadithDto(Hadith hadith) {
-        HadithDto dto = new HadithDto();
-        dto.setId(hadith.getId());
-        dto.setText(hadith.getText());
-        dto.setHadithNumber(hadith.getHadithNumber());
-        dto.setBookName(hadith.getBook() != null ? hadith.getBook().getName() : null);
-        dto.setRawiName(hadith.getRawi() != null ? hadith.getRawi().getName() : null);
-        dto.setRulingName(hadith.getRuling() != null ? hadith.getRuling().getName() : null);
-        dto.setExplainingText(hadith.getExplaining() != null ? hadith.getExplaining().getText() : null);
-        return dto;
+        var hadith = hadithRepository.findById(id).orElseThrow(HadithNotFoundException::new);
+        var oldData = AuditData.snapshot(hadith);
+        hadithRepository.delete(hadith);
+        auditEventPublisher.publishDelete("ahadith", id, oldData);
     }
 
     private void applyCreateRelations(HadithRequestDto request, Hadith hadith) {
@@ -134,18 +122,24 @@ public class HadithService {
 
     private void applyPatch(HadithPatchDto request, Hadith hadith) {
         if (request.getType().isDefined()) {
-            hadith.setType(request.getType().getValue() == null ? null : HadithType.valueOf(request.getType().getValue()));
+            if (request.getType().getValue() == null) {
+                throw new InvalidRequestException("type cannot be null");
+            }
+            hadith.setType(request.getType().getValue());
         }
         if (request.getText().isDefined()) {
+            if (request.getText().getValue() == null) {
+                throw new InvalidRequestException("text cannot be null");
+            }
             hadith.setText(request.getText().getValue());
         }
-        if (request.getNormalText().isDefined()) {
-            hadith.setNormalText(request.getNormalText().getValue());
-        }
-        if (request.getSearchText().isDefined()) {
-            hadith.setSearchText(request.getSearchText().getValue());
-        }
         if (request.getHadithNumber().isDefined()) {
+            if (request.getHadithNumber().getValue() == null) {
+                throw new InvalidRequestException("hadithNumber cannot be null");
+            }
+            if (request.getHadithNumber().getValue() < 0) {
+                throw new InvalidRequestException("hadithNumber must be greater than or equal to 0");
+            }
             hadith.setHadithNumber(request.getHadithNumber().getValue());
         }
         if (request.getSanad().isDefined()) {

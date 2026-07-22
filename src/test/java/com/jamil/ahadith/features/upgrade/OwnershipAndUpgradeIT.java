@@ -23,15 +23,22 @@ import com.jamil.ahadith.features.interaction.repository.FavoriteRepository;
 import com.jamil.ahadith.features.hadith.repository.HadithRepository;
 import com.jamil.ahadith.features.notification.repository.NotificationRepository;
 import com.jamil.ahadith.features.search.repository.SearchHistoryRepository;
+import com.jamil.ahadith.features.upgrade.storage.UpgradeDocumentStorageService;
+import com.jamil.ahadith.features.upgrade.storage.UpgradeDocumentUploadResult;
 import com.jamil.ahadith.features.user.repository.UserRepository;
 import com.jamil.ahadith.core.security.jwt.JwtService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,8 +46,13 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -48,6 +60,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @AutoConfigureMockMvc
+@TestPropertySource(properties = "app.rate-limit.enabled=false")
 class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
     @Autowired
     private MockMvc mockMvc;
@@ -69,6 +82,26 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
     private PasswordEncoder passwordEncoder;
     @Autowired
     private JwtService jwtService;
+    @MockitoBean
+    private UpgradeDocumentStorageService upgradeDocumentStorageService;
+
+    @BeforeEach
+    void setUpUpgradeDocumentStorage() {
+        when(upgradeDocumentStorageService.upload(any(), any())).thenAnswer(invocation -> {
+            UUID userId = invocation.getArgument(1);
+            return new UpgradeDocumentUploadResult(
+                    "asset-" + userId,
+                    "upgrade-requests/" + userId + "/" + UUID.randomUUID(),
+                    "raw",
+                    "authenticated",
+                    "pdf",
+                    "credentials.pdf",
+                    128L
+            );
+        });
+        when(upgradeDocumentStorageService.createDownloadUrl(anyString(), any(Instant.class)))
+                .thenReturn("https://res.cloudinary.example/signed-download");
+    }
 
     @Test
     void memberQuestionOwnershipShouldBeScopedToCurrentUser() throws Exception {
@@ -325,45 +358,110 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
         User rejectedMember = user("upgrade-reject@example.com", UserType.member);
         User admin = user("upgrade-admin@example.com", UserType.admin);
 
-        JsonNode created = objectMapper.readTree(mockMvc.perform(post("/me/upgrade-requests")
+        JsonNode created = objectMapper.readTree(mockMvc.perform(multipart("/api/v1/me/upgrade-requests")
+                        .file(pdf("credentials.pdf"))
                         .header("Authorization", bearer(member))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+                        .param("notes", "please review"))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("under_review"))
+                .andExpect(jsonPath("$.documentAvailable").value(true))
+                .andExpect(jsonPath("$.documentOriginalName").value("credentials.pdf"))
+                .andExpect(jsonPath("$.documentPublicId").doesNotExist())
+                .andExpect(jsonPath("$.documentAssetId").doesNotExist())
+                .andExpect(jsonPath("$.downloadUrl").doesNotExist())
                 .andReturn().getResponse().getContentAsString());
 
-        mockMvc.perform(post("/me/upgrade-requests")
+        mockMvc.perform(multipart("/api/v1/me/upgrade-requests")
+                        .file(pdf("credentials.pdf"))
                         .header("Authorization", bearer(member))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+                        .param("notes", "duplicate"))
                 .andExpect(status().isConflict());
 
         UUID requestId = UUID.fromString(created.get("id").asText());
-        mockMvc.perform(patch("/admin/upgrade-requests/" + requestId + "/review")
+        mockMvc.perform(get("/api/v1/me/upgrade-requests/" + requestId + "/document")
+                        .header("Authorization", bearer(member)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.downloadUrl").value("https://res.cloudinary.example/signed-download"))
+                .andExpect(jsonPath("$.expiresAt").exists());
+
+        mockMvc.perform(get("/api/v1/admin/upgrade-requests/" + requestId + "/document")
+                        .header("Authorization", bearer(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.downloadUrl").value("https://res.cloudinary.example/signed-download"));
+
+        mockMvc.perform(patch("/api/v1/admin/upgrade-requests/" + requestId + "/review")
                         .header("Authorization", bearer(admin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"decision\":\"APPROVE\",\"reviewNotes\":\"ok\"}"))
                 .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/v1/admin/upgrade-requests/" + requestId + "/review")
+                        .header("Authorization", bearer(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"decision\":\"APPROVE\"}"))
+                .andExpect(status().isConflict());
 
         assertThat(userRepository.findById(member.getId()).orElseThrow().getType()).isEqualTo(UserType.scholar);
         assertThat(activityLogRepository.existsByTableName("upgrade_requests")).isTrue();
         assertThat(notificationRepository.findAll()).anyMatch(notification ->
                 notification.getUser() != null && member.getId().equals(notification.getUser().getId()));
 
-        JsonNode rejected = objectMapper.readTree(mockMvc.perform(post("/me/upgrade-requests")
+        JsonNode rejected = objectMapper.readTree(mockMvc.perform(multipart("/api/v1/me/upgrade-requests")
+                        .file(pdf("credentials.pdf"))
                         .header("Authorization", bearer(rejectedMember))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+                        .param("notes", "review me"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
 
-        mockMvc.perform(patch("/admin/upgrade-requests/" + rejected.get("id").asText() + "/review")
+        mockMvc.perform(patch("/api/v1/admin/upgrade-requests/" + rejected.get("id").asText() + "/review")
+                        .header("Authorization", bearer(admin))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"decision\":\"REJECT\"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(patch("/api/v1/admin/upgrade-requests/" + rejected.get("id").asText() + "/review")
                         .header("Authorization", bearer(admin))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"decision\":\"REJECT\",\"rejectionReason\":\"missing documents\"}"))
                 .andExpect(status().isOk());
 
         assertThat(userRepository.findById(rejectedMember.getId()).orElseThrow().getType()).isEqualTo(UserType.member);
+
+        mockMvc.perform(delete("/api/v1/admin/upgrade-requests/" + rejected.get("id").asText())
+                        .header("Authorization", bearer(admin)))
+                .andExpect(status().isNoContent());
+        verify(upgradeDocumentStorageService).delete(anyString());
+    }
+
+    @Test
+    void upgradeRequestShouldRequireMemberAndProtectDocumentsByOwner() throws Exception {
+        User owner = user("upgrade-owner@example.com", UserType.member);
+        User other = user("upgrade-other@example.com", UserType.member);
+        User scholar = user("upgrade-scholar@example.com", UserType.scholar);
+        User admin = user("upgrade-create-admin@example.com", UserType.admin);
+
+        mockMvc.perform(multipart("/api/v1/me/upgrade-requests").file(pdf("credentials.pdf")))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(multipart("/api/v1/me/upgrade-requests")
+                        .file(pdf("credentials.pdf"))
+                        .header("Authorization", bearer(scholar)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(multipart("/api/v1/me/upgrade-requests")
+                        .file(pdf("credentials.pdf"))
+                        .header("Authorization", bearer(admin)))
+                .andExpect(status().isForbidden());
+
+        JsonNode created = objectMapper.readTree(mockMvc.perform(multipart("/api/v1/me/upgrade-requests")
+                        .file(pdf("credentials.pdf"))
+                        .header("Authorization", bearer(owner)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+
+        mockMvc.perform(get("/api/v1/me/upgrade-requests/" + created.get("id").asText() + "/document")
+                        .header("Authorization", bearer(other)))
+                .andExpect(status().isNotFound());
     }
 
     private User user(String email, UserType type) {
@@ -409,5 +507,14 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
 
     private String bearer(User user) {
         return "Bearer " + jwtService.generateAccessToken(user);
+    }
+
+    private MockMultipartFile pdf(String name) {
+        return new MockMultipartFile(
+                "document",
+                name,
+                MediaType.APPLICATION_PDF_VALUE,
+                "%PDF-1.4\n%test\n".getBytes()
+        );
     }
 }

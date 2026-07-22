@@ -4,6 +4,8 @@ import com.jamil.ahadith.core.web.AdminPageService;
 
 import com.jamil.ahadith.features.catalog.entity.Ruling;
 
+import com.jamil.ahadith.features.audit.service.AuditData;
+import com.jamil.ahadith.features.audit.service.AuditEventPublisher;
 import com.jamil.ahadith.features.user.service.CurrentUserService;
 
 import com.jamil.ahadith.features.catalog.dto.request.RulingRequestDto;
@@ -33,6 +35,7 @@ public class RulingService {
     private final CurrentUserService currentUserService;
     private final AdminPageService adminPageService;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditEventPublisher auditEventPublisher;
 
     public SearchResponse<RulingResponseDto> getRulings(Pageable pageable) {
         return adminPageService.response(rulingRepository.findAll(pageable).map(rulingMapper::toResponseDto));
@@ -50,25 +53,28 @@ public class RulingService {
         ruling = rulingRepository.saveAndFlush(ruling);
         entityManager.refresh(ruling);
         publishReferenceDataChanged();
+        auditEventPublisher.publishCreate("ruling", ruling.getId(), AuditData.snapshot(ruling));
         return rulingMapper.toResponseDto(ruling);
     }
 
     public RulingResponseDto updateRuling(UUID id, RulingUpdateDto request) {
         var ruling = rulingRepository.findById(id).orElseThrow(RulingNotFoundException::new);
+        var oldData = AuditData.snapshot(ruling);
         rulingMapper.updateEntity(request, ruling);
         currentUserService.getCurrentUser().ifPresent(ruling::setUpdatedBy);
         var savedRuling = rulingRepository.saveAndFlush(ruling);
         entityManager.refresh(savedRuling);
         publishReferenceDataChanged();
+        auditEventPublisher.publishUpdate("ruling", savedRuling.getId(), oldData, AuditData.snapshot(savedRuling));
         return rulingMapper.toResponseDto(savedRuling);
     }
 
     public void deleteRuling(UUID id) {
-        if (!rulingRepository.existsById(id)) {
-            throw new RulingNotFoundException();
-        }
-        rulingRepository.deleteById(id);
+        var ruling = rulingRepository.findById(id).orElseThrow(RulingNotFoundException::new);
+        var oldData = AuditData.snapshot(ruling);
+        rulingRepository.delete(ruling);
         publishReferenceDataChanged();
+        auditEventPublisher.publishDelete("ruling", id, oldData);
     }
 
     private void publishReferenceDataChanged() {

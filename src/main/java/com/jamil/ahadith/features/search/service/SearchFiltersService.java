@@ -8,10 +8,14 @@ import com.jamil.ahadith.features.catalog.repository.MuhaddithRepository;
 import com.jamil.ahadith.features.catalog.repository.RawiRepository;
 import com.jamil.ahadith.features.catalog.repository.RulingRepository;
 import com.jamil.ahadith.features.catalog.repository.TopicRepository;
+import com.jamil.ahadith.features.hadith.entity.HadithType;
 import com.jamil.ahadith.features.search.dto.response.FiltersListResponseDto;
+import com.jamil.ahadith.features.search.dto.response.TypeOptionDto;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
@@ -61,7 +65,13 @@ public class SearchFiltersService {
                 rawiRepository.findAllRawiReferences(),
                 muhaddithRepository.findAllMuhaddithReferences(),
                 bookRepository.findAllBookReferences(),
-                topicRepository.findAllTopicReferences());
+                topicRepository.findAllTopicReferences(),
+                List.of(
+                        new TypeOptionDto(HadithType.marfu.name(), "marfu"),
+                        new TypeOptionDto(HadithType.mawquf.name(), "mawquf"),
+                        new TypeOptionDto(HadithType.qudsi.name(), "qudsi"),
+                        new TypeOptionDto(HadithType.atharSahaba.name(), "atharSahaba")
+                ));
         filtersListCache.put(FILTERS_LIST_CACHE_KEY, response);
         return response;
     }

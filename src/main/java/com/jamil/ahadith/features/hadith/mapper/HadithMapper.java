@@ -21,6 +21,8 @@ import org.mapstruct.*;
 public interface HadithMapper extends AuditMapping {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "searchVector", ignore = true)
+    @Mapping(target = "normalText", ignore = true)
+    @Mapping(target = "searchText", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
@@ -46,6 +48,8 @@ public interface HadithMapper extends AuditMapping {
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "searchVector", ignore = true)
+    @Mapping(target = "normalText", ignore = true)
+    @Mapping(target = "searchText", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "createdAt", ignore = true)

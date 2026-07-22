@@ -82,8 +82,9 @@ public class PublicCatalogController {
     }
 
     @GetMapping({"/explaining", "/api/v1/explaining"})
-    public List<PublicTextDto> getExplainings() {
-        return publicCatalogService.getExplainings();
+    public SearchResponse<PublicTextDto> getExplainings(@RequestParam(defaultValue = "0") int page,
+                                                        @RequestParam(defaultValue = "20") int size) {
+        return publicCatalogService.getExplainings(page, size);
     }
 
     @GetMapping({"/explaining/{id}", "/api/v1/explaining/{id}"})
@@ -92,8 +93,9 @@ public class PublicCatalogController {
     }
 
     @GetMapping({"/fake-ahadith", "/api/v1/fake-ahadith"})
-    public List<PublicTextDto> getFakeAhadith() {
-        return publicCatalogService.getFakeAhadith();
+    public SearchResponse<PublicTextDto> getFakeAhadith(@RequestParam(defaultValue = "0") int page,
+                                                        @RequestParam(defaultValue = "20") int size) {
+        return publicCatalogService.getFakeAhadith(page, size);
     }
 
     @GetMapping({"/fake-ahadith/{id}", "/api/v1/fake-ahadith/{id}"})

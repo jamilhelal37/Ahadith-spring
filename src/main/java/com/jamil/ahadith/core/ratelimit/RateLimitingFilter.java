@@ -75,6 +75,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         if (matches(method, path, "POST", "/ahadith/search", "/api/v1/ahadith/search")) {
             return Optional.of("public-hadith-search");
         }
+        if (matches(method, path, "POST", "/api/v1/me/upgrade-requests", "/api/v1/me/upgrade-requests")) {
+            return Optional.of("upgrade-request-create");
+        }
         return Optional.empty();
     }
 

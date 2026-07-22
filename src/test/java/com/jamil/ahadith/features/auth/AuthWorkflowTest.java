@@ -12,6 +12,7 @@ import com.jamil.ahadith.features.user.entity.UserType;
 import com.jamil.ahadith.features.audit.repository.ActivityLogRepository;
 import com.jamil.ahadith.features.account.repository.EmailVerificationTokenRepository;
 import com.jamil.ahadith.features.auth.repository.LoginAttemptRepository;
+import com.jamil.ahadith.core.ratelimit.RateLimitKeyResolver;
 import com.jamil.ahadith.features.user.repository.UserRepository;
 import com.jamil.ahadith.core.security.jwt.JwtService;
 import org.junit.jupiter.api.AfterEach;
@@ -26,7 +27,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -63,6 +63,8 @@ class AuthWorkflowTest {
     private JwtService jwtService;
     @Autowired
     private TokenHashService tokenHashService;
+    @Autowired
+    private RateLimitKeyResolver rateLimitKeyResolver;
     @Autowired
     private TestEmailService testEmailService;
 
@@ -490,7 +492,8 @@ class AuthWorkflowTest {
                         .content(loginJson(email, "12345678")))
                 .andExpect(status().isTooManyRequests());
 
-        var attempt = loginAttemptRepository.findByEmailKeyAndIpAddress(email.toLowerCase(Locale.ROOT), "127.0.0.1")
+        String emailKey = rateLimitKeyResolver.emailHashKey(email);
+        var attempt = loginAttemptRepository.findByEmailKeyAndIpAddress(emailKey, "127.0.0.1")
                 .orElseThrow();
         attempt.setLockedUntil(Instant.now().minusSeconds(1));
         loginAttemptRepository.saveAndFlush(attempt);
@@ -500,7 +503,7 @@ class AuthWorkflowTest {
                         .content(loginJson(email, "12345678")))
                 .andExpect(status().isOk());
 
-        assertThat(loginAttemptRepository.findByEmailKeyAndIpAddress(email, "127.0.0.1").orElseThrow().getFailedCount())
+        assertThat(loginAttemptRepository.findByEmailKeyAndIpAddress(emailKey, "127.0.0.1").orElseThrow().getFailedCount())
                 .isZero();
     }
 
