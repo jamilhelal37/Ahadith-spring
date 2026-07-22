@@ -24,7 +24,7 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <testcontainers.version>1.21.4</testcontainers.version>
         <postgresql.version>42.7.12</postgresql.version>
-        <maven-enforcer.version>3.5.0</maven-enforcer.version>
+        <maven-enforcer.version>3.6.3</maven-enforcer.version>
         <jacoco.version>0.8.13</jacoco.version>
     </properties>
 
