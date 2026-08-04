@@ -193,7 +193,7 @@ class AuthWorkflowTest {
         String email = unique("verify");
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Verify User\",\"email\":\"" + email + "\",\"password\":\"12345678\"}"))
+                        .content("{\"name\":\"Verify User\",\"email\":\"" + email + "\",\"password\":\"12345678\",\"gender\":\"male\",\"birthDate\":\"2000-01-01\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").doesNotExist())
                 .andExpect(jsonPath("$.user.status").value("pending_confirmation"));
@@ -219,7 +219,7 @@ class AuthWorkflowTest {
         String email = unique("verify-expired");
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Verify Expired\",\"email\":\"" + email + "\",\"password\":\"12345678\"}"))
+                        .content("{\"name\":\"Verify Expired\",\"email\":\"" + email + "\",\"password\":\"12345678\",\"gender\":\"male\",\"birthDate\":\"2000-01-01\"}"))
                 .andExpect(status().isOk());
 
         String token = testEmailService.verificationTokenFor(email);
@@ -284,7 +284,7 @@ class AuthWorkflowTest {
         String email = unique("resend");
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Resend User\",\"email\":\"" + email + "\",\"password\":\"12345678\"}"))
+                        .content("{\"name\":\"Resend User\",\"email\":\"" + email + "\",\"password\":\"12345678\",\"gender\":\"male\",\"birthDate\":\"2000-01-01\"}"))
                 .andExpect(status().isOk());
         String firstToken = testEmailService.verificationTokenFor(email);
         var token = emailVerificationTokenRepository.findByUserAndConsumedAtIsNullOrderByCreatedAtDesc(
@@ -442,7 +442,7 @@ class AuthWorkflowTest {
     }
 
     @Test
-    void passwordResetEmailFailureShouldRollbackTokenChanges() throws Exception {
+    void passwordResetEmailFailureShouldNotRollbackTokenChanges() throws Exception {
         String email = unique("reset-rollback");
         createUser(email, UserStatus.active);
         requestPasswordReset(email);
@@ -450,20 +450,29 @@ class AuthWorkflowTest {
         assertThat(activePasswordResetTokenCount(email)).isEqualTo(1);
 
         testEmailService.failNextPasswordResetEmail();
+        // Should return 200 because email sending failure is after commit and ignored in listener
         mockMvc.perform(post("/auth/forgot-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + email + "\"}"))
-                .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.error").value("Internal Server Error"))
-                .andExpect(jsonPath("$.requestId").exists());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("If the email is registered, password reset instructions have been sent"));
 
-        assertThat(testEmailService.passwordResetTokenFor(email)).isEqualTo(firstToken);
+        // The second token was saved and committed despite email failure
         assertThat(activePasswordResetTokenCount(email)).isEqualTo(1);
+        String secondToken = testEmailService.passwordResetTokenFor(email);
+        // The token in email service was not updated because of failure, so it still has the first one
+        // OR actually, in our mock, it didn't put the new one because it threw exception.
 
+        // But in the DB, there should be a new one.
+        User user = userRepository.findByEmail(email).orElseThrow();
+        var tokens = passwordResetTokenRepository.findByUserAndConsumedAtIsNullOrderByCreatedAtDesc(user);
+        assertThat(tokens).hasSize(1);
+
+        // The first token should be consumed by issuing the second one
         mockMvc.perform(post("/auth/reset-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"token\":\"" + firstToken + "\",\"newPassword\":\"87654321\"}"))
-                .andExpect(status().isOk());
+                .andExpect(status().isUnauthorized()); // Should be unauthorized because it's consumed/replaced
     }
 
     @Test

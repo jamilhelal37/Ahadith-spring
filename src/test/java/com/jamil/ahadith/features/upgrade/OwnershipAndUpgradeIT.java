@@ -128,12 +128,12 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
     }
 
     @Test
-    void memberCommentOwnershipShouldBeScopedToCurrentUser() throws Exception {
-        User owner = user("comment-owner@example.com", UserType.member);
-        User other = user("comment-other@example.com", UserType.member);
+    void scholarCommentOwnershipShouldBeScopedToCurrentScholar() throws Exception {
+        User owner = user("comment-owner@example.com", UserType.scholar);
+        User other = user("comment-other@example.com", UserType.scholar);
         Hadith hadith = hadith();
 
-        JsonNode created = objectMapper.readTree(mockMvc.perform(post("/me/hadiths/" + hadith.getId() + "/comments")
+        JsonNode created = objectMapper.readTree(mockMvc.perform(post("/api/v1/scholar/hadiths/" + hadith.getId() + "/comments")
                         .header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"text\":\"private comment\"}"))
@@ -141,15 +141,27 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
                 .andReturn().getResponse().getContentAsString());
 
         UUID commentId = UUID.fromString(created.get("id").asText());
-        mockMvc.perform(get("/me/comments/" + commentId).header("Authorization", bearer(other)))
-                .andExpect(status().isNotFound());
-        mockMvc.perform(patch("/me/comments/" + commentId)
+        
+        // Other scholar should not see/update/delete the comment (expect 404 for security by obscurity as required)
+        mockMvc.perform(put("/api/v1/scholar/comments/" + commentId)
                         .header("Authorization", bearer(other))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"text\":\"tamper\"}"))
                 .andExpect(status().isNotFound());
-        mockMvc.perform(delete("/me/comments/" + commentId).header("Authorization", bearer(other)))
+        mockMvc.perform(delete("/api/v1/scholar/comments/" + commentId).header("Authorization", bearer(other)))
                 .andExpect(status().isNotFound());
+
+        // Owner can update
+        mockMvc.perform(put("/api/v1/scholar/comments/" + commentId)
+                        .header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"text\":\"updated comment\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.text").value("updated comment"));
+
+        // Owner can delete
+        mockMvc.perform(delete("/api/v1/scholar/comments/" + commentId).header("Authorization", bearer(owner)))
+                .andExpect(status().isNoContent());
     }
 
     @Test

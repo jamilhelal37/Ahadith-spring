@@ -64,6 +64,11 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/ahadith/search", "/api/v1/ahadith/search").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/search/filters").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/ahadith/*/comments").permitAll()
+                        .requestMatchers("/api/v1/scholar/hadiths/*/comments", "/api/v1/scholar/comments/**")
+                        .hasAuthority(SecurityRoleUtils.authority(UserType.scholar))
+                        .requestMatchers("/api/v1/admin/comments/**")
+                        .hasAuthority(SecurityRoleUtils.authority(UserType.admin))
                         .requestMatchers(
                                 "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()

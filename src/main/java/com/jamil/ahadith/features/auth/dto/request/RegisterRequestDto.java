@@ -3,11 +3,10 @@ package com.jamil.ahadith.features.auth.dto.request;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.jamil.ahadith.core.config.FlexibleLocalDateDeserializer;
+import com.jamil.ahadith.core.validation.MinimumAge;
 import com.jamil.ahadith.core.validation.ValidationLimits;
 import com.jamil.ahadith.features.user.entity.Gender;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -33,9 +32,9 @@ public class RegisterRequestDto {
     private String password;
 
     private Gender gender;
-
+    @NotNull(message = "Birth date is required")
+    @Past(message = "Birth date must be in the past")
+    @MinimumAge(value = 10, message = "User must be older than 10 years")
     @JsonDeserialize(using = FlexibleLocalDateDeserializer.class)
     private LocalDate birthDate;
-    @Size(max = ValidationLimits.URL_MAX)
-    private String avatarUrl;
 }

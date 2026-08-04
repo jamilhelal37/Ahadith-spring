@@ -1,5 +1,6 @@
 package com.jamil.ahadith.core.mail;
 
+import com.jamil.ahadith.core.exception.EmailDeliveryException;
 import com.jamil.ahadith.features.user.entity.User;
 import com.jamil.ahadith.core.mail.EmailService;
 import org.springframework.context.annotation.Profile;
@@ -24,7 +25,7 @@ public class TestEmailService implements EmailService {
     @Override
     public void sendPasswordResetEmail(User user, String token) {
         if (failNextPasswordReset.compareAndSet(true, false)) {
-            throw new IllegalStateException("Test password reset email failure");
+            throw new EmailDeliveryException("Test password reset email failure", null);
         }
         passwordResetTokens.put(user.getEmail(), token);
     }

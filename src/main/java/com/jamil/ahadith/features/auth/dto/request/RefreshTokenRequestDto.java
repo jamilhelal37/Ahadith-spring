@@ -8,6 +8,9 @@ import lombok.Data;
 @Data
 public class RefreshTokenRequestDto {
     @NotBlank
-    @Size(max = ValidationLimits.TOKEN_MAX)
+    @Size(
+            max = ValidationLimits.TOKEN_MAX,
+            message = "Refresh token must not exceed {max} characters"
+    )
     private String refreshToken;
 }

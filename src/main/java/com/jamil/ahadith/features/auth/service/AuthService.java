@@ -1,6 +1,7 @@
 package com.jamil.ahadith.features.auth.service;
 
-import com.jamil.ahadith.features.account.service.AccountSecurityService;
+import com.jamil.ahadith.core.validation.EmailNormalizer;
+import com.jamil.ahadith.features.account.service.EmailVerificationService;
 
 import com.jamil.ahadith.core.security.jwt.JwtService;
 
@@ -42,7 +43,7 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final LoginAttemptService loginAttemptService;
     private final PasswordPolicyService passwordPolicyService;
-    private final AccountSecurityService accountSecurityService;
+    private final EmailVerificationService emailVerificationService;
     private final AuthUserMapper authUserMapper;
     private final RateLimitService rateLimitService;
     private final RateLimitKeyResolver rateLimitKeyResolver;
@@ -63,7 +64,7 @@ public class AuthService {
 
         userRepository.save(user);
 
-        accountSecurityService.sendInitialVerification(user);
+        emailVerificationService.sendInitialVerification(user);
 
         return AuthResponseDto.builder()
                 .tokenType(TOKEN_TYPE_BEARER)
@@ -180,7 +181,6 @@ public class AuthService {
 
         user.setGender(request.getGender());
         user.setBirthDate(request.getBirthDate());
-        user.setAvatarUrl(request.getAvatarUrl());
         user.setType(UserType.member);
         user.setStatus(
                 UserStatus.pending_confirmation
@@ -237,9 +237,6 @@ public class AuthService {
     }
 
     private String normalizeEmail(String email) {
-        return email == null
-                ? null
-                : email.trim()
-                  .toLowerCase(Locale.ROOT);
+        return EmailNormalizer.normalize(email);
     }
 }

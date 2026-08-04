@@ -1,5 +1,6 @@
 package com.jamil.ahadith.features.hadith.service;
 
+import com.jamil.ahadith.core.exception.InvalidRequestException;
 import com.jamil.ahadith.core.web.AdminPageService;
 
 import com.jamil.ahadith.features.audit.service.AuditData;
@@ -62,6 +63,7 @@ public class FakeHadithService {
     }
 
     public FakeHadithResponseDto updateFakeHadith(UUID id, FakeHadithUpdateDto request) {
+        requireAtLeastOneUpdateField(request);
         var fakeHadith = fakeHadithRepository.findById(id).orElseThrow(FakeHadithNotFoundException::new);
         var oldData = AuditData.snapshot(fakeHadith);
         fakeHadithMapper.updateEntity(request, fakeHadith);
@@ -78,6 +80,16 @@ public class FakeHadithService {
         var oldData = AuditData.snapshot(fakeHadith);
         fakeHadithRepository.delete(fakeHadith);
         auditEventPublisher.publishDelete("fake_ahadith", id, oldData);
+    }
+
+    private void requireAtLeastOneUpdateField(FakeHadithUpdateDto request) {
+        boolean anyProvided = request.getSubValid() != null ||
+                request.getText() != null ||
+                request.getRuling() != null;
+
+        if (!anyProvided) {
+            throw new InvalidRequestException("At least one field must be provided");
+        }
     }
 
     private void applyCreateRelations(FakeHadithRequestDto request, FakeHadith entity) {

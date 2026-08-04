@@ -4,6 +4,7 @@ import com.jamil.ahadith.core.validation.ValidationLimits;
 import com.jamil.ahadith.features.catalog.dto.request.reference.RulingReferenceRequestDto;
 import com.jamil.ahadith.features.hadith.dto.request.reference.HadithReferenceRequestDto;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -11,7 +12,15 @@ import lombok.Data;
 public class FakeHadithUpdateDto {
     @Valid
     private HadithReferenceRequestDto subValid;
-    @Size(max = ValidationLimits.HADITH_TEXT_MAX)
+    @Pattern(
+            regexp = "(?s).*\\S.*",
+            message = "Fake hadith text must not be blank"
+    )
+    @Size(
+            min = 10,
+            max = ValidationLimits.HADITH_TEXT_MAX,
+            message = "Fake hadith text must be between {min} and {max} characters"
+    )
     private String text;
     @Valid
     private RulingReferenceRequestDto ruling;

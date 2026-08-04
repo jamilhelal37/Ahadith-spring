@@ -1,22 +1,19 @@
 package com.jamil.ahadith.features.interaction.dto.response;
 
-
-
-import com.jamil.ahadith.core.web.dto.SimpleReferenceDto;
-
-import com.jamil.ahadith.core.web.dto.AdminUserReferenceDto;
-
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
-public class CommentResponseDto {
+@NoArgsConstructor
+@AllArgsConstructor
+public class ScholarCommentResponseDto {
     private UUID id;
-    private SimpleReferenceDto hadith;
-    private AdminUserReferenceDto user;
     private String text;
+    private HadithCommentReferenceDto hadith;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

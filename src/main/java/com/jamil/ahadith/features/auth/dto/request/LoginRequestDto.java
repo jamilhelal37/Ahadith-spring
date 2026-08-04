@@ -14,10 +14,16 @@ import lombok.NoArgsConstructor;
 public class LoginRequestDto {
     @NotBlank(message = "Email is required")
     @Email(message = "Invalid email format")
-    @Size(max = ValidationLimits.EMAIL_MAX)
+    @Size(
+            max = ValidationLimits.EMAIL_MAX,
+            message = "Email must not exceed {max} characters"
+    )
     private String email;
 
     @NotBlank(message = "Password is required")
-    @Size(max = ValidationLimits.PASSWORD_MAX)
+    @Size(
+            max = ValidationLimits.PASSWORD_MAX,
+            message = "Password must not exceed {max} characters"
+    )
     private String password;
 }

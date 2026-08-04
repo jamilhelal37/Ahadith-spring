@@ -8,7 +8,6 @@ import com.jamil.ahadith.features.user.entity.User;
 import com.jamil.ahadith.features.user.entity.UserStatus;
 import com.jamil.ahadith.features.auth.repository.RefreshTokenSessionRepository;
 import com.jamil.ahadith.features.user.repository.UserRepository;
-import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
@@ -48,7 +47,7 @@ public class RefreshTokenService implements RefreshTokenRevoker {
             revokeAllUserSessions(session.getUser(), now);
             throw new BadCredentialsException("Invalid or expired refresh token");
         }
-        if (session.getExpiresAt().isBefore(now)) {
+        if (!session.getExpiresAt().isAfter(now)) {
             session.setRevokedAt(now);
             throw new BadCredentialsException("Invalid or expired refresh token");
         }
@@ -68,13 +67,13 @@ public class RefreshTokenService implements RefreshTokenRevoker {
         if (refreshToken == null || refreshToken.isBlank()) {
             return;
         }
-        try {
-            refreshTokenSessionRepository.findByTokenHash(tokenHashService.sha256(refreshToken))
-                    .filter(session -> session.getRevokedAt() == null)
-                    .ifPresent(session -> session.setRevokedAt(Instant.now()));
-        } catch (JwtException | IllegalArgumentException ignored) {
-            // Logout is intentionally idempotent.
-        }
+
+        refreshTokenSessionRepository
+                .findByTokenHash(tokenHashService.sha256(refreshToken))
+                .filter(session -> session.getRevokedAt() == null)
+                .ifPresent(session ->
+                        session.setRevokedAt(Instant.now())
+                );
     }
 
     @Transactional
