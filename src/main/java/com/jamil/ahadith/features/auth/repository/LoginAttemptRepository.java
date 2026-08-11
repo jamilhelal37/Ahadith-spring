@@ -16,12 +16,12 @@ public interface LoginAttemptRepository extends JpaRepository<LoginAttempt, UUID
     @Modifying
     @Query(value = """
             insert into login_attempts (email_key, ip_address, failed_count, last_failed_at, locked_until)
-            values (:emailKey, :ipAddress, 1, :now, case when :maxFailures <= 1 then :lockedUntil else null end)
+            values (:emailKey, :ipAddress, 1, cast(:now as timestamptz), case when :maxFailures <= 1 then cast(:lockedUntil as timestamptz) else null end)
             on conflict (email_key, ip_address) do update
             set failed_count = login_attempts.failed_count + 1,
-                last_failed_at = :now,
+                last_failed_at = cast(:now as timestamptz),
                 locked_until = case
-                    when login_attempts.failed_count + 1 >= :maxFailures then :lockedUntil
+                    when login_attempts.failed_count + 1 >= :maxFailures then cast(:lockedUntil as timestamptz)
                     else login_attempts.locked_until
                 end
             """, nativeQuery = true)
