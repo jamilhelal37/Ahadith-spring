@@ -62,10 +62,10 @@ class PostgresFlywayMigrationIT {
                 .toList();
 
         assertThat(migrations)
-                .hasSize(8)
+                .hasSize(9)
                 .allSatisfy(migration -> assertThat(migration.getState()).isNotEqualTo(MigrationState.FAILED));
         assertThat(Arrays.stream(migrations).filter(migration -> migration.getState() == MigrationState.PENDING)).isEmpty();
-        assertThat(successfulVersions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
+        assertThat(successfulVersions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9");
 
         assertThat(jdbc.queryForObject("select current_setting('server_version_num')::int", Integer.class))
                 .isGreaterThanOrEqualTo(160000);
@@ -197,6 +197,28 @@ class PostgresFlywayMigrationIT {
         assertThat(jdbc.queryForObject(
                 "select count(*) from public.ruling", Integer.class))
                 .isGreaterThan(0);
+        assertThat(jdbc.queryForObject(
+                """
+                select r.name
+                from public.ahadith h
+                join public.books b on b.id = h.book
+                join public.rawis r on r.id = h.rawi
+                where b.name = 'صحيح البخاري'
+                  and h.hadith_number = 6412
+                """,
+                String.class))
+                .isEqualTo("عبد الله بن عباس");
+        assertThat(jdbc.queryForObject(
+                """
+                select r.name
+                from public.ahadith h
+                join public.books b on b.id = h.book
+                join public.rawis r on r.id = h.rawi
+                where b.name = 'صحيح مسلم'
+                  and h.hadith_number = 2999
+                """,
+                String.class))
+                .isEqualTo("صهيب الرومي");
 
         jdbc.update(
                 """

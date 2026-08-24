@@ -215,6 +215,38 @@ class AuthWorkflowTest {
     }
 
     @Test
+    void disabledUserShouldNotBeReactivatedByEmailVerificationToken() throws Exception {
+        String email = unique("verify-disabled");
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Verify Disabled\",\"email\":\"" + email + "\",\"password\":\"12345678\",\"gender\":\"male\",\"birthDate\":\"2000-01-01\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.status").value("pending_confirmation"));
+
+        String token = testEmailService.verificationTokenFor(email);
+        assertThat(token).isNotBlank();
+
+        User user = userRepository.findByEmail(email).orElseThrow();
+        user.setStatus(UserStatus.disabled);
+        userRepository.saveAndFlush(user);
+
+        var verificationToken = emailVerificationTokenRepository
+                .findByTokenHash(tokenHashService.sha256(token))
+                .orElseThrow();
+
+        mockMvc.perform(post("/auth/verify-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"" + token + "\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Invalid or expired verification token"));
+
+        assertThat(userRepository.findByEmail(email).orElseThrow().getStatus())
+                .isEqualTo(UserStatus.disabled);
+        assertThat(emailVerificationTokenRepository.findById(verificationToken.getId()).orElseThrow().getConsumedAt())
+                .isNull();
+    }
+
+    @Test
     void expiredEmailVerificationTokenShouldBeRejected() throws Exception {
         String email = unique("verify-expired");
         mockMvc.perform(post("/auth/register")

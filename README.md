@@ -193,10 +193,10 @@ DELETE /api/v1/admin/books/{id}
 
 Successful deletion returns `204`; a missing book returns `404`.
 
-Hadith partial update:
+Hadith update:
 
 ```http
-PATCH /api/v1/admin/ahadith/{id}
+PUT /api/v1/admin/ahadith/{id}
 ```
 
 Relationship fields remain nested reference objects:
@@ -206,12 +206,12 @@ Relationship fields remain nested reference objects:
   "book": { "id": "00000000-0000-0000-0000-000000000000" },
   "rawi": { "id": "00000000-0000-0000-0000-000000000000" },
   "ruling": { "id": "00000000-0000-0000-0000-000000000000" },
-  "explaining": null,
-  "subValid": null
+  "explaining": { "id": "00000000-0000-0000-0000-000000000000" },
+  "subValid": { "id": "00000000-0000-0000-0000-000000000000" }
 }
 ```
 
-For `PATCH`, an omitted field is unchanged, a present `null` clears a nullable relationship, and a present `{ "id": "..." }` links the referenced row.
+`PUT /api/v1/admin/ahadith/{id}` uses update DTO semantics, not full replacement. Omitted fields and fields sent as `null` are unchanged because MapStruct ignores null properties during updates. Fields sent with valid non-null values are updated. Relationship fields are updated when the request sends a reference object with a valid `id`. There is no `PATCH` endpoint for updating a hadith.
 
 ## Scholar Upgrade Requests
 
@@ -334,6 +334,8 @@ APP_RATE_LIMIT_UPGRADE_REQUEST_CREATE_WINDOW=1d
 
 Email is sent through Resend. Keep `RESEND_API_KEY` secret. Password-reset emails use `${APP_MAIL_FRONTEND_BASE_URL}/reset-password?token=...`. Verification links can use `APP_MAIL_VERIFICATION_BASE_URL` when they need a different base URL. Configure Resend HTTP timeouts with `APP_MAIL_CONNECT_TIMEOUT` and `APP_MAIL_READ_TIMEOUT`. The database stores only token hashes.
 
+Email verification tokens activate a user only when the current user status is `pending_confirmation`. Users already `active` or `disabled` are not activated by a verification token. Rejections use the generic `Invalid or expired verification token` message so account state is not exposed.
+
 ## Cleanup
 
 Scheduled cleanup removes old login attempts, expired refresh sessions, and expired or consumed email/password tokens in batches. Configure it with:
@@ -360,6 +362,10 @@ APP_CLEANUP_BATCH_SIZE
 - `V5__add_user_token_version.sql`
 - `V6__security_cleanup_indexes.sql`
 - `V7__add_upgrade_request_document_metadata.sql`
+- `V8__fix_upgrade_request_relation.sql`
+- `V9__fix_missing_seed_rawi_relations.sql`
+
+Seed data in `V3__seed_core_hadith_data.sql` is for development and demo use only. It is not the final production database and is not an authoritative religious reference; it is expected to be replaced or expanded later. `V9__fix_missing_seed_rawi_relations.sql` fixes missing rawi relations in older seeded records without replacing relations that were already corrected.
 
 Do not edit already-applied migrations. New database changes must use a later migration.
 

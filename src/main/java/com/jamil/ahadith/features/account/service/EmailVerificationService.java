@@ -55,8 +55,12 @@ public class EmailVerificationService {
                 INVALID_VERIFICATION_TOKEN_MESSAGE
         );
 
+        User tokenUser = verificationToken.getUser();
+        User user = userRepository.findByIdForUpdate(tokenUser.getId())
+                .filter(this::isPendingConfirmation)
+                .orElseThrow(() -> new BadCredentialsException(INVALID_VERIFICATION_TOKEN_MESSAGE));
+
         verificationToken.setConsumedAt(now);
-        User user = verificationToken.getUser();
         user.setStatus(UserStatus.active);
 
         // emailVerificationTokenRepository.save(verificationToken); // Managed via dirty checking
