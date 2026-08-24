@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS "users" (
     name VARCHAR(255),
     email VARCHAR(255),
     password VARCHAR(255),
+    google_subject VARCHAR(255),
     avatar_url VARCHAR(255),
     avatar_public_id VARCHAR(255),
     status VARCHAR(50),
@@ -13,6 +14,9 @@ CREATE TABLE IF NOT EXISTS "users" (
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS "uq_users_google_subject"
+ON "users" ("google_subject");
 
 CREATE TABLE IF NOT EXISTS "refresh_token_sessions" (
     id UUID PRIMARY KEY,

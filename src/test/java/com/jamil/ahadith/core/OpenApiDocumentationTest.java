@@ -37,6 +37,14 @@ class OpenApiDocumentationTest {
         assertThat(root.at("/components/securitySchemes/bearer-jwt/scheme").asText())
                 .isEqualTo("bearer");
         assertThat(root.path("paths").has("/api/v1/auth/forgot-password")).isTrue();
+        assertThat(root.path("paths").has("/api/v1/auth/google")).isTrue();
+        assertThat(root.path("paths").path("/api/v1/auth/google").has("post")).isTrue();
+        assertThat(root.path("paths").has("/api/v1/admin/users")).isTrue();
+        assertThat(root.path("paths").has("/api/v1/admin/users/{id}/status")).isTrue();
+        assertThat(root.path("paths").path("/api/v1/admin/users/{id}/status").has("put")).isTrue();
+        assertThat(root.path("paths").path("/api/v1/admin/users/{id}/status").has("patch")).isFalse();
+        assertThat(root.path("paths").has("/api/v1/me/password")).isTrue();
+        assertThat(root.path("paths").path("/api/v1/me/password").has("put")).isTrue();
         assertThat(root.path("paths").fieldNames())
                 .toIterable()
                 .allSatisfy(path -> assertThat(path.toString()).startsWith("/api/v1/"));
@@ -44,5 +52,6 @@ class OpenApiDocumentationTest {
         JsonNode schemasNode = root.path("components").path("schemas");
         assertThat(schemasNode.has("User")).isFalse();
         assertThat(schemasNode.toString()).doesNotContain("searchVector");
+        assertThat(schemasNode.toString()).doesNotContain("googleSubject");
     }
 }

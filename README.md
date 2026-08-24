@@ -48,6 +48,8 @@ APP_CORS_ALLOWED_ORIGINS
 APP_CORS_ALLOW_CREDENTIALS
 APP_CORS_MAX_AGE
 APP_SECURITY_TRUSTED_PROXY_HEADERS
+APP_GOOGLE_AUTH_ENABLED
+GOOGLE_AUTH_CLIENT_IDS
 APP_UPGRADE_DOCUMENT_MAX_SIZE
 APP_UPGRADE_DOCUMENT_MAX_PAGES
 APP_UPGRADE_DOCUMENT_DOWNLOAD_TTL
@@ -124,6 +126,49 @@ GET /me/search
 GET /api/v1/search
 GET /api/v1/me/search
 ```
+
+## Authentication
+
+Email/password login continues to use:
+
+```http
+POST /api/v1/auth/login
+```
+
+Google login is available through:
+
+```http
+POST /api/v1/auth/google
+```
+
+Request:
+
+```json
+{
+  "idToken": "GOOGLE_ID_TOKEN"
+}
+```
+
+The client sends only a Google ID Token. The backend verifies the token with Google, links or creates the local user, and returns the same project JWT response shape used by email/password login:
+
+```json
+{
+  "accessToken": "...",
+  "refreshToken": "...",
+  "tokenType": "Bearer",
+  "expiresIn": 3600,
+  "user": {}
+}
+```
+
+Configure Google login with:
+
+```text
+APP_GOOGLE_AUTH_ENABLED=false
+GOOGLE_AUTH_CLIENT_IDS=
+```
+
+`GOOGLE_AUTH_CLIENT_IDS` is a comma-separated allowlist of accepted Google OAuth client IDs, for example web and Android client IDs. Use the Google Web Client ID as the primary audience. No client secret is required or used for direct ID Token verification.
 
 ## Public Catalog Examples
 
@@ -212,6 +257,39 @@ Relationship fields remain nested reference objects:
 ```
 
 `PUT /api/v1/admin/ahadith/{id}` uses update DTO semantics, not full replacement. Omitted fields and fields sent as `null` are unchanged because MapStruct ignores null properties during updates. Fields sent with valid non-null values are updated. Relationship fields are updated when the request sends a reference object with a valid `id`. There is no `PATCH` endpoint for updating a hadith.
+
+Admin user management is available only to admins:
+
+```http
+GET /api/v1/admin/users?q=&status=&type=&page=0&size=20&sort=createdAt,desc
+GET /api/v1/admin/users/{id}
+PUT /api/v1/admin/users/{id}/status
+PUT /api/v1/admin/users/{id}/type
+```
+
+User search supports case-insensitive name/email search, `status` filtering, `type` filtering, and `SearchResponse` pagination. The default sort is stable by `createdAt DESC` then `id`; `size` is capped at `100`. User responses do not expose `password`, `tokenVersion`, or token data.
+
+Status update example:
+
+```bash
+curl -X PUT "$API_BASE/api/v1/admin/users/<id>/status" \
+  -H "Authorization: Bearer <admin-access-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"disabled"}'
+```
+
+Only `active` and `disabled` are accepted by the status endpoint. Status changes increment `tokenVersion`, revoke all refresh sessions for the target user, and invalidate old access tokens. Admins cannot disable their own account.
+
+Type update example:
+
+```bash
+curl -X PUT "$API_BASE/api/v1/admin/users/<id>/type" \
+  -H "Authorization: Bearer <admin-access-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"scholar"}'
+```
+
+Accepted user types are `member`, `scholar`, and `admin`. Type changes increment `tokenVersion`, revoke all refresh sessions for the target user, and do not change old upgrade requests. Admins cannot change their own account type.
 
 ## Scholar Upgrade Requests
 
@@ -309,7 +387,47 @@ GET /api/v1/fake-ahadith?page=0&size=20
 - Access tokens are JWTs with a `tokenVersion` claim.
 - Successful password reset increments `users.token_version`, revokes refresh sessions, consumes reset tokens, and writes an activity log.
 - Refresh tokens are rotated and stored only as hashes in `refresh_token_sessions`.
+- Google login accepts Google ID Tokens only, uses Google's `sub` as the linked identity, never stores Google tokens, and never returns `googleSubject`.
 - JWT errors use the shared error response with `status`, `error`, `message`, `path`, `timestamp`, and `requestId`.
+
+## Current User Account
+
+Authenticated members, scholars, and admins can update their own profile fields:
+
+```http
+PUT /api/v1/me
+```
+
+```json
+{
+  "name": "User Name",
+  "gender": "male",
+  "birthDate": "2000-01-01"
+}
+```
+
+Only `name`, `gender`, and `birthDate` are updated. `name` is trimmed before saving. Attempts to send `email`, `password`, `type`, `status`, `avatarUrl`, `avatarPublicId`, or `tokenVersion` are ignored because those fields are not part of the update DTO. Profile updates do not revoke sessions.
+
+Authenticated users can change their password:
+
+```http
+PUT /api/v1/me/password
+```
+
+```json
+{
+  "currentPassword": "old-password",
+  "newPassword": "new-password"
+}
+```
+
+The current password must match, the new password must satisfy the configured password policy, and it must differ from the current password. A successful password change increments `tokenVersion`, revokes all refresh sessions, invalidates old access tokens, and returns:
+
+```json
+{
+  "message": "Password changed successfully"
+}
+```
 
 ## Render, CORS, And Proxy
 
@@ -364,8 +482,9 @@ APP_CLEANUP_BATCH_SIZE
 - `V7__add_upgrade_request_document_metadata.sql`
 - `V8__fix_upgrade_request_relation.sql`
 - `V9__fix_missing_seed_rawi_relations.sql`
+- `V10__add_google_identity_to_users.sql`
 
-Seed data in `V3__seed_core_hadith_data.sql` is for development and demo use only. It is not the final production database and is not an authoritative religious reference; it is expected to be replaced or expanded later. `V9__fix_missing_seed_rawi_relations.sql` fixes missing rawi relations in older seeded records without replacing relations that were already corrected.
+Seed data in `V3__seed_core_hadith_data.sql` is for development and demo use only. It is not the final production database and is not an authoritative religious reference; it is expected to be replaced or expanded later. `V9__fix_missing_seed_rawi_relations.sql` fixes missing rawi relations in older seeded records without replacing relations that were already corrected. `V10__add_google_identity_to_users.sql` adds nullable Google identity linkage and allows password to be null for Google-created users.
 
 Do not edit already-applied migrations. New database changes must use a later migration.
 

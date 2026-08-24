@@ -21,6 +21,15 @@ public interface EmailVerificationTokenRepository extends JpaRepository<EmailVer
     List<EmailVerificationToken> findByUserAndConsumedAtIsNullOrderByCreatedAtDesc(User user);
 
     @Modifying
+    @Query("""
+            update EmailVerificationToken token
+            set token.consumedAt = :consumedAt
+            where token.user = :user
+              and token.consumedAt is null
+            """)
+    int consumeActiveForUser(@Param("user") User user, @Param("consumedAt") Instant consumedAt);
+
+    @Modifying
     @Query(value = """
             delete from email_verification_tokens
             where id in (

@@ -31,9 +31,13 @@ public class User {
     @Column(name = "email")
     private String email;
 
-    @Column(name = "password")
+    @Column(name = "password", nullable = true)
     @JsonIgnore
     private String password;
+
+    @Column(name = "google_subject", length = 255)
+    @JsonIgnore
+    private String googleSubject;
 
     @Column(name = "avatar_url")
     private String avatarUrl;

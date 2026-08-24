@@ -62,10 +62,10 @@ class PostgresFlywayMigrationIT {
                 .toList();
 
         assertThat(migrations)
-                .hasSize(9)
+                .hasSize(10)
                 .allSatisfy(migration -> assertThat(migration.getState()).isNotEqualTo(MigrationState.FAILED));
         assertThat(Arrays.stream(migrations).filter(migration -> migration.getState() == MigrationState.PENDING)).isEmpty();
-        assertThat(successfulVersions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9");
+        assertThat(successfulVersions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
 
         assertThat(jdbc.queryForObject("select current_setting('server_version_num')::int", Integer.class))
                 .isGreaterThanOrEqualTo(160000);
@@ -127,10 +127,11 @@ class PostgresFlywayMigrationIT {
                       'idx_comments_user_created_at',
                       'idx_search_history_user_created_at',
                       'idx_notifications_user_created_at'
+                      , 'uq_users_google_subject'
                   )
                 """,
                 Integer.class))
-                .isEqualTo(19);
+                .isEqualTo(20);
 
         assertThat(jdbc.queryForObject(
                 """
@@ -157,7 +158,7 @@ class PostgresFlywayMigrationIT {
                 from information_schema.columns
                 where table_schema = 'public'
                   and (
-                      (table_name = 'users' and column_name in ('avatar_public_id', 'token_version'))
+                      (table_name = 'users' and column_name in ('avatar_public_id', 'token_version', 'google_subject'))
                       or (table_name = 'upgrade_requests' and column_name in (
                           'review_notes',
                           'rejection_reason',
@@ -179,7 +180,27 @@ class PostgresFlywayMigrationIT {
                   )
                 """,
                 Integer.class))
-                .isEqualTo(27);
+                .isEqualTo(28);
+        assertThat(jdbc.queryForObject(
+                """
+                select is_nullable
+                from information_schema.columns
+                where table_schema = 'public'
+                  and table_name = 'users'
+                  and column_name = 'password'
+                """,
+                String.class))
+                .isEqualTo("YES");
+        assertThat(jdbc.queryForObject(
+                """
+                select indexdef
+                from pg_indexes
+                where schemaname = 'public'
+                  and indexname = 'uq_users_google_subject'
+                """,
+                String.class))
+                .contains("google_subject")
+                .contains("WHERE (google_subject IS NOT NULL)");
         assertThat(jdbc.queryForObject(
                 """
                 select count(*)

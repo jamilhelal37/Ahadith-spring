@@ -43,6 +43,7 @@ public class RateLimitProperties {
         Map<String, RateLimitPolicy> defaults = new LinkedHashMap<>();
         defaults.put("register", policy(5, Duration.ofMinutes(15)));
         defaults.put("login", policy(20, Duration.ofMinutes(1)));
+        defaults.put("google-login", policy(20, Duration.ofMinutes(1)));
         defaults.put("login-email", policy(10, Duration.ofMinutes(1)));
         defaults.put("forgot-password-ip", policy(3, Duration.ofMinutes(15)));
         defaults.put("forgot-password-email", policy(3, Duration.ofHours(1)));

@@ -1,6 +1,7 @@
 package com.jamil.ahadith.features.auth.controller;
 
 import com.jamil.ahadith.features.account.dto.request.ForgotPasswordRequestDto;
+import com.jamil.ahadith.features.auth.dto.request.GoogleLoginRequestDto;
 import com.jamil.ahadith.features.auth.dto.request.LoginRequestDto;
 import com.jamil.ahadith.features.auth.dto.request.LogoutRequestDto;
 import com.jamil.ahadith.features.auth.dto.request.RefreshTokenRequestDto;
@@ -54,6 +55,23 @@ public class AuthController {
                 resolveClientMetadata(servletRequest);
 
         AuthResponseDto response = authService.login(
+                request,
+                clientMetadata.userAgent(),
+                clientMetadata.ipAddress()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponseDto> googleLogin(
+            @Valid @RequestBody GoogleLoginRequestDto request,
+            HttpServletRequest servletRequest
+    ) {
+        ClientMetadata clientMetadata =
+                resolveClientMetadata(servletRequest);
+
+        AuthResponseDto response = authService.loginWithGoogle(
                 request,
                 clientMetadata.userAgent(),
                 clientMetadata.ipAddress()
