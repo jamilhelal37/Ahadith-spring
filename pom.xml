@@ -25,7 +25,7 @@
         <testcontainers.version>1.21.4</testcontainers.version>
         <postgresql.version>42.7.12</postgresql.version>
         <grpc.version>1.75.0</grpc.version>
-        <netty.version>4.2.16.Final</netty.version>
+        <netty.version>4.2.17.Final</netty.version>
         <httpcore5.version>5.4.3</httpcore5.version>
         <maven-enforcer.version>3.6.3</maven-enforcer.version>
         <jacoco.version>0.8.15</jacoco.version>
