@@ -15,6 +15,7 @@ import com.jamil.ahadith.features.hadith.dto.request.FakeHadithRequestDto;
 import com.jamil.ahadith.features.hadith.dto.response.FakeHadithResponseDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
 import com.jamil.ahadith.features.hadith.dto.update.FakeHadithUpdateDto;
+import com.jamil.ahadith.features.hadith.event.FakeHadithCreatedEvent;
 import com.jamil.ahadith.features.hadith.exception.FakeHadithNotFoundException;
 import com.jamil.ahadith.features.hadith.exception.HadithNotFoundException;
 import com.jamil.ahadith.features.hadith.mapper.FakeHadithMapper;
@@ -23,6 +24,7 @@ import com.jamil.ahadith.features.hadith.repository.HadithRepository;
 import com.jamil.ahadith.features.user.service.CurrentUserService;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +43,7 @@ public class FakeHadithService {
     private final RulingRepository rulingRepository;
     private final CurrentUserService currentUserService;
     private final AuditEventPublisher auditEventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
 
     public SearchResponse<FakeHadithResponseDto> getFakeAhadith(Pageable pageable) {
         return adminPageService.response(fakeHadithRepository.findAll(pageable).map(fakeHadithMapper::toResponseDto));
@@ -58,6 +61,7 @@ public class FakeHadithService {
         currentUserService.getCurrentUser().ifPresent(entity::setCreatedBy);
         var fakeHadith = fakeHadithRepository.saveAndFlush(entity);
         entityManager.refresh(fakeHadith);
+        eventPublisher.publishEvent(new FakeHadithCreatedEvent(fakeHadith.getId()));
         auditEventPublisher.publishCreate("fake_ahadith", fakeHadith.getId(), AuditData.snapshot(fakeHadith));
         return fakeHadithMapper.toResponseDto(fakeHadith);
     }

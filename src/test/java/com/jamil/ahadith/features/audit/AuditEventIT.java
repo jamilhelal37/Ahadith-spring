@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AuditEventIT extends PostgresIntegrationTestBase {
 
@@ -144,9 +145,54 @@ class AuditEventIT extends PostgresIntegrationTestBase {
     }
 
     @Test
+    void activityLogFailureShouldRollbackBusinessChange() {
+        installFailingActivityLogTrigger();
+        try {
+            TopicRequestDto request = new TopicRequestDto();
+            request.setName("Atomicity Topic");
+
+            assertThatThrownBy(() -> topicService.createTopic(request))
+                    .isInstanceOf(RuntimeException.class);
+
+            assertThat(countRows("public.topics", "name = 'Atomicity Topic'")).isZero();
+            assertThat(countRows("public.activity_log", "true")).isZero();
+        } finally {
+            dropFailingActivityLogTrigger();
+        }
+    }
+
+    @Test
     void auditSnapshotsShouldNotExposeSecrets() {
+        admin.setGoogleSubject("google-subject");
         Map<String, Object> snapshot = com.jamil.ahadith.features.audit.service.AuditData.snapshot(admin);
 
-        assertThat(snapshot).doesNotContainKeys("password", "token", "tokenHash");
+        assertThat(snapshot).doesNotContainKeys("password", "token", "tokenHash", "googleSubject");
+    }
+
+    private void installFailingActivityLogTrigger() {
+        jdbc.execute("""
+                create or replace function public.fail_activity_log_insert()
+                returns trigger
+                language plpgsql
+                as $$
+                begin
+                    raise exception 'activity log failed';
+                end;
+                $$;
+                """);
+        jdbc.execute("""
+                create trigger fail_activity_log_insert
+                before insert on public.activity_log
+                for each row execute function public.fail_activity_log_insert()
+                """);
+    }
+
+    private void dropFailingActivityLogTrigger() {
+        jdbc.execute("drop trigger if exists fail_activity_log_insert on public.activity_log");
+        jdbc.execute("drop function if exists public.fail_activity_log_insert()");
+    }
+
+    private long countRows(String tableName, String condition) {
+        return jdbc.queryForObject("select count(*) from " + tableName + " where " + condition, Long.class);
     }
 }

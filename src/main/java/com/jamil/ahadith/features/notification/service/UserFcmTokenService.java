@@ -1,12 +1,11 @@
 package com.jamil.ahadith.features.notification.service;
 
-import com.jamil.ahadith.features.notification.entity.UserFcmToken;
 import com.jamil.ahadith.features.notification.repository.UserFcmTokenRepository;
 import com.jamil.ahadith.features.user.entity.User;
 import com.jamil.ahadith.features.user.service.CurrentUserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -24,11 +23,7 @@ public class UserFcmTokenService {
         String token = normalizeToken(rawToken);
         LocalDateTime now = LocalDateTime.now();
 
-        userFcmTokenRepository.findByUserAndFcmToken(user, token)
-                .ifPresentOrElse(
-                        existingToken -> existingToken.setLastSeen(now),
-                        () -> createToken(user, token, now)
-                );
+        userFcmTokenRepository.upsertToken(user.getId(), token, now);
     }
 
     @Transactional
@@ -37,26 +32,12 @@ public class UserFcmTokenService {
         userFcmTokenRepository.deleteByUserAndFcmToken(user, normalizeToken(rawToken));
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public long deleteInvalidTokens(Collection<String> tokens) {
         if (tokens == null || tokens.isEmpty()) {
             return 0;
         }
         return userFcmTokenRepository.deleteByFcmTokenIn(tokens);
-    }
-
-    private void createToken(User user, String token, LocalDateTime now) {
-        UserFcmToken userFcmToken = new UserFcmToken();
-        userFcmToken.setUser(user);
-        userFcmToken.setFcmToken(token);
-        userFcmToken.setLastSeen(now);
-
-        try {
-            userFcmTokenRepository.saveAndFlush(userFcmToken);
-        } catch (DataIntegrityViolationException ex) {
-            userFcmTokenRepository.findByUserAndFcmToken(user, token)
-                    .ifPresent(existingToken -> existingToken.setLastSeen(now));
-        }
     }
 
     private String normalizeToken(String token) {

@@ -414,7 +414,11 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
                 .andExpect(status().isConflict());
 
         assertThat(userRepository.findById(member.getId()).orElseThrow().getType()).isEqualTo(UserType.scholar);
-        assertThat(activityLogRepository.existsByTableName("upgrade_requests")).isTrue();
+        assertThat(activityLogRepository.findAll()).anySatisfy(log -> {
+            assertThat(log.getTableName()).isEqualTo("upgrade_requests");
+            assertThat(log.getRecordId()).isEqualTo(requestId);
+            assertThat(log.getNewData()).containsEntry("operation", "CREATE");
+        });
         assertThat(notificationRepository.findAll()).anyMatch(notification ->
                 notification.getUser() != null && member.getId().equals(notification.getUser().getId()));
 
@@ -443,6 +447,29 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
                         .header("Authorization", bearer(admin)))
                 .andExpect(status().isNoContent());
         verify(upgradeDocumentStorageService).delete(anyString());
+    }
+
+    @Test
+    void upgradeRequestCreationShouldRollbackWhenActivityLogCannotBeSaved() throws Exception {
+        User member = user("upgrade-audit-failure@example.com", UserType.member);
+        installFailingActivityLogTrigger();
+        try {
+            mockMvc.perform(multipart("/api/v1/me/upgrade-requests")
+                            .file(pdf("credentials.pdf"))
+                            .header("Authorization", bearer(member))
+                            .param("notes", "please review"))
+                    .andExpect(status().isInternalServerError());
+
+            Long requestCount = jdbc.queryForObject(
+                    "select count(*) from public.upgrade_requests where user_id = ?",
+                    Long.class,
+                    member.getId()
+            );
+            assertThat(requestCount).isZero();
+            assertThat(activityLogRepository.findAll()).isEmpty();
+        } finally {
+            dropFailingActivityLogTrigger();
+        }
     }
 
     @Test
@@ -528,5 +555,28 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
                 MediaType.APPLICATION_PDF_VALUE,
                 "%PDF-1.4\n%test\n".getBytes()
         );
+    }
+
+    private void installFailingActivityLogTrigger() {
+        jdbc.execute("""
+                create or replace function public.fail_activity_log_insert()
+                returns trigger
+                language plpgsql
+                as $$
+                begin
+                    raise exception 'activity log failed';
+                end;
+                $$;
+                """);
+        jdbc.execute("""
+                create trigger fail_activity_log_insert
+                before insert on public.activity_log
+                for each row execute function public.fail_activity_log_insert()
+                """);
+    }
+
+    private void dropFailingActivityLogTrigger() {
+        jdbc.execute("drop trigger if exists fail_activity_log_insert on public.activity_log");
+        jdbc.execute("drop function if exists public.fail_activity_log_insert()");
     }
 }

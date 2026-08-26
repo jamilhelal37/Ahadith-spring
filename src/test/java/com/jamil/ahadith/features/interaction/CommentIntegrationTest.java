@@ -22,7 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.jamil.ahadith.features.hadith.entity.HadithType;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -62,7 +62,6 @@ class CommentIntegrationTest {
     private User member;
     private Hadith hadith;
     private Book book;
-
     @BeforeEach
     void setUp() {
         book = new Book();
@@ -73,6 +72,7 @@ class CommentIntegrationTest {
         hadith.setText("Hadith text for testing comments");
         hadith.setHadithNumber(1);
         hadith.setBook(book);
+        hadith.setType(HadithType.marfu);
         hadith = hadithRepository.save(hadith);
 
         scholar = createUser("scholar@test.com", UserType.scholar);

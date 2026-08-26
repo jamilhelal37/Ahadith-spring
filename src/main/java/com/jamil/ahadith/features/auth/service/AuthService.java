@@ -26,13 +26,16 @@ import com.jamil.ahadith.features.account.repository.EmailVerificationTokenRepos
 import com.jamil.ahadith.features.auth.mapper.AuthUserMapper;
 import com.jamil.ahadith.features.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.Locale;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -60,6 +63,7 @@ public class AuthService {
     private final RateLimitService rateLimitService;
     private final RateLimitKeyResolver rateLimitKeyResolver;
     private final GoogleIdentityVerifier googleIdentityVerifier;
+    private final TransactionTemplate transactionTemplate;
 
     @Transactional
     public AuthResponseDto register(RegisterRequestDto request) {
@@ -147,7 +151,6 @@ public class AuthService {
         );
     }
 
-    @Transactional
     public AuthResponseDto loginWithGoogle(
             GoogleLoginRequestDto request,
             String userAgent,
@@ -158,6 +161,93 @@ public class AuthService {
                         googleIdentityVerifier.verify(request.getIdToken())
                 );
 
+        try {
+            return executeGoogleLoginTransaction(
+                    identity,
+                    userAgent,
+                    ipAddress
+            );
+        } catch (DataIntegrityViolationException ex) {
+            return recoverConcurrentGoogleLogin(
+                    identity,
+                    userAgent,
+                    ipAddress,
+                    ex
+            );
+        }
+    }
+
+    private AuthResponseDto executeGoogleLoginTransaction(
+            GoogleIdentity identity,
+            String userAgent,
+            String ipAddress
+    ) {
+        return Objects.requireNonNull(
+                transactionTemplate.execute(status ->
+                        completeGoogleLogin(
+                                identity,
+                                userAgent,
+                                ipAddress
+                        )
+                )
+        );
+    }
+
+    private AuthResponseDto recoverConcurrentGoogleLogin(
+            GoogleIdentity identity,
+            String userAgent,
+            String ipAddress,
+            DataIntegrityViolationException originalException
+    ) {
+        return Objects.requireNonNull(
+                transactionTemplate.execute(status ->
+                        completeExistingGoogleLoginAfterConflict(
+                                identity,
+                                userAgent,
+                                ipAddress,
+                                originalException
+                        )
+                )
+        );
+    }
+
+    private AuthResponseDto completeExistingGoogleLoginAfterConflict(
+            GoogleIdentity identity,
+            String userAgent,
+            String ipAddress,
+            DataIntegrityViolationException originalException
+    ) {
+        User user = userRepository.findByGoogleSubjectForUpdate(
+                        identity.subject()
+                )
+                .map(existingUser ->
+                        updateGoogleAvatarIfAllowed(
+                                existingUser,
+                                identity
+                        )
+                )
+                .orElseThrow(() -> originalException);
+
+        requireActive(user);
+
+        String refreshToken =
+                refreshTokenService.issue(
+                        user,
+                        userAgent,
+                        ipAddress
+                );
+
+        return createAuthResponse(
+                user,
+                refreshToken
+        );
+    }
+
+    private AuthResponseDto completeGoogleLogin(
+            GoogleIdentity identity,
+            String userAgent,
+            String ipAddress
+    ) {
         User user = findOrCreateGoogleUser(identity);
 
         requireActive(user);

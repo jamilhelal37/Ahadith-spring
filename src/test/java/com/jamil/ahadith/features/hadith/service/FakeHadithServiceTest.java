@@ -7,6 +7,7 @@ import com.jamil.ahadith.features.catalog.repository.RulingRepository;
 import com.jamil.ahadith.features.hadith.dto.update.FakeHadithUpdateDto;
 import com.jamil.ahadith.features.hadith.entity.FakeHadith;
 import com.jamil.ahadith.features.hadith.entity.Hadith;
+import com.jamil.ahadith.features.hadith.event.FakeHadithCreatedEvent;
 import com.jamil.ahadith.features.hadith.mapper.FakeHadithMapper;
 import com.jamil.ahadith.features.hadith.repository.FakeHadithRepository;
 import com.jamil.ahadith.features.hadith.repository.HadithRepository;
@@ -15,6 +16,7 @@ import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -22,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -43,6 +46,8 @@ class FakeHadithServiceTest {
     private CurrentUserService currentUserService;
     @Mock
     private AuditEventPublisher auditEventPublisher;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private FakeHadithService fakeHadithService;
@@ -64,6 +69,29 @@ class FakeHadithServiceTest {
         Ruling ruling = new Ruling();
         ruling.setId(UUID.randomUUID());
         fakeHadith.setRuling(ruling);
+    }
+
+    @Test
+    void createFakeHadithShouldPublishCreatedEventOnceAfterSaving() {
+        var request = new com.jamil.ahadith.features.hadith.dto.request.FakeHadithRequestDto();
+        var rulingReference = new com.jamil.ahadith.features.catalog.dto.request.reference.RulingReferenceRequestDto();
+        rulingReference.setId(fakeHadith.getRuling().getId());
+        request.setText(fakeHadith.getText());
+        request.setRuling(rulingReference);
+
+        when(fakeHadithMapper.toEntity(request)).thenReturn(fakeHadith);
+        when(rulingRepository.findById(fakeHadith.getRuling().getId())).thenReturn(Optional.of(fakeHadith.getRuling()));
+        when(currentUserService.getCurrentUser()).thenReturn(Optional.empty());
+        when(fakeHadithRepository.saveAndFlush(fakeHadith)).thenReturn(fakeHadith);
+
+        fakeHadithService.createFakeHadith(request);
+
+        verify(fakeHadithRepository).saveAndFlush(fakeHadith);
+        verify(entityManager).refresh(fakeHadith);
+        var eventCaptor = org.mockito.ArgumentCaptor.forClass(FakeHadithCreatedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().fakeHadithId()).isEqualTo(fakeHadithId);
+        verify(eventPublisher, times(1)).publishEvent(any(FakeHadithCreatedEvent.class));
     }
 
     @Test
@@ -94,6 +122,7 @@ class FakeHadithServiceTest {
 
         verify(fakeHadithMapper).updateEntity(updateDto, fakeHadith);
         verify(fakeHadithRepository).saveAndFlush(fakeHadith);
+        verify(eventPublisher, never()).publishEvent(any(FakeHadithCreatedEvent.class));
     }
 
     @Test
@@ -116,5 +145,16 @@ class FakeHadithServiceTest {
         // Since we are unit testing the service, we check that it doesn't call resolve* for null fields
         verify(hadithRepository, never()).findById(any());
         verify(rulingRepository, never()).findById(any());
+        verify(eventPublisher, never()).publishEvent(any(FakeHadithCreatedEvent.class));
+    }
+
+    @Test
+    void deleteFakeHadithShouldNotPublishCreatedEvent() {
+        when(fakeHadithRepository.findById(fakeHadithId)).thenReturn(Optional.of(fakeHadith));
+
+        fakeHadithService.deleteFakeHadith(fakeHadithId);
+
+        verify(fakeHadithRepository).delete(fakeHadith);
+        verify(eventPublisher, never()).publishEvent(any(FakeHadithCreatedEvent.class));
     }
 }

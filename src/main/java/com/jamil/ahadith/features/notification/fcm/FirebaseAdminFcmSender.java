@@ -7,12 +7,18 @@ import com.google.firebase.messaging.MessagingErrorCode;
 import com.google.firebase.messaging.MulticastMessage;
 import com.google.firebase.messaging.Notification;
 import com.google.firebase.messaging.SendResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 public class FirebaseAdminFcmSender implements FcmSender {
+    private static final Logger log = LoggerFactory.getLogger(FirebaseAdminFcmSender.class);
+    private static final int MAX_BATCH_SIZE = 500;
+
     private final FirebaseMessaging firebaseMessaging;
 
     public FirebaseAdminFcmSender(FirebaseMessaging firebaseMessaging) {
@@ -25,19 +31,40 @@ public class FirebaseAdminFcmSender implements FcmSender {
             return FcmSendResult.empty();
         }
 
-        MulticastMessage message = MulticastMessage.builder()
-                .setNotification(Notification.builder()
-                        .setTitle(payload.title())
-                        .setBody(payload.body())
-                        .build())
-                .putAllData(payload.data())
-                .addAllTokens(tokens)
-                .build();
+        int successCount = 0;
+        int failureCount = 0;
+        Set<String> invalidTokens = new LinkedHashSet<>();
 
+        for (int start = 0; start < tokens.size(); start += MAX_BATCH_SIZE) {
+            List<String> batch = tokens.subList(start, Math.min(start + MAX_BATCH_SIZE, tokens.size()));
+            FcmSendResult batchResult = sendBatch(batch, payload);
+            successCount += batchResult.successCount();
+            failureCount += batchResult.failureCount();
+            invalidTokens.addAll(batchResult.invalidTokens());
+        }
+
+        return new FcmSendResult(successCount, failureCount, invalidTokens);
+    }
+
+    private FcmSendResult sendBatch(List<String> tokens, FcmNotificationPayload payload) {
         try {
+            MulticastMessage message = MulticastMessage.builder()
+                    .setNotification(Notification.builder()
+                            .setTitle(payload.title())
+                            .setBody(payload.body())
+                            .build())
+                    .putAllData(payload.data())
+                    .addAllTokens(tokens)
+                    .build();
+
             BatchResponse response = firebaseMessaging.sendEachForMulticast(message);
-            return toSendResult(tokens, response);
-        } catch (FirebaseMessagingException ex) {
+            FcmSendResult result = toSendResult(tokens, response);
+            log.info("FCM multicast batch sent successCount={} failureCount={}",
+                    result.successCount(), result.failureCount());
+            return result;
+        } catch (FirebaseMessagingException | IllegalArgumentException ex) {
+            log.warn("FCM multicast batch failed tokenCount={} successCount=0 failureCount={}",
+                    tokens.size(), tokens.size(), ex);
             return new FcmSendResult(0, tokens.size(), Set.of());
         }
     }

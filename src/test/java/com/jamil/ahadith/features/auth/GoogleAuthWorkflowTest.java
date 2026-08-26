@@ -8,11 +8,13 @@ import com.jamil.ahadith.features.account.service.TokenHashService;
 import com.jamil.ahadith.features.audit.repository.ActivityLogRepository;
 import com.jamil.ahadith.features.auth.google.GoogleIdentity;
 import com.jamil.ahadith.features.auth.google.GoogleIdentityVerifier;
+import com.jamil.ahadith.features.auth.repository.RefreshTokenSessionRepository;
 import com.jamil.ahadith.features.user.entity.User;
 import com.jamil.ahadith.features.user.entity.UserStatus;
 import com.jamil.ahadith.features.user.entity.UserType;
 import com.jamil.ahadith.features.user.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,20 +22,23 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -56,6 +61,8 @@ class GoogleAuthWorkflowTest {
     @Autowired
     private EmailVerificationTokenRepository emailVerificationTokenRepository;
     @Autowired
+    private RefreshTokenSessionRepository refreshTokenSessionRepository;
+    @Autowired
     private ActivityLogRepository activityLogRepository;
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -64,10 +71,12 @@ class GoogleAuthWorkflowTest {
     @Autowired
     private FakeGoogleIdentityVerifier googleVerifier;
 
+    @BeforeEach
     @AfterEach
     void cleanup() {
         googleVerifier.clear();
         activityLogRepository.deleteAll();
+        refreshTokenSessionRepository.deleteAll();
         emailVerificationTokenRepository.deleteAll();
         userRepository.deleteAll();
     }
@@ -96,6 +105,8 @@ class GoogleAuthWorkflowTest {
         assertThat(user.getStatus()).isEqualTo(UserStatus.active);
         assertThat(user.getType()).isEqualTo(UserType.member);
         assertThat(user.getAvatarUrl()).isEqualTo("https://example.com/a.png");
+        assertThat(refreshTokenSessionRepository.count()).isEqualTo(1);
+        assertThat(googleVerifier.transactionActiveStates()).containsExactly(false);
     }
 
     @Test
@@ -157,6 +168,41 @@ class GoogleAuthWorkflowTest {
         User reloaded = userRepository.findByEmail(disabled.getEmail()).orElseThrow();
         assertThat(reloaded.getStatus()).isEqualTo(UserStatus.disabled);
         assertThat(reloaded.getGoogleSubject()).isNull();
+        assertThat(refreshTokenSessionRepository.count()).isZero();
+    }
+
+    @Test
+    void refreshTokenSessionSaveFailureShouldRollbackGoogleUserCreationAndLinking() throws Exception {
+        String oversizedUserAgent = "a".repeat(1001);
+        googleVerifier.accept(
+                "rollback-create-token",
+                identity("rollback-create-sub", "rollback-create@example.com", true, "Rollback Create", null)
+        );
+
+        mockMvc.perform(post("/auth/google")
+                        .header(HttpHeaders.USER_AGENT, oversizedUserAgent)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(googleJson("rollback-create-token")))
+                .andExpect(status().isConflict());
+
+        assertThat(userRepository.findByEmail("rollback-create@example.com")).isEmpty();
+        assertThat(refreshTokenSessionRepository.count()).isZero();
+
+        User local = createUser("rollback-link@example.com", UserStatus.active, UserType.member, "12345678");
+        googleVerifier.accept(
+                "rollback-link-token",
+                identity("rollback-link-sub", local.getEmail(), true, "Rollback Link", null)
+        );
+
+        mockMvc.perform(post("/auth/google")
+                        .header(HttpHeaders.USER_AGENT, oversizedUserAgent)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(googleJson("rollback-link-token")))
+                .andExpect(status().isConflict());
+
+        User reloaded = userRepository.findById(local.getId()).orElseThrow();
+        assertThat(reloaded.getGoogleSubject()).isNull();
+        assertThat(refreshTokenSessionRepository.count()).isZero();
     }
 
     @Test
@@ -183,6 +229,40 @@ class GoogleAuthWorkflowTest {
         assertUnauthorizedGoogleLogin("unverified-token");
         assertUnauthorizedGoogleLogin("blank-sub-token");
         assertUnauthorizedGoogleLogin("blank-email-token");
+
+        assertThat(userRepository.count()).isZero();
+        assertThat(refreshTokenSessionRepository.count()).isZero();
+        assertThat(emailVerificationTokenRepository.count()).isZero();
+        assertThat(googleVerifier.transactionActiveStates())
+                .containsExactly(false, false, false, false);
+    }
+
+    @Test
+    void failedGoogleVerificationShouldNotWriteUsersRefreshSessionsOrVerificationTokens() throws Exception {
+        User pending = createUser(
+                "unchanged-pending@example.com",
+                UserStatus.pending_confirmation,
+                UserType.member,
+                "12345678"
+        );
+        EmailVerificationToken token = activeVerificationToken(pending);
+        googleVerifier.reject("rejected-before-db-token");
+
+        long usersBefore = userRepository.count();
+        long refreshSessionsBefore = refreshTokenSessionRepository.count();
+        long verificationTokensBefore = emailVerificationTokenRepository.count();
+
+        assertUnauthorizedGoogleLogin("rejected-before-db-token");
+
+        User reloaded = userRepository.findById(pending.getId()).orElseThrow();
+        assertThat(userRepository.count()).isEqualTo(usersBefore);
+        assertThat(refreshTokenSessionRepository.count()).isEqualTo(refreshSessionsBefore);
+        assertThat(emailVerificationTokenRepository.count()).isEqualTo(verificationTokensBefore);
+        assertThat(reloaded.getStatus()).isEqualTo(UserStatus.pending_confirmation);
+        assertThat(reloaded.getGoogleSubject()).isNull();
+        assertThat(emailVerificationTokenRepository.findById(token.getId()).orElseThrow().getConsumedAt())
+                .isNull();
+        assertThat(googleVerifier.transactionActiveStates()).containsExactly(false);
     }
 
     @Test
@@ -244,9 +324,12 @@ class GoogleAuthWorkflowTest {
     @Test
     void concurrentGoogleLoginShouldNotCreateDuplicateUsersForSameIdentity() throws Exception {
         googleVerifier.accept("race-token", identity("race-sub", "race@example.com", true, "Race User", null));
+        googleVerifier.synchronizeVerifications("race-token", 2);
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
-        AtomicInteger successCount = new AtomicInteger();
+        List<Integer> statuses = new CopyOnWriteArrayList<>();
+        List<JsonNode> responses = new CopyOnWriteArrayList<>();
+        List<Throwable> failures = new CopyOnWriteArrayList<>();
 
         try (var executor = Executors.newFixedThreadPool(2)) {
             for (int i = 0; i < 2; i++) {
@@ -254,15 +337,21 @@ class GoogleAuthWorkflowTest {
                     try {
                         ready.countDown();
                         start.await(5, TimeUnit.SECONDS);
-                        int status = mockMvc.perform(post("/auth/google")
+                        var result = mockMvc.perform(post("/auth/google")
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(googleJson("race-token")))
-                                .andReturn().getResponse().getStatus();
-                        if (status == 200 || status == 409) {
-                            successCount.incrementAndGet();
+                                .andReturn();
+                        int status = result.getResponse().getStatus();
+                        statuses.add(status);
+                        if (status == 200) {
+                            responses.add(
+                                    objectMapper.readTree(
+                                            result.getResponse().getContentAsString()
+                                    )
+                            );
                         }
                     } catch (Exception ex) {
-                        throw new RuntimeException(ex);
+                        failures.add(ex);
                     }
                 });
             }
@@ -273,7 +362,11 @@ class GoogleAuthWorkflowTest {
             assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
         }
 
-        assertThat(successCount.get()).isEqualTo(2);
+        assertThat(failures).isEmpty();
+        assertThat(statuses).containsExactlyInAnyOrder(200, 200);
+        assertThat(responses)
+                .extracting(response -> response.at("/user/id").asText())
+                .containsOnly(responses.get(0).at("/user/id").asText());
         assertThat(userRepository.findAll().stream()
                 .filter(user -> "race-sub".equals(user.getGoogleSubject()))
                 .count()).isEqualTo(1);
@@ -349,9 +442,17 @@ class GoogleAuthWorkflowTest {
     static class FakeGoogleIdentityVerifier implements GoogleIdentityVerifier {
         private final Map<String, GoogleIdentity> identities = new ConcurrentHashMap<>();
         private final Map<String, RuntimeException> failures = new ConcurrentHashMap<>();
+        private final List<Boolean> transactionActiveStates = new CopyOnWriteArrayList<>();
+        private volatile String synchronizedToken;
+        private volatile CountDownLatch synchronizedReady;
+        private volatile CountDownLatch synchronizedStart;
 
         @Override
         public GoogleIdentity verify(String idToken) {
+            transactionActiveStates.add(
+                    TransactionSynchronizationManager.isActualTransactionActive()
+            );
+            awaitSynchronizedVerification(idToken);
             RuntimeException failure = failures.get(idToken);
             if (failure != null) {
                 throw failure;
@@ -373,9 +474,44 @@ class GoogleAuthWorkflowTest {
             identities.remove(idToken);
         }
 
+        void synchronizeVerifications(String idToken, int requests) {
+            synchronizedToken = idToken;
+            synchronizedReady = new CountDownLatch(requests);
+            synchronizedStart = new CountDownLatch(1);
+        }
+
         void clear() {
             identities.clear();
             failures.clear();
+            transactionActiveStates.clear();
+            synchronizedToken = null;
+            synchronizedReady = null;
+            synchronizedStart = null;
+        }
+
+        List<Boolean> transactionActiveStates() {
+            return transactionActiveStates;
+        }
+
+        private void awaitSynchronizedVerification(String idToken) {
+            CountDownLatch ready = synchronizedReady;
+            CountDownLatch start = synchronizedStart;
+            if (!idToken.equals(synchronizedToken)
+                    || ready == null
+                    || start == null) {
+                return;
+            }
+
+            ready.countDown();
+            try {
+                if (ready.await(5, TimeUnit.SECONDS)) {
+                    start.countDown();
+                }
+                start.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(ex);
+            }
         }
     }
 }
