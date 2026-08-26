@@ -25,6 +25,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.jamil.ahadith.features.search.entity.SearchSource;
+import com.jamil.ahadith.features.search.service.SearchHistoryService;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,10 +42,12 @@ public class HadithSearchService {
     private static final int DEFAULT_SIZE = 20;
     private static final int DEFAULT_BOOK_AHADITH_SIZE = 50;
     private static final int MAX_SIZE = 50;
+    private final SearchHistoryService searchHistoryService;
 
     private final HadithRepository hadithRepository;
     private final BookRepository bookRepository;
 
+    @Transactional
     public SearchResponse<HadithSearchItemDto> publicSearch(HadithSearchRequest request) {
         HadithSearchRequest safeRequest = request == null ? new HadithSearchRequest() : request;
         String query = clean(safeRequest.getQuery());
@@ -67,6 +71,11 @@ public class HadithSearchService {
         );
 
         List<HadithSearchItemDto> items = getHadithCardsByIdsInOrder(idPage.getContent());
+
+        searchHistoryService.saveCurrentUserSearch(
+                query,
+                SearchSource.Hadith
+        );
 
         return new SearchResponse<>(items, buildPaginationMeta(idPage));
     }

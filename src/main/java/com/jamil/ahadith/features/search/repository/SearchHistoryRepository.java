@@ -1,6 +1,7 @@
 package com.jamil.ahadith.features.search.repository;
 
 import com.jamil.ahadith.features.search.entity.SearchHistory;
+import com.jamil.ahadith.features.search.entity.SearchSource;
 import com.jamil.ahadith.features.user.entity.User;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,13 +13,8 @@ import java.util.List;
 import java.util.UUID;
 
 public interface SearchHistoryRepository extends JpaRepository<SearchHistory, UUID> {
+
     List<SearchHistory> findByUserOrderByCreatedAtDesc(User user);
-
-    List<SearchHistory> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
-
-    List<SearchHistory> findByUserAndSearchTextContainingIgnoreCaseOrderByCreatedAtDesc(User user, String searchText);
-
-    List<SearchHistory> findByUserAndSearchTextContainingIgnoreCaseOrderByCreatedAtDesc(User user, String searchText, Pageable pageable);
 
     void deleteByUser(User user);
 
@@ -37,5 +33,18 @@ public interface SearchHistoryRepository extends JpaRepository<SearchHistory, UU
                 limit :limit
             )
             """, nativeQuery = true)
-    int deleteOldestForUser(@Param("userId") UUID userId, @Param("limit") long limit);
+    int deleteOldestForUser(
+            @Param("userId") UUID userId,
+            @Param("limit") long limit);
+
+    List<SearchHistory> findByUserAndSearchSourceOrderByCreatedAtDesc(
+            User user,
+            SearchSource searchSource,
+            Pageable pageable);
+
+    List<SearchHistory> findByUserAndSearchSourceAndSearchTextContainingIgnoreCaseOrderByCreatedAtDesc(
+            User user,
+            SearchSource searchSource,
+            String searchText,
+            Pageable pageable);
 }
