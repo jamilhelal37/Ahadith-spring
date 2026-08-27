@@ -9,6 +9,8 @@ import com.jamil.ahadith.features.upgrade.exception.UpgradeDocumentValidationExc
 import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,6 +27,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class CloudinaryUpgradeDocumentStorageService implements UpgradeDocumentStorageService {
+    private static final Logger log = LoggerFactory.getLogger(CloudinaryUpgradeDocumentStorageService.class);
     private static final String RESOURCE_TYPE = "raw";
     private static final String DELIVERY_TYPE = "authenticated";
     private static final String FORMAT = "pdf";
@@ -74,6 +77,7 @@ public class CloudinaryUpgradeDocumentStorageService implements UpgradeDocumentS
                 );
             }
         } catch (IOException ex) {
+            log.error("Failed to upload upgrade document to Cloudinary", ex);
             throw new UpgradeDocumentStorageException("Failed to upload upgrade document", ex);
         } finally {
             if (tempFile != null) {
