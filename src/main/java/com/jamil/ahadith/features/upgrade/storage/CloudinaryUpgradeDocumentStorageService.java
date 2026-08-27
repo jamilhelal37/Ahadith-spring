@@ -57,25 +57,24 @@ public class CloudinaryUpgradeDocumentStorageService implements UpgradeDocumentS
             String originalName = cleanOriginalName(file.getOriginalFilename());
             String publicId = "upgrade-requests/%s/%s".formatted(userId, UUID.randomUUID());
 
-            try (InputStream uploadStream = Files.newInputStream(tempFile)) {
-                Map<?, ?> result = cloudinary.uploader().upload(uploadStream, ObjectUtils.asMap(
-                        "public_id", publicId,
-                        "resource_type", RESOURCE_TYPE,
-                        "type", DELIVERY_TYPE,
-                        "overwrite", false,
-                        "format", FORMAT,
-                        "filename", originalName
-                ));
-                return new UpgradeDocumentUploadResult(
-                        stringValue(result.get("asset_id")),
-                        stringValue(result.get("public_id")),
-                        stringValueOrDefault(result.get("resource_type"), RESOURCE_TYPE),
-                        DELIVERY_TYPE,
-                        stringValueOrDefault(result.get("format"), FORMAT),
-                        originalName,
-                        file.getSize()
-                );
-            }
+            byte[] uploadBytes = Files.readAllBytes(tempFile);
+            Map<?, ?> result = cloudinary.uploader().upload(uploadBytes, ObjectUtils.asMap(
+                    "public_id", publicId,
+                    "resource_type", RESOURCE_TYPE,
+                    "type", DELIVERY_TYPE,
+                    "overwrite", false,
+                    "format", FORMAT,
+                    "filename", originalName
+            ));
+            return new UpgradeDocumentUploadResult(
+                    stringValue(result.get("asset_id")),
+                    stringValue(result.get("public_id")),
+                    stringValueOrDefault(result.get("resource_type"), RESOURCE_TYPE),
+                    DELIVERY_TYPE,
+                    stringValueOrDefault(result.get("format"), FORMAT),
+                    originalName,
+                    file.getSize()
+            );
         } catch (IOException ex) {
             log.error("Failed to upload upgrade document to Cloudinary", ex);
             throw new UpgradeDocumentStorageException("Failed to upload upgrade document", ex);
