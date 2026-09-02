@@ -14,10 +14,7 @@ public class FakeHadithResponseDto {
     private HadithReferenceResponseDto subValid;
     private String text;
     private String normalText;
-    private String searchText;
     private RulingReferenceResponseDto ruling;
-    private AdminUserReferenceDto createdBy;
-    private AdminUserReferenceDto updatedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -92,14 +92,4 @@ public class PublicCatalogController {
         return publicCatalogService.getExplaining(id);
     }
 
-    @GetMapping({"/fake-ahadith", "/api/v1/fake-ahadith"})
-    public SearchResponse<PublicTextDto> getFakeAhadith(@RequestParam(defaultValue = "0") int page,
-                                                        @RequestParam(defaultValue = "20") int size) {
-        return publicCatalogService.getFakeAhadith(page, size);
     }
-
-    @GetMapping({"/fake-ahadith/{id}", "/api/v1/fake-ahadith/{id}"})
-    public PublicTextDto getFakeHadith(@PathVariable UUID id) {
-        return publicCatalogService.getFakeHadith(id);
-    }
-}

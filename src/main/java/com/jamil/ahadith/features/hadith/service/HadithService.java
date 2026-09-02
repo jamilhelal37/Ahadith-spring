@@ -24,13 +24,16 @@ import com.jamil.ahadith.features.hadith.entity.Hadith;
 import com.jamil.ahadith.features.hadith.exception.ExplainingNotFoundException;
 import com.jamil.ahadith.features.hadith.exception.HadithNotFoundException;
 import com.jamil.ahadith.features.hadith.mapper.HadithMapper;
+import com.jamil.ahadith.features.hadith.mapper.HadithReferenceResponseMapper;
 import com.jamil.ahadith.features.hadith.repository.ExplainingRepository;
 import com.jamil.ahadith.features.hadith.repository.HadithRepository;
+import com.jamil.ahadith.features.search.service.HadithSearchService;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Transactional
@@ -46,10 +49,11 @@ public class HadithService {
     private final RulingRepository rulingRepository;
     private final ExplainingRepository explainingRepository;
     private final AuditEventPublisher auditEventPublisher;
+    private final HadithSearchService hadithSearchService;
 
     public HadithResponseDto getHadithById(UUID id) {
         return hadithRepository.findById(id)
-                .map(hadithMapper::toResponseDto)
+                .map(this::toResponseWithFullSubValid)
                 .orElseThrow(HadithNotFoundException::new);
     }
 
@@ -60,7 +64,7 @@ public class HadithService {
         hadith = hadithRepository.saveAndFlush(hadith);
         entityManager.refresh(hadith);
         auditEventPublisher.publishCreate("ahadith", hadith.getId(), AuditData.snapshot(hadith));
-        return hadithMapper.toResponseDto(hadith);
+        return toResponseWithFullSubValid(hadith);
     }
 
     public HadithResponseDto updateHadith(UUID id, HadithUpdateDto request) {
@@ -78,7 +82,29 @@ public class HadithService {
         var savedHadith = hadithRepository.saveAndFlush(hadith);
         entityManager.refresh(savedHadith);
         auditEventPublisher.publishUpdate("ahadith", savedHadith.getId(), oldData, AuditData.snapshot(savedHadith));
-        return hadithMapper.toResponseDto(savedHadith);
+        return toResponseWithFullSubValid(savedHadith);
+    }
+
+    private HadithResponseDto toResponseWithFullSubValid(Hadith hadith) {
+        var dto = hadithMapper.toResponseDto(hadith);
+
+        if (hadith.getSubValid() == null) {
+            dto.setSubValid(null);
+            return dto;
+        }
+
+        var subValid = hadithSearchService
+                .getHadithCardsByIdsInOrder(
+                        List.of(hadith.getSubValid().getId())
+                )
+                .stream()
+                .findFirst()
+                .map(HadithReferenceResponseMapper::fromSearchItem)
+                .orElse(null);
+
+        dto.setSubValid(subValid);
+
+        return dto;
     }
 
     private void requireAtLeastOneUpdateField(HadithUpdateDto request) {

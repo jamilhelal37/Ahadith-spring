@@ -20,6 +20,8 @@ public interface SimilarAhadithMapper {
     @Mapping(target = "updatedAt", ignore = true)
     SimilarAhadith toEntity(SimilarAhadithRequestDto dto);
 
+    @Mapping(target = "mainHadith", ignore = true)
+    @Mapping(target = "simHadith", ignore = true)
     SimilarAhadithResponseDto toResponseDto(SimilarAhadith entity);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)

@@ -2,6 +2,8 @@ package com.jamil.ahadith.features.hadith.service;
 
 import com.jamil.ahadith.core.exception.InvalidRequestException;
 import com.jamil.ahadith.features.hadith.dto.update.HadithUpdateDto;
+import com.jamil.ahadith.features.hadith.dto.response.HadithResponseDto;
+import com.jamil.ahadith.features.hadith.dto.response.reference.HadithReferenceResponseDto;
 import com.jamil.ahadith.features.hadith.entity.Hadith;
 import com.jamil.ahadith.features.hadith.entity.HadithType;
 import com.jamil.ahadith.features.hadith.mapper.HadithMapper;
@@ -11,6 +13,8 @@ import com.jamil.ahadith.features.catalog.repository.BookRepository;
 import com.jamil.ahadith.features.catalog.repository.RawiRepository;
 import com.jamil.ahadith.features.catalog.repository.RulingRepository;
 import com.jamil.ahadith.features.audit.service.AuditEventPublisher;
+import com.jamil.ahadith.features.search.dto.response.HadithSearchItemDto;
+import com.jamil.ahadith.features.search.service.HadithSearchService;
 import com.jamil.ahadith.features.user.service.CurrentUserService;
 import com.jamil.ahadith.features.hadith.dto.request.reference.HadithReferenceRequestDto;
 import jakarta.persistence.EntityManager;
@@ -22,6 +26,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -49,6 +54,8 @@ class HadithServiceUpdateTest {
     private CurrentUserService currentUserService;
     @Mock
     private AuditEventPublisher auditEventPublisher;
+    @Mock
+    private HadithSearchService hadithSearchService;
 
     @InjectMocks
     private HadithService hadithService;
@@ -64,6 +71,10 @@ class HadithServiceUpdateTest {
         hadith.setText("Original Text which is long enough");
         hadith.setType(HadithType.qudsi);
         hadith.setHadithNumber(1);
+
+        lenient()
+                .when(hadithMapper.toResponseDto(any(Hadith.class)))
+                .thenReturn(new HadithResponseDto());
     }
 
     @Test
@@ -93,6 +104,7 @@ class HadithServiceUpdateTest {
 
         verify(hadithMapper).updateEntity(updateDto, hadith);
         verify(hadithRepository).saveAndFlush(hadith);
+        verify(hadithSearchService, never()).getHadithCardsByIdsInOrder(anyList());
     }
 
     @Test
@@ -122,10 +134,67 @@ class HadithServiceUpdateTest {
         when(hadithRepository.findById(otherId)).thenReturn(Optional.of(otherHadith));
         when(currentUserService.getCurrentUser()).thenReturn(Optional.empty());
         when(hadithRepository.saveAndFlush(any())).thenReturn(hadith);
+        when(hadithSearchService.getHadithCardsByIdsInOrder(List.of(otherId)))
+                .thenReturn(List.of(searchItem(otherId)));
 
-        hadithService.updateHadith(hadithId, updateDto);
+        HadithResponseDto response = hadithService.updateHadith(hadithId, updateDto);
 
         verify(hadithRepository).findById(otherId);
         assertEquals(otherHadith, hadith.getSubValid());
+        assertEquals(otherId, response.getSubValid().getId());
+        assertEquals("Full text", response.getSubValid().getText());
+    }
+
+    @Test
+    void getHadithById_ShouldKeepSubValidNull_WhenNoSubValidExists() {
+        when(hadithRepository.findById(hadithId)).thenReturn(Optional.of(hadith));
+
+        HadithResponseDto response = hadithService.getHadithById(hadithId);
+
+        assertNull(response.getSubValid());
+        verify(hadithSearchService, never()).getHadithCardsByIdsInOrder(anyList());
+    }
+
+    @Test
+    void getHadithById_ShouldSetFullSubValidReference_WhenSubValidExists() {
+        UUID subValidId = UUID.randomUUID();
+        Hadith subValid = new Hadith();
+        subValid.setId(subValidId);
+        hadith.setSubValid(subValid);
+
+        when(hadithRepository.findById(hadithId)).thenReturn(Optional.of(hadith));
+        when(hadithSearchService.getHadithCardsByIdsInOrder(List.of(subValidId)))
+                .thenReturn(List.of(searchItem(subValidId)));
+
+        HadithResponseDto response = hadithService.getHadithById(hadithId);
+
+        HadithReferenceResponseDto reference = response.getSubValid();
+        assertNotNull(reference);
+        assertEquals(subValidId, reference.getId());
+        assertEquals("Full text", reference.getText());
+        assertEquals("Normal text", reference.getNormalText());
+        assertEquals(22, reference.getHadithNumber());
+        assertEquals("marfu", reference.getType());
+        assertEquals("Full sanad", reference.getSanad());
+        assertTrue(reference.isHasExplanation());
+        assertFalse(reference.isHasSubValid());
+    }
+
+    private HadithSearchItemDto searchItem(UUID id) {
+        return new HadithSearchItemDto(
+                id,
+                "Full text",
+                "Normal text",
+                22,
+                "marfu",
+                "Full sanad",
+                null,
+                null,
+                null,
+                null,
+                List.of(),
+                true,
+                false
+        );
     }
 }
