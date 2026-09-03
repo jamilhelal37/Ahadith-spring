@@ -12,6 +12,23 @@ fail() {
   exit 1
 }
 
+is_port_in_use() {
+  ss -ltn "( sport = :$1 )" | grep -q ":$1"
+}
+
+find_available_port() {
+  local port="$1"
+  while [ "$port" -le 8090 ]; do
+    if ! is_port_in_use "$port"; then
+      echo "$port"
+      return 0
+    fi
+    port=$((port + 1))
+  done
+
+  return 1
+}
+
 echo "▶ Starting local PostgreSQL container..."
 docker compose up -d postgres || fail "Failed to start PostgreSQL container."
 
@@ -45,5 +62,25 @@ if [ -f ".env" ]; then
     fi
   done < ".env"
 fi
+
+LOCAL_POSTGRES_PORT="${LOCAL_POSTGRES_PORT:-5433}"
+LOCAL_POSTGRES_DB="${LOCAL_POSTGRES_DB:-ahadith}"
+LOCAL_POSTGRES_USERNAME="${LOCAL_POSTGRES_USERNAME:-postgres}"
+LOCAL_POSTGRES_PASSWORD="${LOCAL_POSTGRES_PASSWORD:-postgres}"
+
+export SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-dev}"
+export SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:${LOCAL_POSTGRES_PORT}/${LOCAL_POSTGRES_DB}"
+export SPRING_DATASOURCE_USERNAME="$LOCAL_POSTGRES_USERNAME"
+export SPRING_DATASOURCE_PASSWORD="$LOCAL_POSTGRES_PASSWORD"
+
+requested_port="${PORT:-8080}"
+available_port=$(find_available_port "$requested_port") || fail "No available application port found between $requested_port and 8090."
+if [ "$available_port" != "$requested_port" ]; then
+  echo " Port $requested_port is already in use; using port $available_port instead."
+fi
+export PORT="$available_port"
+
+echo " Using local database: $SPRING_DATASOURCE_URL"
+echo " Application port: $PORT"
 
 ./mvnw spring-boot:run || fail "Spring Boot application failed to start."
