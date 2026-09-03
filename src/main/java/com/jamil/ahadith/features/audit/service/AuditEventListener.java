@@ -5,8 +5,6 @@ import com.jamil.ahadith.features.audit.event.AuditEvent;
 import com.jamil.ahadith.features.audit.repository.ActivityLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -18,8 +16,7 @@ import java.util.Map;
 public class AuditEventListener {
     private final ActivityLogRepository activityLogRepository;
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
     public void onAuditEvent(AuditEvent event) {
         ActivityLog log = new ActivityLog();
         log.setActorUserId(event.actor().userId());

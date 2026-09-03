@@ -24,6 +24,8 @@ public class SecurityDataCleanupService {
             initialDelayString = "${app.cleanup.initial-delay:10m}",
             fixedDelayString = "${app.cleanup.fixed-delay:6h}"
     )
+
+    @Transactional
     public void scheduledCleanup() {
         if (cleanupProperties.isEnabled()) {
             cleanup();

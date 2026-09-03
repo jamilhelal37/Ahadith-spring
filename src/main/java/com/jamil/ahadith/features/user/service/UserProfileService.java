@@ -3,6 +3,10 @@ package com.jamil.ahadith.features.user.service;
 import com.jamil.ahadith.core.storage.CloudinaryStorageService;
 
 import com.jamil.ahadith.core.storage.dto.ProfileImageResponse;
+import com.jamil.ahadith.core.web.dto.MessageResponseDto;
+import com.jamil.ahadith.features.auth.dto.response.AuthUserDto;
+import com.jamil.ahadith.features.user.dto.request.ChangePasswordRequestDto;
+import com.jamil.ahadith.features.user.dto.request.UserProfileUpdateRequestDto;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,5 +41,13 @@ public class UserProfileService {
 
     public void deleteProfileImage(UUID userId) {
         userProfileTransactionService.clearProfileImage(userId);
+    }
+
+    public AuthUserDto updateProfile(UUID userId, UserProfileUpdateRequestDto request) {
+        return userProfileTransactionService.updateProfile(userId, request);
+    }
+
+    public MessageResponseDto changePassword(UUID userId, ChangePasswordRequestDto request) {
+        return userProfileTransactionService.changePassword(userId, request);
     }
 }

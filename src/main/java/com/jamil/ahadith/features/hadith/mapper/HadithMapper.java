@@ -43,6 +43,7 @@ public interface HadithMapper extends AuditMapping {
     @Mapping(target = "book", ignore = true)
     Hadith toEntity(HadithRequestDto dto);
 
+    @Mapping(target = "subValid", ignore = true)
     HadithResponseDto toResponseDto(Hadith entity);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)

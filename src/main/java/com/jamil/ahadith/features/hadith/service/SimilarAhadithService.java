@@ -10,21 +10,32 @@ import com.jamil.ahadith.features.hadith.dto.request.SimilarAhadithRequestDto;
 import com.jamil.ahadith.features.hadith.dto.request.reference.HadithReferenceRequestDto;
 import com.jamil.ahadith.features.hadith.dto.response.SimilarAhadithResponseDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
+import com.jamil.ahadith.features.hadith.dto.response.reference.HadithReferenceResponseDto;
 import com.jamil.ahadith.features.hadith.dto.update.SimilarAhadithUpdateDto;
 import com.jamil.ahadith.features.hadith.entity.Hadith;
+import com.jamil.ahadith.features.hadith.entity.SimilarAhadith;
 import com.jamil.ahadith.features.hadith.exception.HadithNotFoundException;
 import com.jamil.ahadith.features.hadith.exception.SimilarAhadithNotFoundException;
+import com.jamil.ahadith.features.hadith.mapper.HadithReferenceResponseMapper;
 import com.jamil.ahadith.features.hadith.mapper.SimilarAhadithMapper;
 import com.jamil.ahadith.features.hadith.repository.HadithRepository;
 import com.jamil.ahadith.features.hadith.repository.SimilarAhadithRepository;
+import com.jamil.ahadith.features.search.service.HadithSearchService;
 import com.jamil.ahadith.features.user.service.CurrentUserService;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Transactional
 @AllArgsConstructor
@@ -37,14 +48,27 @@ public class SimilarAhadithService {
     private final HadithRepository hadithRepository;
     private final CurrentUserService currentUserService;
     private final AuditEventPublisher auditEventPublisher;
+    private final HadithSearchService hadithSearchService;
 
     public SearchResponse<SimilarAhadithResponseDto> getSimilarAhadiths(Pageable pageable) {
-        return adminPageService.response(similarAhadithRepository.findAll(pageable).map(similarAhadithMapper::toResponseDto));
+        Page<SimilarAhadith> page =
+                similarAhadithRepository.findAll(pageable);
+        Map<UUID, HadithReferenceResponseDto> hadithMap =
+                loadHadithReferences(page.getContent());
+
+        return adminPageService.response(
+                page.map(similarAhadith ->
+                        toResponseWithFullHadithReferences(
+                                similarAhadith,
+                                hadithMap
+                        )
+                )
+        );
     }
 
     public SimilarAhadithResponseDto getSimilarAhadithById(UUID id) {
         return similarAhadithRepository.findById(id)
-                .map(similarAhadithMapper::toResponseDto)
+                .map(this::toResponseWithFullHadithReferences)
                 .orElseThrow(SimilarAhadithNotFoundException::new);
     }
 
@@ -59,7 +83,7 @@ public class SimilarAhadithService {
         var entity = similarAhadithRepository.saveAndFlush(similarAhadith);
         entityManager.refresh(entity);
         auditEventPublisher.publishCreate("similar_ahadith", entity.getId(), AuditData.snapshot(entity));
-        return similarAhadithMapper.toResponseDto(entity);
+        return toResponseWithFullHadithReferences(entity);
     }
 
     public SimilarAhadithResponseDto updateSimilarAhadith(UUID id, SimilarAhadithUpdateDto request) {
@@ -77,7 +101,68 @@ public class SimilarAhadithService {
         var saved = similarAhadithRepository.saveAndFlush(entity);
         entityManager.refresh(saved);
         auditEventPublisher.publishUpdate("similar_ahadith", saved.getId(), oldData, AuditData.snapshot(saved));
-        return similarAhadithMapper.toResponseDto(saved);
+        return toResponseWithFullHadithReferences(saved);
+    }
+
+    private SimilarAhadithResponseDto toResponseWithFullHadithReferences(
+            SimilarAhadith similarAhadith) {
+
+        return toResponseWithFullHadithReferences(
+                similarAhadith,
+                loadHadithReferences(List.of(similarAhadith))
+        );
+    }
+
+    private SimilarAhadithResponseDto toResponseWithFullHadithReferences(
+            SimilarAhadith similarAhadith,
+            Map<UUID, HadithReferenceResponseDto> hadithMap) {
+
+        var dto = similarAhadithMapper.toResponseDto(similarAhadith);
+
+        if (similarAhadith.getMainHadith() == null) {
+            dto.setMainHadith(null);
+        } else {
+            dto.setMainHadith(
+                    hadithMap.get(similarAhadith.getMainHadith().getId())
+            );
+        }
+
+        if (similarAhadith.getSimHadith() == null) {
+            dto.setSimHadith(null);
+        } else {
+            dto.setSimHadith(
+                    hadithMap.get(similarAhadith.getSimHadith().getId())
+            );
+        }
+
+        return dto;
+    }
+
+    private Map<UUID, HadithReferenceResponseDto> loadHadithReferences(
+            List<SimilarAhadith> similarAhadiths) {
+
+        List<UUID> ids = similarAhadiths.stream()
+                .flatMap(similarAhadith -> Stream.of(
+                        similarAhadith.getMainHadith(),
+                        similarAhadith.getSimHadith()
+                ))
+                .filter(Objects::nonNull)
+                .map(Hadith::getId)
+                .distinct()
+                .toList();
+
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+
+        return hadithSearchService
+                .getHadithCardsByIdsInOrder(ids)
+                .stream()
+                .map(HadithReferenceResponseMapper::fromSearchItem)
+                .collect(Collectors.toMap(
+                        HadithReferenceResponseDto::getId,
+                        Function.identity()
+                ));
     }
 
     public void deleteSimilarAhadith(UUID id) {

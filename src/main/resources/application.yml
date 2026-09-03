@@ -76,6 +76,11 @@ app:
     resend-throttle: 5m
     connect-timeout: ${APP_MAIL_CONNECT_TIMEOUT:5s}
     read-timeout: ${APP_MAIL_READ_TIMEOUT:10s}
+  google-auth:
+    enabled: ${APP_GOOGLE_AUTH_ENABLED:false}
+    client-ids: ${GOOGLE_AUTH_CLIENT_IDS:}
+  fcm:
+    enabled: ${APP_FCM_ENABLED:false}
   security:
     search-history-max-per-user: 50
     login-max-failures: 5
@@ -93,6 +98,9 @@ app:
       login:
         capacity: ${APP_RATE_LIMIT_LOGIN_CAPACITY:20}
         window: ${APP_RATE_LIMIT_LOGIN_WINDOW:1m}
+      google-login:
+        capacity: ${APP_RATE_LIMIT_GOOGLE_LOGIN_CAPACITY:20}
+        window: ${APP_RATE_LIMIT_GOOGLE_LOGIN_WINDOW:1m}
       login-email:
         capacity: ${APP_RATE_LIMIT_LOGIN_EMAIL_CAPACITY:10}
         window: ${APP_RATE_LIMIT_LOGIN_EMAIL_WINDOW:1m}

@@ -1,12 +1,12 @@
 package com.jamil.ahadith.features.upgrade.service;
 
 import com.jamil.ahadith.features.upgrade.exception.UpgradeRequestNotFoundException;
-import com.jamil.ahadith.features.upgrade.repository.UpgradeRequestRepository;
-import com.jamil.ahadith.features.upgrade.storage.UpgradeDocumentUploadResult;
 import com.jamil.ahadith.features.audit.service.AuditData;
 import com.jamil.ahadith.features.audit.service.AuditEventPublisher;
 import com.jamil.ahadith.features.upgrade.entity.UpgradeRequest;
 import com.jamil.ahadith.features.upgrade.entity.UpgradeStatus;
+import com.jamil.ahadith.features.upgrade.repository.UpgradeRequestRepository;
+import com.jamil.ahadith.features.upgrade.storage.UpgradeDocumentUploadResult;
 import com.jamil.ahadith.features.user.entity.User;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +22,7 @@ public class UpgradeRequestTransactionService {
     private final UpgradeRequestRepository upgradeRequestRepository;
     private final EntityManager entityManager;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditEventPublisher auditEventPublisher;
 
     @Transactional
     public UpgradeRequest createUpgradeRequest(User user, String notes, UpgradeDocumentUploadResult upload) {
@@ -33,6 +34,7 @@ public class UpgradeRequestTransactionService {
         UpgradeRequest saved = upgradeRequestRepository.saveAndFlush(upgradeRequest);
         entityManager.refresh(saved);
         eventPublisher.publishEvent(new UpgradeRequestCreatedEvent(saved, upload.publicId()));
+        auditEventPublisher.publishCreate("upgrade_requests", saved.getId(), AuditData.snapshot(saved));
         return saved;
     }
 

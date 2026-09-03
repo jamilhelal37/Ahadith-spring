@@ -1,6 +1,7 @@
 package com.jamil.ahadith.features.auth.controller;
 
 import com.jamil.ahadith.features.account.dto.request.ForgotPasswordRequestDto;
+import com.jamil.ahadith.features.auth.dto.request.GoogleLoginRequestDto;
 import com.jamil.ahadith.features.auth.dto.request.LoginRequestDto;
 import com.jamil.ahadith.features.auth.dto.request.LogoutRequestDto;
 import com.jamil.ahadith.features.auth.dto.request.RefreshTokenRequestDto;
@@ -10,7 +11,8 @@ import com.jamil.ahadith.features.account.dto.request.ResetPasswordRequestDto;
 import com.jamil.ahadith.features.account.dto.request.VerifyEmailRequestDto;
 import com.jamil.ahadith.features.auth.dto.response.AuthResponseDto;
 import com.jamil.ahadith.core.web.dto.MessageResponseDto;
-import com.jamil.ahadith.features.account.service.AccountSecurityService;
+import com.jamil.ahadith.features.account.service.EmailVerificationService;
+import com.jamil.ahadith.features.account.service.PasswordResetService;
 import com.jamil.ahadith.features.auth.service.AuthService;
 import com.jamil.ahadith.core.web.ClientIpService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,7 +33,8 @@ public class AuthController {
     private static final String LOGOUT_SUCCESS_MESSAGE = "Logged out";
 
     private final AuthService authService;
-    private final AccountSecurityService accountSecurityService;
+    private final EmailVerificationService emailVerificationService;
+    private final PasswordResetService passwordResetService;
     private final ClientIpService clientIpService;
 
     @PostMapping("/register")
@@ -60,6 +63,23 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponseDto> googleLogin(
+            @Valid @RequestBody GoogleLoginRequestDto request,
+            HttpServletRequest servletRequest
+    ) {
+        ClientMetadata clientMetadata =
+                resolveClientMetadata(servletRequest);
+
+        AuthResponseDto response = authService.loginWithGoogle(
+                request,
+                clientMetadata.userAgent(),
+                clientMetadata.ipAddress()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponseDto> refresh(
             @Valid @RequestBody RefreshTokenRequestDto request,
@@ -79,7 +99,7 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<MessageResponseDto> logout(
-            @Valid @RequestBody(required = false) LogoutRequestDto request
+            @Valid @RequestBody LogoutRequestDto request
     ) {
         String refreshToken =
                 request == null ? null : request.getRefreshToken();
@@ -96,7 +116,7 @@ public class AuthController {
             @Valid @RequestBody VerifyEmailRequestDto request
     ) {
         MessageResponseDto response =
-                accountSecurityService.verifyEmail(request.getToken());
+                emailVerificationService.verifyEmail(request.getToken());
 
         return ResponseEntity.ok(response);
     }
@@ -106,7 +126,7 @@ public class AuthController {
             @Valid @RequestBody ResendVerificationRequestDto request
     ) {
         MessageResponseDto response =
-                accountSecurityService.resendVerification(request.getEmail());
+                emailVerificationService.resendVerification(request.getEmail());
 
         return ResponseEntity.ok(response);
     }
@@ -116,7 +136,7 @@ public class AuthController {
             @Valid @RequestBody ForgotPasswordRequestDto request
     ) {
         MessageResponseDto response =
-                accountSecurityService.forgotPassword(request.getEmail());
+                passwordResetService.forgotPassword(request.getEmail());
 
         return ResponseEntity.ok(response);
     }
@@ -126,7 +146,7 @@ public class AuthController {
             @Valid @RequestBody ResetPasswordRequestDto request
     ) {
         MessageResponseDto response =
-                accountSecurityService.resetPassword(request);
+                passwordResetService.resetPassword(request);
 
         return ResponseEntity.ok(response);
     }

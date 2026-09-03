@@ -1,11 +1,11 @@
 package com.jamil.ahadith.features.hadith.controller.publicapi;
 
+import com.jamil.ahadith.features.search.service.HadithSearchService;
 import com.jamil.ahadith.features.hadith.dto.response.publicapi.PublicHadithDetailsDto;
 import com.jamil.ahadith.features.hadith.service.PublicHadithDetailsService;
 import com.jamil.ahadith.features.search.dto.request.HadithSearchRequest;
 import com.jamil.ahadith.features.search.dto.response.HadithSearchItemDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
-import com.jamil.ahadith.features.search.service.PublicHadithSearchFacade;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.CacheControl;
@@ -24,12 +24,12 @@ import java.util.UUID;
 @AllArgsConstructor
 @RequestMapping({"/ahadith", "/api/v1/ahadith"})
 public class PublicHadithController {
-    private final PublicHadithSearchFacade publicHadithSearchFacade;
+    private final HadithSearchService hadithSearchService;
     private final PublicHadithDetailsService publicHadithDetailsService;
 
     @PostMapping("/search")
     public SearchResponse<HadithSearchItemDto> search(@Valid @RequestBody(required = false) HadithSearchRequest request) {
-        return publicHadithSearchFacade.search(request);
+        return hadithSearchService.publicSearch(request);
     }
 
     @GetMapping("/{id}")

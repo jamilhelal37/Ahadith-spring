@@ -128,12 +128,12 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
     }
 
     @Test
-    void memberCommentOwnershipShouldBeScopedToCurrentUser() throws Exception {
-        User owner = user("comment-owner@example.com", UserType.member);
-        User other = user("comment-other@example.com", UserType.member);
+    void scholarCommentOwnershipShouldBeScopedToCurrentScholar() throws Exception {
+        User owner = user("comment-owner@example.com", UserType.scholar);
+        User other = user("comment-other@example.com", UserType.scholar);
         Hadith hadith = hadith();
 
-        JsonNode created = objectMapper.readTree(mockMvc.perform(post("/me/hadiths/" + hadith.getId() + "/comments")
+        JsonNode created = objectMapper.readTree(mockMvc.perform(post("/api/v1/scholar/hadiths/" + hadith.getId() + "/comments")
                         .header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"text\":\"private comment\"}"))
@@ -141,15 +141,27 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
                 .andReturn().getResponse().getContentAsString());
 
         UUID commentId = UUID.fromString(created.get("id").asText());
-        mockMvc.perform(get("/me/comments/" + commentId).header("Authorization", bearer(other)))
-                .andExpect(status().isNotFound());
-        mockMvc.perform(patch("/me/comments/" + commentId)
+        
+        // Other scholar should not see/update/delete the comment (expect 404 for security by obscurity as required)
+        mockMvc.perform(put("/api/v1/scholar/comments/" + commentId)
                         .header("Authorization", bearer(other))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"text\":\"tamper\"}"))
                 .andExpect(status().isNotFound());
-        mockMvc.perform(delete("/me/comments/" + commentId).header("Authorization", bearer(other)))
+        mockMvc.perform(delete("/api/v1/scholar/comments/" + commentId).header("Authorization", bearer(other)))
                 .andExpect(status().isNotFound());
+
+        // Owner can update
+        mockMvc.perform(put("/api/v1/scholar/comments/" + commentId)
+                        .header("Authorization", bearer(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"text\":\"updated comment\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.text").value("updated comment"));
+
+        // Owner can delete
+        mockMvc.perform(delete("/api/v1/scholar/comments/" + commentId).header("Authorization", bearer(owner)))
+                .andExpect(status().isNoContent());
     }
 
     @Test
@@ -402,7 +414,11 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
                 .andExpect(status().isConflict());
 
         assertThat(userRepository.findById(member.getId()).orElseThrow().getType()).isEqualTo(UserType.scholar);
-        assertThat(activityLogRepository.existsByTableName("upgrade_requests")).isTrue();
+        assertThat(activityLogRepository.findAll()).anySatisfy(log -> {
+            assertThat(log.getTableName()).isEqualTo("upgrade_requests");
+            assertThat(log.getRecordId()).isEqualTo(requestId);
+            assertThat(log.getNewData()).containsEntry("operation", "CREATE");
+        });
         assertThat(notificationRepository.findAll()).anyMatch(notification ->
                 notification.getUser() != null && member.getId().equals(notification.getUser().getId()));
 
@@ -431,6 +447,29 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
                         .header("Authorization", bearer(admin)))
                 .andExpect(status().isNoContent());
         verify(upgradeDocumentStorageService).delete(anyString());
+    }
+
+    @Test
+    void upgradeRequestCreationShouldRollbackWhenActivityLogCannotBeSaved() throws Exception {
+        User member = user("upgrade-audit-failure@example.com", UserType.member);
+        installFailingActivityLogTrigger();
+        try {
+            mockMvc.perform(multipart("/api/v1/me/upgrade-requests")
+                            .file(pdf("credentials.pdf"))
+                            .header("Authorization", bearer(member))
+                            .param("notes", "please review"))
+                    .andExpect(status().isInternalServerError());
+
+            Long requestCount = jdbc.queryForObject(
+                    "select count(*) from public.upgrade_requests where user_id = ?",
+                    Long.class,
+                    member.getId()
+            );
+            assertThat(requestCount).isZero();
+            assertThat(activityLogRepository.findAll()).isEmpty();
+        } finally {
+            dropFailingActivityLogTrigger();
+        }
     }
 
     @Test
@@ -516,5 +555,28 @@ class OwnershipAndUpgradeIT extends PostgresIntegrationTestBase {
                 MediaType.APPLICATION_PDF_VALUE,
                 "%PDF-1.4\n%test\n".getBytes()
         );
+    }
+
+    private void installFailingActivityLogTrigger() {
+        jdbc.execute("""
+                create or replace function public.fail_activity_log_insert()
+                returns trigger
+                language plpgsql
+                as $$
+                begin
+                    raise exception 'activity log failed';
+                end;
+                $$;
+                """);
+        jdbc.execute("""
+                create trigger fail_activity_log_insert
+                before insert on public.activity_log
+                for each row execute function public.fail_activity_log_insert()
+                """);
+    }
+
+    private void dropFailingActivityLogTrigger() {
+        jdbc.execute("drop trigger if exists fail_activity_log_insert on public.activity_log");
+        jdbc.execute("drop function if exists public.fail_activity_log_insert()");
     }
 }

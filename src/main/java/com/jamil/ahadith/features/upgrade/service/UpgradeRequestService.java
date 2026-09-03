@@ -113,24 +113,24 @@ public class UpgradeRequestService {
         }
 
         UpgradeDocumentUploadResult upload = documentStorageService.upload(request.getDocument(), user.getId());
+        UpgradeRequest saved;
         try {
-            UpgradeRequest saved = upgradeRequestTransactionService.createUpgradeRequest(user, request.getNotes(), upload);
-            try {
-                auditEventPublisher.publishCreate("upgrade_requests", saved.getId(), AuditData.snapshot(saved));
-            } catch (Exception e) {
-                log.warn("Failed to publish audit event for upgrade request creation: {}", saved.getId(), e);
-            }
-            return upgradeRequestMapper.toMemberResponseDto(saved);
+            saved = upgradeRequestTransactionService.createUpgradeRequest(user, request.getNotes(), upload);
         } catch (DataIntegrityViolationException ex) {
             deleteUploadedDocument(upload);
             throw new ConflictException("An open upgrade request already exists");
-        } catch (Exception ex) {
-            // Note: If transaction rolled back, UpgradeRequestCleanupListener will handle it.
-            if (!(ex instanceof RuntimeException)) {
-                deleteUploadedDocument(upload);
-            }
+        } catch (RuntimeException ex) {
+            deleteUploadedDocument(upload);
             throw ex;
         }
+
+        try {
+            auditEventPublisher.publishCreate("upgrade_requests", saved.getId(), AuditData.snapshot(saved));
+        } catch (Exception ex) {
+            log.warn("Failed to publish audit event for upgrade request creation: {}", saved.getId(), ex);
+        }
+
+        return upgradeRequestMapper.toMemberResponseDto(saved);
     }
 
     @Transactional(readOnly = true)

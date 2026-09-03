@@ -1,30 +1,27 @@
 package com.jamil.ahadith.features.interaction.service;
 
+import com.jamil.ahadith.core.exception.ForbiddenException;
 import com.jamil.ahadith.core.web.AdminPageService;
-
-import com.jamil.ahadith.features.hadith.entity.Hadith;
-
-import com.jamil.ahadith.features.user.service.CurrentUserService;
-
-import com.jamil.ahadith.features.interaction.entity.Comment;
-
-import com.jamil.ahadith.features.interaction.dto.request.CommentRequestDto;
-import com.jamil.ahadith.features.interaction.dto.response.CommentResponseDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
-import com.jamil.ahadith.features.interaction.dto.update.CommentUpdateDto;
-import com.jamil.ahadith.features.user.entity.User;
-import com.jamil.ahadith.features.interaction.exception.CommentNotFoundException;
 import com.jamil.ahadith.features.hadith.exception.HadithNotFoundException;
+import com.jamil.ahadith.features.hadith.repository.HadithRepository;
+import com.jamil.ahadith.features.interaction.dto.request.CommentTextRequestDto;
+import com.jamil.ahadith.features.interaction.dto.response.AdminCommentResponseDto;
+import com.jamil.ahadith.features.interaction.dto.response.PublicCommentResponseDto;
+import com.jamil.ahadith.features.interaction.dto.response.ScholarCommentResponseDto;
+import com.jamil.ahadith.features.interaction.entity.Comment;
+import com.jamil.ahadith.features.interaction.exception.CommentNotFoundException;
 import com.jamil.ahadith.features.interaction.mapper.CommentMapper;
 import com.jamil.ahadith.features.interaction.repository.CommentRepository;
-import com.jamil.ahadith.features.hadith.repository.HadithRepository;
+import com.jamil.ahadith.features.user.entity.User;
+import com.jamil.ahadith.features.user.entity.UserType;
+import com.jamil.ahadith.features.user.service.CurrentUserService;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.UUID;
 
 @Transactional
@@ -38,69 +35,83 @@ public class CommentService {
     private final HadithRepository hadithRepository;
     private final AdminPageService adminPageService;
 
-    public SearchResponse<CommentResponseDto> getComments(Pageable pageable) {
-        return adminPageService.response(commentRepository.findAll(pageable).map(commentMapper::toResponseDto));
-    }
-
-    public List<CommentResponseDto> getCurrentUserComments() {
-        User user = currentUserService.requireCurrentUser();
-        return commentRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
-                .map(commentMapper::toResponseDto)
-                .toList();
-    }
-
-    public CommentResponseDto getCommentById(UUID id) {
-        return commentRepository.findById(id)
-                .map(commentMapper::toResponseDto)
-                .orElseThrow(CommentNotFoundException::new);
-    }
-
-    public CommentResponseDto getCurrentUserCommentById(UUID id) {
-        User user = currentUserService.requireCurrentUser();
-        return commentRepository.findByIdAndUserId(id, user.getId())
-                .map(commentMapper::toResponseDto)
-                .orElseThrow(CommentNotFoundException::new);
-    }
-
-    public CommentResponseDto createComment(CommentRequestDto request) {
-        if (request.getHadithId() == null) {
+    @Transactional(readOnly = true)
+    public SearchResponse<PublicCommentResponseDto> getPublicHadithComments(UUID hadithId, Pageable pageable) {
+        if (!hadithRepository.existsById(hadithId)) {
             throw new HadithNotFoundException();
         }
-        var comment = commentMapper.toEntity(request);
-        comment.setUser(currentUserService.requireCurrentUser());
-        comment.setHadith(hadithRepository.findById(request.getHadithId()).orElseThrow(HadithNotFoundException::new));
+        return adminPageService.response(commentRepository.findByHadithId(hadithId, pageable)
+                .map(commentMapper::toPublicResponseDto));
+    }
+
+    public ScholarCommentResponseDto createScholarComment(UUID hadithId, CommentTextRequestDto request) {
+        User user = currentUserService.requireCurrentUser();
+        if (user.getType() != UserType.scholar) {
+            throw new ForbiddenException("Scholar account required");
+        }
+        var hadith = hadithRepository.findById(hadithId).orElseThrow(HadithNotFoundException::new);
+        
+        Comment comment = commentMapper.toEntity(request);
+        comment.setText(request.getText().strip());
+        comment.setUser(user);
+        comment.setHadith(hadith);
+        
         comment = commentRepository.saveAndFlush(comment);
         entityManager.refresh(comment);
-        return commentMapper.toResponseDto(comment);
+        return commentMapper.toScholarResponseDto(comment);
     }
 
-    public CommentResponseDto updateComment(UUID id, CommentUpdateDto request) {
-        var comment = commentRepository.findById(id).orElseThrow(CommentNotFoundException::new);
-        commentMapper.updateEntity(request, comment);
-        var savedComment = commentRepository.saveAndFlush(comment);
-        entityManager.refresh(savedComment);
-        return commentMapper.toResponseDto(savedComment);
-    }
-
-    public CommentResponseDto updateCurrentUserComment(UUID id, CommentUpdateDto request) {
+    @Transactional(readOnly = true)
+    public SearchResponse<ScholarCommentResponseDto> getCurrentScholarComments(Pageable pageable) {
         User user = currentUserService.requireCurrentUser();
-        var comment = commentRepository.findByIdAndUserId(id, user.getId()).orElseThrow(CommentNotFoundException::new);
-        commentMapper.updateEntity(request, comment);
-        var savedComment = commentRepository.saveAndFlush(comment);
-        entityManager.refresh(savedComment);
-        return commentMapper.toResponseDto(savedComment);
+        if (user.getType() != UserType.scholar) {
+            throw new ForbiddenException("Scholar account required");
+        }
+        return adminPageService.response(commentRepository.findByUserId(user.getId(), pageable)
+                .map(commentMapper::toScholarResponseDto));
     }
 
-    public void deleteComment(UUID id) {
-        if (!commentRepository.existsById(id)) {
+    public ScholarCommentResponseDto updateCurrentScholarComment(UUID commentId, CommentTextRequestDto request) {
+        User user = currentUserService.requireCurrentUser();
+        if (user.getType() != UserType.scholar) {
+            throw new ForbiddenException("Scholar account required");
+        }
+        var comment = commentRepository.findByIdAndUserId(commentId, user.getId())
+                .orElseThrow(CommentNotFoundException::new);
+        
+        comment.setText(request.getText().strip());
+        comment = commentRepository.saveAndFlush(comment);
+        entityManager.refresh(comment);
+        return commentMapper.toScholarResponseDto(comment);
+    }
+
+    public void deleteCurrentScholarComment(UUID commentId) {
+        User user = currentUserService.requireCurrentUser();
+        if (user.getType() != UserType.scholar) {
+            throw new ForbiddenException("Scholar account required");
+        }
+        var comment = commentRepository.findByIdAndUserId(commentId, user.getId())
+                .orElseThrow(CommentNotFoundException::new);
+        commentRepository.delete(comment);
+    }
+
+    @Transactional(readOnly = true)
+    public SearchResponse<AdminCommentResponseDto> getAdminComments(Pageable pageable) {
+        return adminPageService.response(commentRepository.findAll(pageable)
+                .map(commentMapper::toAdminResponseDto));
+    }
+
+    @Transactional(readOnly = true)
+    public AdminCommentResponseDto getAdminCommentById(UUID commentId) {
+        return commentRepository.findById(commentId)
+                .map(commentMapper::toAdminResponseDto)
+                .orElseThrow(CommentNotFoundException::new);
+    }
+
+    public void deleteAdminComment(UUID commentId) {
+        if (!commentRepository.existsById(commentId)) {
             throw new CommentNotFoundException();
         }
-        commentRepository.deleteById(id);
-    }
-
-    public void deleteCurrentUserComment(UUID id) {
-        User user = currentUserService.requireCurrentUser();
-        var comment = commentRepository.findByIdAndUserId(id, user.getId()).orElseThrow(CommentNotFoundException::new);
-        commentRepository.delete(comment);
+        commentRepository.deleteById(commentId);
     }
 }

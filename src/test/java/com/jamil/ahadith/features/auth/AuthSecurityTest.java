@@ -47,7 +47,7 @@ class AuthSecurityTest {
     void registerAndLoginShouldBeAccessibleWithoutAuthentication() throws Exception {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Test User\",\"email\":\"test@example.com\",\"password\":\"12345678\"}"))
+                        .content("{\"name\":\"Test User\",\"email\":\"test@example.com\",\"password\":\"12345678\",\"gender\":\"male\",\"birthDate\":\"2000-01-01\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.email").value("test@example.com"))
                 .andExpect(jsonPath("$.user.type").value("member"))
@@ -103,13 +103,13 @@ class AuthSecurityTest {
     void registerShouldRejectDuplicateEmailAfterNormalization() throws Exception {
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"First User\",\"email\":\"Jamil.Case@example.com\",\"password\":\"12345678\"}"))
+                        .content("{\"name\":\"First User\",\"email\":\"Jamil.Case@example.com\",\"password\":\"12345678\",\"gender\":\"male\",\"birthDate\":\"2000-01-01\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.email").value("jamil.case@example.com"));
 
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Second User\",\"email\":\"jamil.case@EXAMPLE.com\",\"password\":\"12345678\"}"))
+                        .content("{\"name\":\"Second User\",\"email\":\"jamil.case@EXAMPLE.com\",\"password\":\"12345678\",\"gender\":\"male\",\"birthDate\":\"2000-01-01\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Email is already registered"));
     }

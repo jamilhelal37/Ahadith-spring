@@ -24,6 +24,7 @@ public interface NotificationMapper extends AuditMapping {
     @Mapping(target = "updatedAt", ignore = true)
     Notification toEntity(NotificationRequestDto dto);
 
+    @Mapping(target = "hadith", ignore = true)
     NotificationResponseDto toResponseDto(Notification entity);
 
     default String map(NotificationType value) {

@@ -57,6 +57,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         if (matches(method, path, "POST", "/auth/login", "/api/v1/auth/login")) {
             return Optional.of("login");
         }
+        if (matches(method, path, "POST", "/auth/google", "/api/v1/auth/google")) {
+            return Optional.of("google-login");
+        }
         if (matches(method, path, "POST", "/auth/forgot-password", "/api/v1/auth/forgot-password")) {
             return Optional.of("forgot-password-ip");
         }

@@ -18,6 +18,7 @@ public final class ValidationLimits {
     public static final int NOTIFICATION_BODY_MAX = 2_000;
     public static final int NOTES_MAX = 2_000;
     public static final int TOKEN_MAX = 2_048;
+    public static final int FCM_TOKEN_MAX = 4_096;
 
     private ValidationLimits() {
     }

@@ -8,9 +8,9 @@ import com.jamil.ahadith.features.hadith.dto.request.reference.ExplainingReferen
 import com.jamil.ahadith.features.hadith.dto.request.reference.HadithReferenceRequestDto;
 import com.jamil.ahadith.features.hadith.entity.HadithType;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -23,15 +23,22 @@ public class HadithRequestDto {
     @NotNull(message = "Hadith type is required")
     private HadithType type;
     @NotBlank(message = "Hadith text is required")
-    @Size(max = ValidationLimits.HADITH_TEXT_MAX)
+    @Size(
+            min = 10,
+            max = ValidationLimits.HADITH_TEXT_MAX,
+            message = "Hadith text must be between {min} and {max} characters"
+    )
     private String text;
     @NotNull(message = "Hadith number is required")
-    @Min(value = 0, message = "Hadith number must be greater than or equal to 0")
+    @Positive(message = "Hadith number must be greater than 0")
     private Integer hadithNumber;
+    @NotNull(message = "Ruling is required")
     @Valid
     private RulingReferenceRequestDto ruling;
+    @NotNull(message = "Rawi is required")
     @Valid
     private RawiReferenceRequestDto rawi;
+    @NotNull(message = "Book is required")
     @Valid
     private BookReferenceRequestDto book;
     @Size(max = ValidationLimits.SANAD_MAX)

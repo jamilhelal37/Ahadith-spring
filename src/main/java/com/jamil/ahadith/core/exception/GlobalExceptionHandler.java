@@ -147,6 +147,14 @@ class GlobalExceptionHandler {
                 request);
     }
 
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<ErrorResponseDto> handleServiceUnavailable(
+            RuntimeException ex,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, "Service Unavailable", ex.getMessage(), request);
+    }
+
     @ExceptionHandler({UserAlreadyExistsException.class, ConflictException.class})
     public ResponseEntity<ErrorResponseDto> handleConflict(RuntimeException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request);

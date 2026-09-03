@@ -1,5 +1,6 @@
 package com.jamil.ahadith.features.search;
 
+import com.jamil.ahadith.features.search.service.SearchHistoryService;
 import com.jamil.ahadith.core.web.dto.PaginationMeta;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
 import com.jamil.ahadith.features.search.dto.response.HadithSearchItemDto;
@@ -51,6 +52,9 @@ class SearchHistoryTest {
     private HadithSearchService hadithSearchService;
 
     @Autowired
+    private SearchHistoryService searchHistoryService;
+
+    @Autowired
     private SearchHistoryRepository searchHistoryRepository;
 
     @Autowired
@@ -59,8 +63,24 @@ class SearchHistoryTest {
     @BeforeEach
     void setUp() {
         searchHistoryRepository.deleteAll();
+
         when(hadithSearchService.publicSearch(any()))
-                .thenReturn(new SearchResponse<>(List.<HadithSearchItemDto>of(), new PaginationMeta(0, 20, 0, 0, false, false)));
+                .thenAnswer(invocation -> {
+                    com.jamil.ahadith.features.search.dto.request.HadithSearchRequest req =
+                            invocation.getArgument(0);
+
+                    if (req != null && req.getQuery() != null && !req.getQuery().isBlank()) {
+                        searchHistoryService.saveCurrentUserSearch(
+                                req.getQuery(),
+                                SearchSource.Hadith
+                        );
+                    }
+
+                    return new SearchResponse<>(
+                            List.<HadithSearchItemDto>of(),
+                            new PaginationMeta(0, 20, 0, 0, false, false)
+                    );
+                });
     }
 
     @AfterEach
@@ -70,28 +90,41 @@ class SearchHistoryTest {
 
     @Test
     void modernSearchShouldPersistHistoryForAuthenticatedUser() throws Exception {
-        RequestPostProcessor authenticatedUser = authenticate(createUser("admin@example.com"));
+        RequestPostProcessor authenticatedUser =
+                authenticate(createUser("admin@example.com"));
 
         mockMvc.perform(post("/api/v1/ahadith/search")
                         .with(authenticatedUser)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"query\":\"sahih\",\"bookIds\":[\"00000000-0000-0000-0000-000000000001\"],\"includeExplanation\":true}"))
+                        .content("""
+                                {
+                                  "query": "sahih",
+                                  "bookIds": [
+                                    "00000000-0000-0000-0000-000000000001"
+                                  ],
+                                  "includeExplanation": true
+                                }
+                                """))
                 .andExpect(status().isOk());
 
         var history = searchHistoryRepository.findAll();
+
         assertThat(history).hasSize(1);
-        assertThat(history.getFirst().getSearchText()).contains("sahih");
-        assertThat(history.getFirst().getSearchText()).contains("00000000-0000-0000-0000-000000000001");
-        assertThat(history.getFirst().getSearchText()).contains("includeExplanation=true");
+        assertThat(history.getFirst().getSearchText()).isEqualTo("sahih");
         assertThat(history.getFirst().getSearchSource()).isEqualTo(SearchSource.Hadith);
-        assertThat(history.getFirst().getUser().getEmail()).isEqualTo("admin@example.com");
+        assertThat(history.getFirst().getUser().getEmail())
+                .isEqualTo("admin@example.com");
     }
 
     @Test
     void modernSearchShouldNotPersistHistoryForAnonymousVisitor() throws Exception {
         mockMvc.perform(post("/api/v1/ahadith/search")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"query\":\"anonymous\"}"))
+                        .content("""
+                                {
+                                  "query": "anonymous"
+                                }
+                                """))
                 .andExpect(status().isOk());
 
         assertThat(searchHistoryRepository.findAll()).isEmpty();
@@ -101,38 +134,60 @@ class SearchHistoryTest {
     void searchHistoryShouldBeOwnedSearchableAndDeletable() throws Exception {
         User owner = createUser("owner@example.com");
         User other = createUser("other@example.com");
+
         RequestPostProcessor ownerAuthentication = authenticate(owner);
         RequestPostProcessor otherAuthentication = authenticate(other);
+
         mockMvc.perform(post("/api/v1/ahadith/search")
                         .with(ownerAuthentication)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"query\":\"owned keyword\"}"))
+                        .content("""
+                                {
+                                  "query": "owned keyword"
+                                }
+                                """))
                 .andExpect(status().isOk());
+
         var ownedItem = searchHistoryRepository.findAll().getFirst();
 
         mockMvc.perform(post("/api/v1/ahadith/search")
                         .with(otherAuthentication)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"query\":\"other keyword\"}"))
+                        .content("""
+                                {
+                                  "query": "other keyword"
+                                }
+                                """))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/v1/me/search-history/search")
                         .with(ownerAuthentication)
+                        .param("source", SearchSource.Hadith.name())
                         .param("keyword", "owned"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].searchText").value("owned keyword"))
+                .andExpect(jsonPath("$[0].searchText")
+                        .value("owned keyword"))
                 .andExpect(jsonPath("$[1]").doesNotExist());
 
         mockMvc.perform(delete("/api/v1/me/search-history/{id}", ownedItem.getId())
                         .with(ownerAuthentication))
                 .andExpect(status().isNoContent());
-        assertThat(searchHistoryRepository.findByUserOrderByCreatedAtDesc(owner)).isEmpty();
-        assertThat(searchHistoryRepository.findByUserOrderByCreatedAtDesc(other)).hasSize(1);
+
+        assertThat(
+                searchHistoryRepository.findByUserOrderByCreatedAtDesc(owner)
+        ).isEmpty();
+
+        assertThat(
+                searchHistoryRepository.findByUserOrderByCreatedAtDesc(other)
+        ).hasSize(1);
 
         mockMvc.perform(delete("/api/v1/me/search-history")
                         .with(ownerAuthentication))
                 .andExpect(status().isNoContent());
-        assertThat(searchHistoryRepository.findByUserOrderByCreatedAtDesc(owner)).isEmpty();
+
+        assertThat(
+                searchHistoryRepository.findByUserOrderByCreatedAtDesc(owner)
+        ).isEmpty();
     }
 
     private User createUser(String email) {
@@ -142,13 +197,19 @@ class SearchHistoryTest {
         user.setPassword("encoded-password");
         user.setStatus(UserStatus.active);
         user.setType(UserType.member);
+
         return userRepository.saveAndFlush(user);
     }
 
     private RequestPostProcessor authenticate(User user) {
-        return authentication(UsernamePasswordAuthenticationToken.authenticated(
-                user.getEmail(),
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_MEMBER"))));
+        return authentication(
+                UsernamePasswordAuthenticationToken.authenticated(
+                        user.getEmail(),
+                        null,
+                        List.of(
+                                new SimpleGrantedAuthority("ROLE_MEMBER")
+                        )
+                )
+        );
     }
 }

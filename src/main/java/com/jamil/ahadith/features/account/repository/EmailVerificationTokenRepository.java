@@ -15,7 +15,19 @@ import java.util.UUID;
 public interface EmailVerificationTokenRepository extends JpaRepository<EmailVerificationToken, UUID> {
     Optional<EmailVerificationToken> findByTokenHash(String tokenHash);
 
+    @Query(value = "select * from email_verification_tokens where token_hash = :tokenHash for update", nativeQuery = true)
+    Optional<EmailVerificationToken> findByTokenHashForUpdate(@Param("tokenHash") String tokenHash);
+
     List<EmailVerificationToken> findByUserAndConsumedAtIsNullOrderByCreatedAtDesc(User user);
+
+    @Modifying
+    @Query("""
+            update EmailVerificationToken token
+            set token.consumedAt = :consumedAt
+            where token.user = :user
+              and token.consumedAt is null
+            """)
+    int consumeActiveForUser(@Param("user") User user, @Param("consumedAt") Instant consumedAt);
 
     @Modifying
     @Query(value = """

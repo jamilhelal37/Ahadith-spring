@@ -8,8 +8,11 @@ import lombok.Data;
 
 @Data
 public class ResendVerificationRequestDto {
-    @NotBlank
-    @Email
-    @Size(max = ValidationLimits.EMAIL_MAX)
+    @NotBlank(message = "Email is required")
+    @Email(message = "Invalid email format")
+    @Size(
+            max = ValidationLimits.EMAIL_MAX,
+            message = "Email must not exceed {max} characters"
+    )
     private String email;
 }
