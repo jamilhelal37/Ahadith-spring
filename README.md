@@ -8,7 +8,7 @@ Spring Boot API for browsing and managing Hadith content, authentication, user p
 - Spring Boot 4.1.0
 - Spring Security with JWT
 - Spring Data JPA / Hibernate
-- PostgreSQL 16
+- PostgreSQL 16 with pgvector
 - Flyway
 - Maven Wrapper
 - Cloudinary integration for profile images and authenticated upgrade PDFs
@@ -19,7 +19,7 @@ Spring Boot API for browsing and managing Hadith content, authentication, user p
 
 - Java 21
 - Docker and Docker Compose for the full `verify` suite and the optional local database
-- A Neon PostgreSQL database for the normal development workflow
+- A PostgreSQL 16 database with the `vector` extension (Neon supports pgvector) for the normal development workflow
 
 ## Environment Variables
 
@@ -229,7 +229,68 @@ POST /api/v1/ahadith/search
 }
 ```
 
-Search runs in PostgreSQL. Authenticated users get one compatible `search_history` entry; anonymous users do not create history. `FLEXIBLE` mode searches the hadith text only. `EXACT` mode can also search explanation text when `includeExplanation=true`; `includeExplanation` does not expand `FLEXIBLE` search into explanations.
+Search supports four compatible modes:
+
+- `EXACT`: existing normalized phrase matching; explanation text is optional through `includeExplanation`.
+- `FLEXIBLE`: existing PostgreSQL Arabic full-text search.
+- `SEMANTIC`: BGE-M3 dense embeddings and pgvector cosine similarity.
+- `HYBRID`: `FLEXIBLE` and `SEMANTIC` candidate rankings combined with Reciprocal Rank Fusion (RRF).
+
+All existing filters are applied before candidate limits in both text and vector searches. Authenticated users get one compatible `search_history` entry; anonymous users do not create history. `HYBRID` automatically falls back to `FLEXIBLE` if the embedding HTTP service is unavailable. `SEMANTIC` instead returns the normal API `503 Service Unavailable` error response.
+
+`ahadith.search_vector` is PostgreSQL's `tsvector` used by `FLEXIBLE`. `hadith_embeddings.embedding` is the separate 1024-dimensional AI vector used by semantic search. They are intentionally different and neither is exposed by the public API.
+
+### Semantic search setup
+
+For a complete local stack, copy `.env.example` to `.env`, fill the existing required secrets, and run:
+
+```bash
+docker compose up --build
+```
+
+Compose starts PostgreSQL/pgvector, the Spring API, and the BGE-M3 service. The first embedding-service start downloads several gigabytes of model data; the `huggingface-cache` volume preserves it across restarts.
+
+To run only the Python service outside Docker:
+
+```bash
+cd embedding-service
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+HF_HOME=.cache/huggingface uvicorn app.main:app --host 0.0.0.0 --port 8001
+```
+
+After Flyway has created `hadith_embeddings`, perform the initial idempotent backfill with an admin JWT:
+
+```bash
+curl -X POST 'http://localhost:8080/api/v1/admin/hadith-embeddings/reindex?force=false' \
+  -H 'Authorization: Bearer ADMIN_JWT'
+```
+
+Status is available from `GET /api/v1/admin/hadith-embeddings/status`. Use `force=true` to regenerate every vector. Creation and text-only updates schedule embedding generation after the database transaction commits; failed work remains missing/stale for the next backfill.
+
+Semantic configuration:
+
+```text
+APP_SEMANTIC_SEARCH_ENABLED=true
+APP_EMBEDDING_SERVICE_URL=http://localhost:8001
+APP_EMBEDDING_MODEL=BAAI/bge-m3
+APP_EMBEDDING_MODEL_VERSION=1.3.5
+APP_EMBEDDING_BATCH_SIZE=16
+APP_SEMANTIC_MIN_SIMILARITY=0.45
+APP_SEMANTIC_CANDIDATE_LIMIT=100
+APP_HYBRID_RRF_K=60
+APP_EMBEDDING_CONNECT_TIMEOUT=3s
+APP_EMBEDDING_READ_TIMEOUT=30s
+```
+
+Example hybrid request:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/ahadith/search \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"أحاديث عن الرحمة بالحيوان","mode":"HYBRID","bookIds":[],"rawiIds":[],"rulingIds":[],"topicIds":[],"page":0,"size":20,"sort":"RELEVANCE"}'
+```
 
 History endpoints:
 

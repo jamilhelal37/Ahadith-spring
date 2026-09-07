@@ -32,8 +32,11 @@ import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
+import com.jamil.ahadith.features.search.semantic.event.HadithTextChangedEvent;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Transactional
@@ -50,6 +53,7 @@ public class HadithService {
     private final ExplainingRepository explainingRepository;
     private final AuditEventPublisher auditEventPublisher;
     private final HadithSearchService hadithSearchService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public HadithResponseDto getHadithById(UUID id) {
         return hadithRepository.findById(id)
@@ -64,6 +68,7 @@ public class HadithService {
         hadith = hadithRepository.saveAndFlush(hadith);
         entityManager.refresh(hadith);
         auditEventPublisher.publishCreate("ahadith", hadith.getId(), AuditData.snapshot(hadith));
+        eventPublisher.publishEvent(new HadithTextChangedEvent(hadith.getId(), hadith.getText()));
         return toResponseWithFullSubValid(hadith);
     }
 
@@ -76,12 +81,16 @@ public class HadithService {
         }
 
         var oldData = AuditData.snapshot(hadith);
+        String previousText = hadith.getText();
         hadithMapper.updateEntity(request, hadith);
         applyUpdateRelations(request, hadith);
         currentUserService.getCurrentUser().ifPresent(hadith::setUpdatedBy);
         var savedHadith = hadithRepository.saveAndFlush(hadith);
         entityManager.refresh(savedHadith);
         auditEventPublisher.publishUpdate("ahadith", savedHadith.getId(), oldData, AuditData.snapshot(savedHadith));
+        if (!Objects.equals(previousText, savedHadith.getText())) {
+            eventPublisher.publishEvent(new HadithTextChangedEvent(savedHadith.getId(), savedHadith.getText()));
+        }
         return toResponseWithFullSubValid(savedHadith);
     }
 

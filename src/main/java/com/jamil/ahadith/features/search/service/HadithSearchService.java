@@ -27,6 +27,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.jamil.ahadith.features.search.entity.SearchSource;
 import com.jamil.ahadith.features.search.service.SearchHistoryService;
+import com.jamil.ahadith.features.search.semantic.client.EmbeddingServiceException;
+import com.jamil.ahadith.features.search.semantic.service.SemanticSearchService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,6 +43,7 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 @Transactional(readOnly = true)
 public class HadithSearchService {
+    private static final Logger log = LoggerFactory.getLogger(HadithSearchService.class);
     private static final int DEFAULT_SIZE = 20;
     private static final int DEFAULT_BOOK_AHADITH_SIZE = 50;
     private static final int MAX_SIZE = 50;
@@ -46,6 +51,7 @@ public class HadithSearchService {
 
     private final HadithRepository hadithRepository;
     private final BookRepository bookRepository;
+    private final SemanticSearchService semanticSearchService;
 
     @Transactional
     public SearchResponse<HadithSearchItemDto> publicSearch(HadithSearchRequest request) {
@@ -56,28 +62,80 @@ public class HadithSearchService {
         int page = normalizePage(safeRequest.getPage());
         int size = normalizeSize(safeRequest.getSize());
 
-        Page<UUID> idPage = hadithRepository.searchPublicIds(
-                query,
-                mode.name(),
-                sort.name(),
-                Boolean.TRUE.equals(safeRequest.getIncludeExplanation()),
-                toUuidArray(safeRequest.getMuhaddithIds()),
-                toUuidArray(safeRequest.getRawiIds()),
-                toStringArray(safeRequest.getTypes()),
-                toUuidArray(safeRequest.getRulingIds()),
-                toUuidArray(safeRequest.getBookIds()),
-                toUuidArray(safeRequest.getTopicIds()),
-                PageRequest.of(page, size)
-        );
+        SearchResultIds result = switch (mode) {
+            case EXACT, FLEXIBLE -> textSearch(safeRequest, query, mode, sort, page, size);
+            case SEMANTIC -> semanticSearch(safeRequest, query, page, size);
+            case HYBRID -> hybridSearch(safeRequest, query, sort, page, size);
+        };
 
-        List<HadithSearchItemDto> items = getHadithCardsByIdsInOrder(idPage.getContent());
+        List<HadithSearchItemDto> items = getHadithCardsByIdsInOrder(result.ids());
 
         searchHistoryService.saveCurrentUserSearch(
                 query,
                 SearchSource.Hadith
         );
 
-        return new SearchResponse<>(items, buildPaginationMeta(idPage));
+        return new SearchResponse<>(items, result.pagination());
+    }
+
+    private SearchResultIds textSearch(HadithSearchRequest request, String query, SearchMode mode,
+                                       HadithSearchSort sort, int page, int size) {
+        Page<UUID> idPage = textSearchPage(request, query, mode, sort, PageRequest.of(page, size));
+        return new SearchResultIds(idPage.getContent(), buildPaginationMeta(idPage));
+    }
+
+    private Page<UUID> textSearchPage(HadithSearchRequest request, String query, SearchMode mode,
+                                      HadithSearchSort sort, PageRequest pageable) {
+        return hadithRepository.searchPublicIds(
+                query, mode.name(), sort.name(), Boolean.TRUE.equals(request.getIncludeExplanation()),
+                toUuidArray(request.getMuhaddithIds()), toUuidArray(request.getRawiIds()),
+                toStringArray(request.getTypes()), toUuidArray(request.getRulingIds()),
+                toUuidArray(request.getBookIds()), toUuidArray(request.getTopicIds()), pageable);
+    }
+
+    private SearchResultIds semanticSearch(HadithSearchRequest request, String query, int page, int size) {
+        requireSemanticQuery(query);
+        int limit = semanticSearchService.candidateLimit(Math.addExact(Math.multiplyExact(page, size), size));
+        List<UUID> candidates = semanticSearchService.semanticCandidates(query, request, limit);
+        return paginate(candidates, page, size);
+    }
+
+    private SearchResultIds hybridSearch(HadithSearchRequest request, String query, HadithSearchSort sort,
+                                         int page, int size) {
+        requireSemanticQuery(query);
+        if (!semanticSearchService.isEnabled()) {
+            return textSearch(request, query, SearchMode.FLEXIBLE, sort, page, size);
+        }
+        int required = Math.addExact(Math.multiplyExact(page, size), size);
+        int limit = semanticSearchService.candidateLimit(required);
+        Page<UUID> textCandidates = textSearchPage(request, query, SearchMode.FLEXIBLE,
+                HadithSearchSort.RELEVANCE, PageRequest.of(0, limit));
+        try {
+            List<UUID> semanticCandidates = semanticSearchService.semanticCandidatesForHybrid(query, request, limit);
+            return paginate(semanticSearchService.fuse(textCandidates.getContent(), semanticCandidates), page, size);
+        } catch (EmbeddingServiceException ex) {
+            log.warn("Embedding service unavailable; falling back from HYBRID to FLEXIBLE search", ex);
+            return textSearch(request, query, SearchMode.FLEXIBLE, sort, page, size);
+        }
+    }
+
+    private void requireSemanticQuery(String query) {
+        if (query == null) {
+            throw new InvalidRequestException("query is required for semantic search");
+        }
+    }
+
+    private SearchResultIds paginate(List<UUID> rankedIds, int page, int size) {
+        int from = Math.min(Math.multiplyExact(page, size), rankedIds.size());
+        int to = Math.min(from + size, rankedIds.size());
+        long total = rankedIds.size();
+        int totalPages = total == 0 ? 0 : (int) ((total + size - 1) / size);
+        PaginationMeta pagination = new PaginationMeta(page, size, total, totalPages,
+                page + 1 < totalPages, page > 0 && total > 0);
+        return new SearchResultIds(rankedIds.subList(from, to), pagination);
+    }
+
+    private record SearchResultIds(List<UUID> ids, PaginationMeta pagination) {
     }
 
     public SearchResponse<HadithSearchItemDto> getBookAhadith(UUID bookId, Integer page, Integer size) {

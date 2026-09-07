@@ -136,6 +136,17 @@ app:
   public-cache:
     reference-max-size: ${APP_PUBLIC_CACHE_REFERENCE_MAX_SIZE:128}
     reference-expire-after-write: ${APP_PUBLIC_CACHE_REFERENCE_EXPIRE_AFTER_WRITE:30m}
+  semantic-search:
+    enabled: ${APP_SEMANTIC_SEARCH_ENABLED:false}
+    service-url: ${APP_EMBEDDING_SERVICE_URL:http://localhost:8001}
+    model: ${APP_EMBEDDING_MODEL:BAAI/bge-m3}
+    model-version: ${APP_EMBEDDING_MODEL_VERSION:1.3.5}
+    batch-size: ${APP_EMBEDDING_BATCH_SIZE:16}
+    min-similarity: ${APP_SEMANTIC_MIN_SIMILARITY:0.45}
+    candidate-limit: ${APP_SEMANTIC_CANDIDATE_LIMIT:100}
+    hybrid-rrf-k: ${APP_HYBRID_RRF_K:60}
+    connect-timeout: ${APP_EMBEDDING_CONNECT_TIMEOUT:3s}
+    read-timeout: ${APP_EMBEDDING_READ_TIMEOUT:30s}
   cleanup:
     enabled: ${APP_CLEANUP_ENABLED:true}
     initial-delay: ${APP_CLEANUP_INITIAL_DELAY:10m}

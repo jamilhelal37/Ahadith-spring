@@ -17,6 +17,7 @@ import com.jamil.ahadith.features.search.dto.response.HadithSearchItemDto;
 import com.jamil.ahadith.features.search.service.HadithSearchService;
 import com.jamil.ahadith.features.user.service.CurrentUserService;
 import com.jamil.ahadith.features.hadith.dto.request.reference.HadithReferenceRequestDto;
+import com.jamil.ahadith.features.search.semantic.event.HadithTextChangedEvent;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
 import java.util.List;
@@ -56,6 +58,8 @@ class HadithServiceUpdateTest {
     private AuditEventPublisher auditEventPublisher;
     @Mock
     private HadithSearchService hadithSearchService;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private HadithService hadithService;
@@ -105,6 +109,36 @@ class HadithServiceUpdateTest {
         verify(hadithMapper).updateEntity(updateDto, hadith);
         verify(hadithRepository).saveAndFlush(hadith);
         verify(hadithSearchService, never()).getHadithCardsByIdsInOrder(anyList());
+    }
+
+    @Test
+    void changingTextPublishesEmbeddingEvent() {
+        HadithUpdateDto updateDto = new HadithUpdateDto();
+        updateDto.setText("Changed Text which is long enough");
+        when(hadithRepository.findById(hadithId)).thenReturn(Optional.of(hadith));
+        when(currentUserService.getCurrentUser()).thenReturn(Optional.empty());
+        when(hadithRepository.saveAndFlush(hadith)).thenReturn(hadith);
+        doAnswer(invocation -> {
+            hadith.setText(updateDto.getText());
+            return null;
+        }).when(hadithMapper).updateEntity(updateDto, hadith);
+
+        hadithService.updateHadith(hadithId, updateDto);
+
+        verify(eventPublisher).publishEvent(new HadithTextChangedEvent(hadithId, updateDto.getText()));
+    }
+
+    @Test
+    void metadataOnlyChangeDoesNotPublishEmbeddingEvent() {
+        HadithUpdateDto updateDto = new HadithUpdateDto();
+        updateDto.setType(HadithType.marfu);
+        when(hadithRepository.findById(hadithId)).thenReturn(Optional.of(hadith));
+        when(currentUserService.getCurrentUser()).thenReturn(Optional.empty());
+        when(hadithRepository.saveAndFlush(hadith)).thenReturn(hadith);
+
+        hadithService.updateHadith(hadithId, updateDto);
+
+        verify(eventPublisher, never()).publishEvent(any(HadithTextChangedEvent.class));
     }
 
     @Test
