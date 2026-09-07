@@ -14,13 +14,34 @@ class FakeHadithCreatedFcmNotificationListenerTest {
 
     @Test
     void listenerShouldSwallowRuntimeFailuresFromFirebasePath() {
-        FakeHadithCreatedFcmNotificationService service = mock(FakeHadithCreatedFcmNotificationService.class);
-        FakeHadithCreatedFcmNotificationListener listener = new FakeHadithCreatedFcmNotificationListener(service);
+        FakeHadithCreatedFcmNotificationService service =
+                mock(FakeHadithCreatedFcmNotificationService.class);
+
+        FakeHadithCreatedFcmNotificationListener listener =
+                new FakeHadithCreatedFcmNotificationListener(service);
+
         UUID fakeHadithId = UUID.randomUUID();
-        doThrow(new RuntimeException("firebase unavailable")).when(service).sendCreatedNotification(fakeHadithId);
+        String text = "هذا نص حديث تجريبي لا يصح";
 
-        assertDoesNotThrow(() -> listener.onFakeHadithCreated(new FakeHadithCreatedEvent(fakeHadithId)));
+        doThrow(new RuntimeException("firebase unavailable"))
+                .when(service)
+                .sendCreatedNotification(
+                        fakeHadithId,
+                        text
+                );
 
-        verify(service).sendCreatedNotification(fakeHadithId);
+        assertDoesNotThrow(
+                () -> listener.onFakeHadithCreated(
+                        new FakeHadithCreatedEvent(
+                                fakeHadithId,
+                                text
+                        )
+                )
+        );
+
+        verify(service).sendCreatedNotification(
+                fakeHadithId,
+                text
+        );
     }
 }

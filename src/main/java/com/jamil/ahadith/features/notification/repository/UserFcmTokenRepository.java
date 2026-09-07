@@ -69,4 +69,15 @@ public interface UserFcmTokenRepository
             nativeQuery = true
     )
     List<String> findDistinctTokensForActiveUsers();
+    @Query(
+            value = """
+                select distinct uft.fcm_token
+                from user_fcm_tokens uft
+                where uft.user_id = :userId
+                """,
+            nativeQuery = true
+    )
+    List<String> findDistinctTokensByUserId(
+            @Param("userId") UUID userId
+    );
 }

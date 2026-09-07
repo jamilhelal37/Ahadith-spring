@@ -104,7 +104,10 @@ public class FakeHadithService {
         entityManager.refresh(fakeHadith);
 
         eventPublisher.publishEvent(
-                new FakeHadithCreatedEvent(fakeHadith.getId())
+                new FakeHadithCreatedEvent(
+                        fakeHadith.getId(),
+                        fakeHadith.getText()
+                )
         );
 
         auditEventPublisher.publishCreate(
