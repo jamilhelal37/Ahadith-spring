@@ -6,6 +6,7 @@ import com.jamil.ahadith.features.audit.dto.response.ActivityLogResponseDto;
 import com.jamil.ahadith.core.web.dto.SearchResponse;
 import com.jamil.ahadith.features.audit.mapper.ActivityLogMapper;
 import com.jamil.ahadith.features.audit.repository.ActivityLogRepository;
+import com.jamil.ahadith.features.audit.repository.ActivityLogSpecifications;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -24,7 +25,8 @@ public class ActivityLogService {
 
     public SearchResponse<ActivityLogResponseDto> getActivityLogs(UUID actorUserId, String tableName, String message,
                                                                   Pageable pageable) {
-        return adminPageService.response(activityLogRepository.search(actorUserId, tableName, message, pageable)
+        return adminPageService.response(activityLogRepository.findAll(
+                        ActivityLogSpecifications.search(actorUserId, tableName, message), pageable)
                 .map(activityLogMapper::toResponseDto));
     }
 }

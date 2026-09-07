@@ -16,6 +16,7 @@ import com.jamil.ahadith.features.user.entity.UserType;
 import com.jamil.ahadith.features.user.exception.UserNotFoundException;
 import com.jamil.ahadith.features.user.mapper.AdminUserMapper;
 import com.jamil.ahadith.features.user.repository.UserRepository;
+import com.jamil.ahadith.features.user.repository.UserSpecifications;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -51,7 +52,7 @@ public class AdminUserService {
                                                        Integer size,
                                                        String sort) {
         var pageable = adminPageService.pageable(page, size, sort, ALLOWED_SORTS, DEFAULT_SORT);
-        var users = userRepository.searchAdminUsers(normalizeQuery(q), status, type, pageable)
+        var users = userRepository.findAll(UserSpecifications.adminSearch(normalizeQuery(q), status, type), pageable)
                 .map(adminUserMapper::toResponseDto);
         return adminPageService.response(users);
     }
