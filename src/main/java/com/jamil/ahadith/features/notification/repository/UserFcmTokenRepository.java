@@ -61,8 +61,8 @@ public interface UserFcmTokenRepository
     @Query(
             value = """
                     select distinct uft.fcm_token
-                    from public.user_fcm_tokens uft
-                    join public.users u
+                    from user_fcm_tokens uft
+                    join users u
                         on u.id = uft.user_id
                     where u.status = 'active'
                     """,
