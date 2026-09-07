@@ -18,12 +18,12 @@ Spring Boot API for browsing and managing Hadith content, authentication, user p
 ## Requirements
 
 - Java 21
-- Docker and Docker Compose for full `verify` and local containers
-- PostgreSQL 16 if running without Docker
+- Docker and Docker Compose for the full `verify` suite and the optional local database
+- A Neon PostgreSQL database for the normal development workflow
 
 ## Environment Variables
 
-Use `.env.example` as the local template. Do not commit real `.env` files, production secrets, API keys, or tokens.
+Use `.env.example` as the local template and put the Neon JDBC URL and credentials in `.env`. The JDBC URL should enable TLS with `sslmode=require`. Do not commit real `.env` files, production secrets, API keys, or tokens.
 
 Required production variables include:
 
@@ -65,15 +65,29 @@ openssl rand -base64 64
 
 ## Run Locally
 
+The normal local workflow connects to the Neon datasource configured in `.env`; it does not start Docker PostgreSQL:
+
 ```bash
 ./mvnw spring-boot:run
 ```
+
+`./start-local.sh` performs the same Neon-first startup with configuration checks and automatic local port selection. It never replaces the datasource from `.env`.
 
 On Windows PowerShell:
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
+
+`start-neon.ps1` is also available on Windows and uses the same `SPRING_DATASOURCE_*` variables from `.env` without starting Docker.
+
+To explicitly start the optional local PostgreSQL service for development, run:
+
+```bash
+docker compose up -d postgres
+```
+
+The Compose `app` service is an explicit all-local stack and connects to that PostgreSQL service. It is separate from the normal Neon workflow.
 
 ## Tests
 

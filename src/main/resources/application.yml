@@ -44,6 +44,11 @@ info:
 springdoc:
   paths-to-match: /api/v1/**
 
+logging:
+  level:
+    # Email payloads contain verification/reset tokens and must not be logged as HTTP bodies.
+    org.springframework.web.client.DefaultRestClient: INFO
+
 app:
   api:
     legacy-sunset: ${APP_API_LEGACY_SUNSET:}

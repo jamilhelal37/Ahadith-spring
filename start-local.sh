@@ -1,14 +1,9 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 # Function to handle errors
 fail() {
   echo " Error: $1"
-  if [ "$2" == "postgres" ]; then
-    echo "--- Last 50 lines of PostgreSQL logs ---"
-    docker compose logs --tail=50 postgres
-    echo "--------------------------------------"
-  fi
   exit 1
 }
 
@@ -29,49 +24,35 @@ find_available_port() {
   return 1
 }
 
-echo "▶ Starting local PostgreSQL container..."
-docker compose up -d postgres || fail "Failed to start PostgreSQL container."
+[ -f ".env" ] || fail "Missing .env file. Copy .env.example to .env and configure the Neon datasource."
 
-echo "⏳ Waiting for PostgreSQL to become healthy..."
+# Export .env values for validation and to ensure they take precedence over stale
+# datasource variables in the parent shell. Values are never evaluated as shell code.
+while IFS= read -r line || [ -n "$line" ]; do
+  line="${line%$'\r'}"
+  [[ "$line" =~ ^[[:space:]]*$ || "$line" =~ ^[[:space:]]*# ]] && continue
+  [[ "$line" == *=* ]] || continue
 
-for i in {1..30}; do
-  health_status=$(docker inspect -f "{{.State.Health.Status}}" ahadith-postgres 2>/dev/null || echo "starting")
+  name="${line%%=*}"
+  value="${line#*=}"
+  name="${name#"${name%%[![:space:]]*}"}"
+  name="${name%"${name##*[![:space:]]}"}"
+  [[ "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
 
-  if [ "$health_status" = "healthy" ]; then
-    echo " PostgreSQL is healthy!"
-    break
+  if [[ "$value" == \"*\" && "$value" == *\" ]] || [[ "$value" == \'*\' && "$value" == *\' ]]; then
+    value="${value:1:${#value}-2}"
   fi
+  export "$name=$value"
+done < ".env"
 
-  echo "  - Health status is '$health_status'. Waiting... (Attempt $i of 30)"
-  sleep 2
-
-  if [ "$i" -eq 30 ]; then
-    fail "PostgreSQL container did not become healthy after 60 seconds." "postgres"
+for name in SPRING_DATASOURCE_URL SPRING_DATASOURCE_USERNAME SPRING_DATASOURCE_PASSWORD; do
+  value="${!name:-}"
+  if [ -z "$value" ] || [[ "$value" == *YOUR_* ]]; then
+    fail "Missing required environment variable: $name. Set it in .env first."
   fi
 done
 
-echo " Starting Spring Boot application..."
-
-if [ -f ".env" ]; then
-  # Read each line, trim it, and export it if it's a valid VAR=VALUE pair.
-  # This is safer than `source` for .env files with special characters.
-  while IFS= read -r line || [ -n "$line" ]; do
-    line_trimmed=$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/\r$//')
-    if [[ ! "$line_trimmed" =~ ^# ]] && [[ "$line_trimmed" =~ = ]]; then
-      export "$line_trimmed"
-    fi
-  done < ".env"
-fi
-
-LOCAL_POSTGRES_PORT="${LOCAL_POSTGRES_PORT:-5433}"
-LOCAL_POSTGRES_DB="${LOCAL_POSTGRES_DB:-ahadith}"
-LOCAL_POSTGRES_USERNAME="${LOCAL_POSTGRES_USERNAME:-postgres}"
-LOCAL_POSTGRES_PASSWORD="${LOCAL_POSTGRES_PASSWORD:-postgres}"
-
 export SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-dev}"
-export SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:${LOCAL_POSTGRES_PORT}/${LOCAL_POSTGRES_DB}"
-export SPRING_DATASOURCE_USERNAME="$LOCAL_POSTGRES_USERNAME"
-export SPRING_DATASOURCE_PASSWORD="$LOCAL_POSTGRES_PASSWORD"
 
 requested_port="${PORT:-8080}"
 available_port=$(find_available_port "$requested_port") || fail "No available application port found between $requested_port and 8090."
@@ -80,7 +61,7 @@ if [ "$available_port" != "$requested_port" ]; then
 fi
 export PORT="$available_port"
 
-echo " Using local database: $SPRING_DATASOURCE_URL"
+echo " Starting Spring Boot with the datasource configured in .env."
 echo " Application port: $PORT"
 
 ./mvnw spring-boot:run || fail "Spring Boot application failed to start."
