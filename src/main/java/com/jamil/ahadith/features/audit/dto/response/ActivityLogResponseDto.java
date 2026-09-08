@@ -5,6 +5,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
+import java.util.List;
 
 @Data
 public class ActivityLogResponseDto {
@@ -18,5 +19,6 @@ public class ActivityLogResponseDto {
     private UUID recordId;
     private Map<String, Object> oldData;
     private Map<String, Object> newData;
+    private List<String> changes;
     private LocalDateTime createdAt;
 }

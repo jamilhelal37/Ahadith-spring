@@ -10,20 +10,34 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface UpgradeRequestRepository extends JpaRepository<UpgradeRequest, UUID> {
-    boolean existsByUserIdAndStatusIn(UUID userId, Collection<UpgradeStatus> statuses);
 
-    List<UpgradeRequest> findByUserIdOrderByCreatedAtDesc(UUID userId);
+    boolean existsByUserIdAndStatusIn(
+            UUID userId,
+            Collection<UpgradeStatus> statuses
+    );
 
-    Optional<UpgradeRequest> findFirstByUserIdAndStatusInOrderByCreatedAtDesc(UUID userId, Collection<UpgradeStatus> statuses);
+    Optional<UpgradeRequest> findFirstByUserIdOrderByCreatedAtDesc(
+            UUID userId
+    );
 
-    Page<UpgradeRequest> findByStatus(UpgradeStatus status, Pageable pageable);
+    Optional<UpgradeRequest> findFirstByUserIdAndStatusInOrderByCreatedAtDesc(
+            UUID userId,
+            Collection<UpgradeStatus> statuses
+    );
 
-    Optional<UpgradeRequest> findByIdAndUserId(UUID id, UUID userId);
+    Page<UpgradeRequest> findByStatus(
+            UpgradeStatus status,
+            Pageable pageable
+    );
+
+    Optional<UpgradeRequest> findByIdAndUserId(
+            UUID id,
+            UUID userId
+    );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select request from UpgradeRequest request where request.id = :id")
