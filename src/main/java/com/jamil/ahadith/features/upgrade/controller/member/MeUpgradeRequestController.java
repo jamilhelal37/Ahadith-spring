@@ -44,10 +44,9 @@ public class MeUpgradeRequestController {
     }
 
     @GetMapping
-    public List<MemberUpgradeRequestResponseDto> getMyUpgradeRequests() {
-        return upgradeRequestService.getMyUpgradeRequests();
+    public MemberUpgradeRequestResponseDto getMyUpgradeRequest() {
+        return upgradeRequestService.getMyUpgradeRequest();
     }
-
     @GetMapping("/{id}/document")
     public ResponseEntity<SignedDocumentDownloadResponseDto> getDocument(@PathVariable UUID id) {
         return ResponseEntity.ok()

@@ -11,19 +11,15 @@ import java.util.UUID;
 
 public interface FakeHadithRepository extends JpaRepository<FakeHadith, UUID> {
 
-    @Query(
-            value = """
-                    SELECT f.*
-                    FROM fake_ahadith f
-                    WHERE f.search_text LIKE '%' || public.arab_norm(:query) || '%'
-                    """,
-            countQuery = """
-                    SELECT COUNT(*)
-                    FROM fake_ahadith f
-                    WHERE f.search_text LIKE '%' || public.arab_norm(:query) || '%'
-                    """,
-            nativeQuery = true
-    )
+    @Query("""
+            select f
+            from FakeHadith f
+            where f.searchText like concat(
+                '%',
+                cast(function('arab_norm', :query) as string),
+                '%'
+            )
+            """)
     Page<FakeHadith> searchByText(
             @Param("query") String query,
             Pageable pageable

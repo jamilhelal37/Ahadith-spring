@@ -86,14 +86,13 @@ public class UpgradeRequestService {
     }
 
     @Transactional(readOnly = true)
-    public List<MemberUpgradeRequestResponseDto> getMyUpgradeRequests() {
+    public MemberUpgradeRequestResponseDto getMyUpgradeRequest() {
         var user = currentUserService.requireCurrentUser();
 
         return upgradeRequestRepository
-                .findByUserIdOrderByCreatedAtDesc(user.getId())
-                .stream()
+                .findFirstByUserIdOrderByCreatedAtDesc(user.getId())
                 .map(upgradeRequestMapper::toMemberResponseDto)
-                .toList();
+                .orElseThrow(UpgradeRequestNotFoundException::new);
     }
 
     @Transactional(readOnly = true)

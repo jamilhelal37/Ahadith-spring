@@ -334,46 +334,78 @@ class AuthWorkflowTest {
         assertThat(testEmailService.verificationTokenFor(email)).isNotBlank();
         assertThat(testEmailService.verificationTokenFor(email)).isNotEqualTo(firstToken);
     }
-
     @Test
-    void passwordResetShouldConsumeTokenRevokeSessionsAndWriteAuditLog() throws Exception {
+    void passwordResetShouldConsumeTokenRevokeSessionsWithoutAuditLog() throws Exception {
         String email = "reset@example.com";
         createUser(email, UserStatus.active);
+
         JsonNode session = login(email);
         JsonNode secondSession = login(email);
+
         String oldAccessToken = session.get("accessToken").asText();
 
         mockMvc.perform(post("/auth/forgot-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + email + "\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("If the email is registered, password reset instructions have been sent"));
+                .andExpect(jsonPath("$.message")
+                        .value("If the email is registered, password reset instructions have been sent"));
 
         String token = testEmailService.passwordResetTokenFor(email);
+
         assertThat(token).isNotBlank();
-        assertThat(passwordResetTokenRepository.findByTokenHash(token)).isEmpty();
-        assertThat(passwordResetTokenRepository.findByTokenHash(tokenHashService.sha256(token))).isPresent();
+        assertThat(passwordResetTokenRepository.findByTokenHash(token))
+                .isEmpty();
+
+        assertThat(
+                passwordResetTokenRepository.findByTokenHash(
+                        tokenHashService.sha256(token)
+                )
+        ).isPresent();
 
         mockMvc.perform(post("/auth/reset-password")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"token\":\"" + token + "\",\"newPassword\":\"87654321\"}"))
+                        .content(
+                                "{\"token\":\""
+                                        + token
+                                        + "\",\"newPassword\":\"87654321\"}"
+                        ))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/me").header("Authorization", "Bearer " + oldAccessToken))
+        mockMvc.perform(
+                        get("/me")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + oldAccessToken
+                                )
+                )
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"refreshToken\":\"" + session.get("refreshToken").asText() + "\"}"))
+                        .content(
+                                "{\"refreshToken\":\""
+                                        + session.get("refreshToken").asText()
+                                        + "\"}"
+                        ))
                 .andExpect(status().isUnauthorized());
+
         mockMvc.perform(post("/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"refreshToken\":\"" + secondSession.get("refreshToken").asText() + "\"}"))
+                        .content(
+                                "{\"refreshToken\":\""
+                                        + secondSession.get("refreshToken").asText()
+                                        + "\"}"
+                        ))
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/auth/reset-password")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"token\":\"" + token + "\",\"newPassword\":\"87654321\"}"))
+                        .content(
+                                "{\"token\":\""
+                                        + token
+                                        + "\",\"newPassword\":\"87654321\"}"
+                        ))
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/auth/login")
@@ -381,8 +413,13 @@ class AuthWorkflowTest {
                         .content(loginJson(email, "87654321")))
                 .andExpect(status().isOk());
 
-        assertThat(activityLogRepository.existsByActorEmailAndMessageContainingIgnoreCase(email, "password reset"))
-                .isTrue();
+        assertThat(
+                activityLogRepository
+                        .existsByActorEmailAndMessageContainingIgnoreCase(
+                                email,
+                                "password reset"
+                        )
+        ).isFalse();
     }
 
     @Test

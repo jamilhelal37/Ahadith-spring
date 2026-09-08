@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface HadithRepository extends JpaRepository<Hadith, UUID> {
+
     String SEARCH_FROM = """
             from public.ahadith h
             left join public.books b on b.id = h.book
@@ -29,23 +30,54 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
                 or (
                     cast(:mode as text) = 'EXACT'
                     and (
-                        h.search_text like concat('%', public.arab_norm(cast(:query as text)), '%')
+                        h.search_text like concat(
+                            '%',
+                            public.arab_norm(cast(:query as text)),
+                            '%'
+                        )
                         or (
                             cast(:includeExplanation as boolean) = true
-                            and e.search_text like concat('%', public.arab_norm(cast(:query as text)), '%')
+                            and e.search_text like concat(
+                                '%',
+                                public.arab_norm(cast(:query as text)),
+                                '%'
+                            )
                         )
                     )
                 )
                 or (
                     cast(:mode as text) = 'FLEXIBLE'
-                    and h.search_vector @@ plainto_tsquery('arabic', public.arab_norm(cast(:query as text)))
+                    and h.search_vector @@ to_tsquery(
+                        'arabic',
+                        regexp_replace(
+                            public.arab_norm(cast(:query as text)),
+                            '[[:space:]]+',
+                            ' | ',
+                            'g'
+                        )
+                    )
                 )
             )
-            and (cast(:muhaddithIds as uuid[]) is null or m.id = any(cast(:muhaddithIds as uuid[])))
-            and (cast(:rawiIds as uuid[]) is null or r.id = any(cast(:rawiIds as uuid[])))
-            and (cast(:types as text[]) is null or cast(h.type as text) = any(cast(:types as text[])))
-            and (cast(:rulingIds as uuid[]) is null or ru.id = any(cast(:rulingIds as uuid[])))
-            and (cast(:bookIds as uuid[]) is null or b.id = any(cast(:bookIds as uuid[])))
+            and (
+                cast(:muhaddithIds as uuid[]) is null
+                or m.id = any(cast(:muhaddithIds as uuid[]))
+            )
+            and (
+                cast(:rawiIds as uuid[]) is null
+                or r.id = any(cast(:rawiIds as uuid[]))
+            )
+            and (
+                cast(:types as text[]) is null
+                or cast(h.type as text) = any(cast(:types as text[]))
+            )
+            and (
+                cast(:rulingIds as uuid[]) is null
+                or ru.id = any(cast(:rulingIds as uuid[]))
+            )
+            and (
+                cast(:bookIds as uuid[]) is null
+                or b.id = any(cast(:bookIds as uuid[]))
+            )
             and (
                 cast(:topicIds as uuid[]) is null
                 or exists (
@@ -60,7 +92,11 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
     String ADMIN_SEARCH_WHERE = """
             where (
                 cast(:query as text) is null
-                or h.search_text like concat('%', public.arab_norm(cast(:query as text)), '%')
+                or h.search_text like concat(
+                    '%',
+                    public.arab_norm(cast(:query as text)),
+                    '%'
+                )
                 or cast(h.hadith_number as text) = cast(:query as text)
             )
             """;
@@ -74,13 +110,32 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
                             when cast(:sort as text) = 'RELEVANCE'
                                 and cast(:query as text) is not null
                                 and cast(:mode as text) = 'FLEXIBLE'
-                            then ts_rank(h.search_vector, plainto_tsquery('arabic', public.arab_norm(cast(:query as text))))
+                            then ts_rank(
+                                h.search_vector,
+                                to_tsquery(
+                                    'arabic',
+                                    regexp_replace(
+                                        public.arab_norm(cast(:query as text)),
+                                        '[[:space:]]+',
+                                        ' | ',
+                                        'g'
+                                    )
+                                )
+                            )
                         end desc nulls last,
-                        case when cast(:sort as text) = 'HADITH_NUMBER_DESC' then h.hadith_number end desc nulls last,
-                        case when cast(:sort as text) <> 'HADITH_NUMBER_DESC' then h.hadith_number end asc nulls last,
+                        case
+                            when cast(:sort as text) = 'HADITH_NUMBER_DESC'
+                            then h.hadith_number
+                        end desc nulls last,
+                        case
+                            when cast(:sort as text) <> 'HADITH_NUMBER_DESC'
+                            then h.hadith_number
+                        end asc nulls last,
                         h.id asc
                     """,
-            countQuery = "select count(h.id) " + SEARCH_FROM + PUBLIC_SEARCH_WHERE,
+            countQuery = "select count(h.id) "
+                    + SEARCH_FROM
+                    + PUBLIC_SEARCH_WHERE,
             nativeQuery = true
     )
     Page<UUID> searchPublicIds(
@@ -101,9 +156,13 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             value = """
                     select h.id
                     """ + SEARCH_FROM + ADMIN_SEARCH_WHERE + """
-                    order by h.hadith_number asc nulls last, h.id asc
+                    order by
+                        h.hadith_number asc nulls last,
+                        h.id asc
                     """,
-            countQuery = "select count(h.id) " + SEARCH_FROM + ADMIN_SEARCH_WHERE,
+            countQuery = "select count(h.id) "
+                    + SEARCH_FROM
+                    + ADMIN_SEARCH_WHERE,
             nativeQuery = true
     )
     Page<UUID> searchAdminIds(
@@ -117,7 +176,10 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             where h.book.id = :bookId
             order by h.hadithNumber asc, h.id asc
             """)
-    Page<UUID> findBookAhadithIds(@Param("bookId") UUID bookId, Pageable pageable);
+    Page<UUID> findBookAhadithIds(
+            @Param("bookId") UUID bookId,
+            Pageable pageable
+    );
 
     @Query("""
             select h.id as id,
@@ -147,7 +209,9 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             left join h.subValid sv
             where h.id in :ids
             """)
-    List<HadithSearchRow> findSearchRowsByIdsJpa(@Param("ids") List<UUID> ids);
+    List<HadithSearchRow> findSearchRowsByIdsJpa(
+            @Param("ids") List<UUID> ids
+    );
 
     @Query("""
             select h.id as id,
@@ -177,7 +241,9 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             left join h.subValid sv
             where h.id = :id
             """)
-    HadithSearchRow findPublicDetailsRowById(@Param("id") UUID id);
+    HadithSearchRow findPublicDetailsRowById(
+            @Param("id") UUID id
+    );
 
     @Query("""
             select tc.hadith.id as hadithId,
@@ -188,14 +254,21 @@ public interface HadithRepository extends JpaRepository<Hadith, UUID> {
             where tc.hadith.id in :ids
             order by t.name asc, t.id asc
             """)
-    List<HadithTopicRow> findTopicsByHadithIdsJpa(@Param("ids") List<UUID> ids);
+    List<HadithTopicRow> findTopicsByHadithIdsJpa(
+            @Param("ids") List<UUID> ids
+    );
 
     @Query("""
-            select new com.jamil.ahadith.features.catalog.dto.response.reference.TopicReferenceResponseDto(t.id, t.name)
+            select new com.jamil.ahadith.features.catalog.dto.response.reference.TopicReferenceResponseDto(
+                t.id,
+                t.name
+            )
             from TopicClass tc
             join tc.topic t
             where tc.hadith.id = :hadithId
             order by t.name asc, t.id asc
             """)
-    List<TopicReferenceResponseDto> findPublicTopicReferencesByHadithId(@Param("hadithId") UUID hadithId);
+    List<TopicReferenceResponseDto> findPublicTopicReferencesByHadithId(
+            @Param("hadithId") UUID hadithId
+    );
 }

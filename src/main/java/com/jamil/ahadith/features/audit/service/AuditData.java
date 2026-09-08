@@ -10,40 +10,143 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class AuditData {
+
     private AuditData() {
     }
 
     public static Map<String, Object> snapshot(Object source) {
+
         if (source == null) {
             return Map.of();
         }
+
         Map<String, Object> values = new LinkedHashMap<>();
+
         try {
-            for (var descriptor : Introspector.getBeanInfo(source.getClass(), Object.class).getPropertyDescriptors()) {
+            for (var descriptor :
+                    Introspector.getBeanInfo(
+                            source.getClass(),
+                            Object.class
+                    ).getPropertyDescriptors()) {
+
                 String name = descriptor.getName();
-                if (descriptor.getReadMethod() == null || isSensitive(name)) {
+
+                if (descriptor.getReadMethod() == null
+                        || isSensitive(name)) {
                     continue;
                 }
-                Object value = descriptor.getReadMethod().invoke(source);
-                putValue(values, name, value);
+
+                Object value =
+                        descriptor.getReadMethod().invoke(source);
+
+                putValue(
+                        values,
+                        name,
+                        value
+                );
             }
-        } catch (IntrospectionException | IllegalAccessException | InvocationTargetException ignored) {
-            return Map.of("snapshot", source.getClass().getSimpleName());
+
+        } catch (
+                IntrospectionException
+                | IllegalAccessException
+                | InvocationTargetException ignored
+        ) {
+            return Map.of(
+                    "snapshot",
+                    source.getClass().getSimpleName()
+            );
         }
+
         return values;
     }
 
-    private static void putValue(Map<String, Object> values, String name, Object value) {
+    private static void putValue(
+            Map<String, Object> values,
+            String name,
+            Object value
+    ) {
+
         if (value == null || isSimple(value)) {
             values.put(name, value);
             return;
         }
-        if (value instanceof Collection<?> || value instanceof Map<?, ?> || value.getClass().isArray()) {
+
+        if (value instanceof Collection<?>
+                || value instanceof Map<?, ?>
+                || value.getClass().isArray()) {
             return;
         }
+
         UUID id = extractId(value);
-        if (id != null) {
-            values.put(name + "Id", id.toString());
+
+        if (id == null) {
+            return;
+        }
+
+        values.put(
+                name + "Id",
+                id.toString()
+        );
+
+        Object displayValue =
+                extractDisplayValue(value);
+
+        if (displayValue != null) {
+            values.put(
+                    name + "Display",
+                    displayValue
+            );
+        }
+    }
+
+    private static Object extractDisplayValue(Object value) {
+
+        Object displayValue =
+                invokeGetter(value, "getName");
+
+        if (displayValue != null) {
+            return displayValue;
+        }
+
+        displayValue =
+                invokeGetter(value, "getText");
+
+        if (displayValue != null) {
+            return displayValue;
+        }
+
+        displayValue =
+                invokeGetter(value, "getTitle");
+
+        if (displayValue != null) {
+            return displayValue;
+        }
+
+        return null;
+    }
+
+    private static Object invokeGetter(
+            Object source,
+            String methodName
+    ) {
+        try {
+            Object value = source
+                    .getClass()
+                    .getMethod(methodName)
+                    .invoke(source);
+
+            if (value == null || isSimple(value)) {
+                return value;
+            }
+
+            return null;
+
+        } catch (
+                NoSuchMethodException
+                | IllegalAccessException
+                | InvocationTargetException ignored
+        ) {
+            return null;
         }
     }
 
@@ -57,22 +160,38 @@ public final class AuditData {
     }
 
     private static UUID extractId(Object value) {
+
         try {
-            Object id = value.getClass().getMethod("getId").invoke(value);
-            return id instanceof UUID uuid ? uuid : null;
-        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
+            Object id = value
+                    .getClass()
+                    .getMethod("getId")
+                    .invoke(value);
+
+            return id instanceof UUID uuid
+                    ? uuid
+                    : null;
+
+        } catch (
+                NoSuchMethodException
+                | IllegalAccessException
+                | InvocationTargetException ignored
+        ) {
             return null;
         }
     }
 
     private static boolean isSensitive(String name) {
-        String normalized = name.toLowerCase();
+
+        String normalized =
+                name.toLowerCase();
+
         return normalized.contains("password")
                 || normalized.contains("token")
                 || normalized.contains("secret")
                 || normalized.contains("googlesubject")
                 || normalized.contains("google_subject")
-                || (normalized.contains("google") && normalized.contains("subject"))
+                || (normalized.contains("google")
+                && normalized.contains("subject"))
                 || normalized.contains("apikey")
                 || normalized.contains("api_key")
                 || normalized.contains("jwt")
