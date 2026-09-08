@@ -86,6 +86,10 @@ public interface ActivityLogMapper {
     }
 
     default String translateTableName(String tableName) {
+        if (tableName == null) {
+            return null;
+        }
+
         return switch (tableName) {
             case "ahadith" -> "الأحاديث";
             case "fake_ahadith" -> "الأحاديث المنتشرة التي لا تصح";
