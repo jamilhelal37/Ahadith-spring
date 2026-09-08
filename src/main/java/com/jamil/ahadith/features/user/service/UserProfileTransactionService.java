@@ -4,6 +4,8 @@ import com.jamil.ahadith.core.exception.InvalidRequestException;
 import com.jamil.ahadith.core.security.RefreshTokenRevoker;
 import com.jamil.ahadith.core.storage.dto.ProfileImageResponse;
 import com.jamil.ahadith.core.web.dto.MessageResponseDto;
+import com.jamil.ahadith.features.audit.service.AuditData;
+import com.jamil.ahadith.features.audit.service.AuditEventPublisher;
 import com.jamil.ahadith.features.account.service.PasswordPolicyService;
 import com.jamil.ahadith.features.auth.dto.response.AuthUserDto;
 import com.jamil.ahadith.features.auth.mapper.AuthUserMapper;
@@ -24,6 +26,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class UserProfileTransactionService {
+    private static final String USERS_TABLE_NAME = "users";
 
     private final UserRepository userRepository;
     private final ApplicationEventPublisher eventPublisher;
@@ -31,6 +34,7 @@ public class UserProfileTransactionService {
     private final PasswordEncoder passwordEncoder;
     private final PasswordPolicyService passwordPolicyService;
     private final RefreshTokenRevoker refreshTokenRevoker;
+    private final AuditEventPublisher auditEventPublisher;
 
     @Transactional
     public void replaceProfileImage(
@@ -86,10 +90,20 @@ public class UserProfileTransactionService {
         User user = userRepository
                 .findByIdForUpdate(userId)
                 .orElseThrow(UserNotFoundException::new);
+        var oldData = AuditData.snapshot(user);
 
         user.setName(request.getName().trim());
         user.setGender(request.getGender());
         user.setBirthDate(request.getBirthDate());
+
+        auditEventPublisher.publishUpdateAs(
+                user,
+                USERS_TABLE_NAME,
+                user.getId(),
+                oldData,
+                AuditData.snapshot(user),
+                "profile updated"
+        );
 
         return authUserMapper.toDto(user);
     }
@@ -106,6 +120,7 @@ public class UserProfileTransactionService {
         User user = userRepository
                 .findByIdForUpdate(userId)
                 .orElseThrow(UserNotFoundException::new);
+        var oldData = AuditData.snapshot(user);
 
         if (user.getPassword() == null
                 || !passwordEncoder.matches(
@@ -139,6 +154,15 @@ public class UserProfileTransactionService {
         );
 
         refreshTokenRevoker.revokeAllForUser(user);
+
+        auditEventPublisher.publishUpdateAs(
+                user,
+                USERS_TABLE_NAME,
+                user.getId(),
+                oldData,
+                AuditData.snapshot(user),
+                "password changed"
+        );
 
         return new MessageResponseDto(
                 "Password changed successfully"
