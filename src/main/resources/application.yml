@@ -144,9 +144,10 @@ app:
     batch-size: ${APP_EMBEDDING_BATCH_SIZE:16}
     min-similarity: ${APP_SEMANTIC_MIN_SIMILARITY:0.45}
     candidate-limit: ${APP_SEMANTIC_CANDIDATE_LIMIT:100}
+    max-candidate-limit: ${APP_SEMANTIC_MAX_CANDIDATE_LIMIT:1000}
     hybrid-rrf-k: ${APP_HYBRID_RRF_K:60}
-    connect-timeout: ${APP_EMBEDDING_CONNECT_TIMEOUT:3s}
-    read-timeout: ${APP_EMBEDDING_READ_TIMEOUT:30s}
+    connect-timeout: ${APP_EMBEDDING_CONNECT_TIMEOUT:10s}
+    read-timeout: ${APP_EMBEDDING_READ_TIMEOUT:120s}
   cleanup:
     enabled: ${APP_CLEANUP_ENABLED:true}
     initial-delay: ${APP_CLEANUP_INITIAL_DELAY:10m}

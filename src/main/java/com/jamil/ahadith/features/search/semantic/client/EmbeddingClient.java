@@ -1,6 +1,7 @@
 package com.jamil.ahadith.features.search.semantic.client;
 
 import com.jamil.ahadith.features.search.semantic.config.SemanticSearchProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -15,6 +16,7 @@ public class EmbeddingClient {
 
     private final RestClient restClient;
 
+    @Autowired
     public EmbeddingClient(SemanticSearchProperties properties) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(properties.getConnectTimeout());

@@ -242,22 +242,48 @@ All existing filters are applied before candidate limits in both text and vector
 
 ### Semantic search setup
 
-For a complete local stack, copy `.env.example` to `.env`, fill the existing required secrets, and run:
+This repository contains only the Spring Boot and database side of semantic search. It retains the pgvector schema, vector persistence and search SQL, filtering, RRF, reindex/backfill, and after-commit embedding generation. It does not build or run BGE-M3.
+
+Deployment architecture:
+
+```text
+Frontend (React / Flutter)
+  -> Spring Boot
+       -> PostgreSQL / pgvector
+       -> HTTPS -> external BGE-M3 HTTP service
+```
+
+The external HTTP service must expose `GET /health` and `POST /embed`. Spring sends:
+
+```json
+{
+  "texts": ["أحاديث عن الرحمة بالحيوان"]
+}
+```
+
+The `POST /embed` response contract is:
+
+```json
+{
+  "model": "BAAI/bge-m3",
+  "modelVersion": "...",
+  "dimension": 1024,
+  "embeddings": [[...]]
+}
+```
+
+Each item in `embeddings` must be a 1024-dimensional vector, in the same order as the request's `texts`. Configure the external URL before enabling semantic search. For example, a GitHub Codespaces deployment can be supplied to Spring or Render as:
+
+```text
+APP_EMBEDDING_SERVICE_URL=https://<codespace>-8001.app.github.dev
+```
+
+Do not commit a live Codespaces URL. Render should provide it as an environment variable. A normal non-Docker Spring process defaults to `http://localhost:8001`. Docker Compose deliberately requires `APP_EMBEDDING_SERVICE_URL` in `.env`, because `localhost` inside the app container is not the Docker host on Linux. Use an external HTTPS URL or another explicitly reachable address.
+
+To run PostgreSQL/pgvector and the Spring API locally, copy `.env.example` to `.env`, fill the existing required settings and the external embedding URL, then run:
 
 ```bash
 docker compose up --build
-```
-
-Compose starts PostgreSQL/pgvector, the Spring API, and the BGE-M3 service. The first embedding-service start downloads several gigabytes of model data; the `huggingface-cache` volume preserves it across restarts.
-
-To run only the Python service outside Docker:
-
-```bash
-cd embedding-service
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
-HF_HOME=.cache/huggingface uvicorn app.main:app --host 0.0.0.0 --port 8001
 ```
 
 After Flyway has created `hadith_embeddings`, perform the initial idempotent backfill with an admin JWT:
@@ -279,10 +305,13 @@ APP_EMBEDDING_MODEL_VERSION=1.3.5
 APP_EMBEDDING_BATCH_SIZE=16
 APP_SEMANTIC_MIN_SIMILARITY=0.45
 APP_SEMANTIC_CANDIDATE_LIMIT=100
+APP_SEMANTIC_MAX_CANDIDATE_LIMIT=1000
 APP_HYBRID_RRF_K=60
-APP_EMBEDDING_CONNECT_TIMEOUT=3s
-APP_EMBEDDING_READ_TIMEOUT=30s
+APP_EMBEDDING_CONNECT_TIMEOUT=10s
+APP_EMBEDDING_READ_TIMEOUT=120s
 ```
+
+`APP_SEMANTIC_CANDIDATE_LIMIT` preserves the first-page ranking pool. Later pages request enough ranked candidates for `(page + 1) * size`, bounded by `APP_SEMANTIC_MAX_CANDIDATE_LIMIT` so retrieval is never unbounded. For `SEMANTIC` and `HYBRID`, pagination is applied after vector ranking/RRF and `totalItems`/`totalPages` describe this bounded ranked candidate pool, not an exact count of every matching database row.
 
 Example hybrid request:
 

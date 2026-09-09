@@ -30,7 +30,9 @@ public class SemanticSearchService {
     }
 
     public int candidateLimit(int required) {
-        return Math.max(1, properties.getCandidateLimit());
+        int cap = Math.max(1, properties.getMaxCandidateLimit());
+        int baseline = Math.min(Math.max(1, properties.getCandidateLimit()), cap);
+        return Math.min(Math.max(required, baseline), cap);
     }
 
     public List<UUID> semanticCandidates(String originalQuery, HadithSearchRequest request, int limit) {

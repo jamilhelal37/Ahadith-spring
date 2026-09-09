@@ -23,9 +23,9 @@ class SemanticSearchServiceTest {
 
     @Test
     void rrfRewardsDocumentsPresentInBothRankingsAndRemovesDuplicates() {
-        UUID textOnly = UUID.randomUUID();
-        UUID shared = UUID.randomUUID();
-        UUID semanticOnly = UUID.randomUUID();
+        UUID textOnly = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID shared = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        UUID semanticOnly = UUID.fromString("00000000-0000-0000-0000-000000000003");
 
         List<UUID> fused = service.fuse(List.of(textOnly, shared), List.of(semanticOnly, shared));
 
@@ -38,5 +38,23 @@ class SemanticSearchServiceTest {
         UUID higher = UUID.fromString("00000000-0000-0000-0000-000000000002");
 
         assertThat(service.fuse(List.of(higher), List.of(lower))).containsExactly(lower, higher);
+    }
+
+    @Test
+    void candidateLimitGrowsForLaterPagesWithoutExceedingConfiguredCap() {
+        properties.setCandidateLimit(100);
+        properties.setMaxCandidateLimit(250);
+
+        assertThat(service.candidateLimit(20)).isEqualTo(100);
+        assertThat(service.candidateLimit(120)).isEqualTo(120);
+        assertThat(service.candidateLimit(300)).isEqualTo(250);
+    }
+
+    @Test
+    void candidateCapAlsoBoundsTheConfiguredFirstPageRankingPool() {
+        properties.setCandidateLimit(100);
+        properties.setMaxCandidateLimit(50);
+
+        assertThat(service.candidateLimit(120)).isEqualTo(50);
     }
 }

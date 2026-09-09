@@ -11,6 +11,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.List;
 import java.util.UUID;
@@ -52,6 +54,45 @@ class HadithSearchSemanticTest {
     }
 
     @Test
+    void semanticLaterPageRequestsEnoughCandidatesBeforePagination() {
+        List<UUID> ranked = java.util.stream.IntStream.range(0, 120)
+                .mapToObj(index -> UUID.randomUUID())
+                .toList();
+        when(semantic.candidateLimit(120)).thenReturn(120);
+        when(semantic.semanticCandidates(anyString(), any(), eq(120))).thenReturn(ranked);
+        when(repository.findSearchRowsByIdsJpa(anyList())).thenReturn(List.of());
+        HadithSearchRequest request = request(SearchMode.SEMANTIC);
+        request.setPage(5);
+        request.setSize(20);
+
+        service.publicSearch(request);
+
+        verify(repository).findSearchRowsByIdsJpa(ranked.subList(100, 120));
+    }
+
+    @Test
+    void hybridPaginationHappensAfterRrf() {
+        List<UUID> textIds = List.of(UUID.randomUUID(), UUID.randomUUID());
+        List<UUID> semanticIds = List.of(UUID.randomUUID(), UUID.randomUUID());
+        List<UUID> fused = List.of(textIds.getFirst(), semanticIds.getFirst(), textIds.get(1), semanticIds.get(1));
+        when(semantic.isEnabled()).thenReturn(true);
+        when(semantic.candidateLimit(4)).thenReturn(100);
+        when(repository.searchPublicIds(anyString(), eq("FLEXIBLE"), eq("RELEVANCE"), anyBoolean(),
+                isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), any()))
+                .thenAnswer(invocation -> new PageImpl<>(textIds, invocation.getArgument(10), textIds.size()));
+        when(semantic.semanticCandidatesForHybrid(anyString(), any(), eq(100))).thenReturn(semanticIds);
+        when(semantic.fuse(textIds, semanticIds)).thenReturn(fused);
+        when(repository.findSearchRowsByIdsJpa(anyList())).thenReturn(List.of());
+        HadithSearchRequest request = request(SearchMode.HYBRID);
+        request.setPage(1);
+        request.setSize(2);
+
+        service.publicSearch(request);
+
+        verify(repository).findSearchRowsByIdsJpa(fused.subList(2, 4));
+    }
+
+    @Test
     void hybridFallsBackToNormalFlexiblePageWhenEmbeddingServiceFails() {
         when(semantic.isEnabled()).thenReturn(true);
         when(semantic.candidateLimit(anyInt())).thenReturn(100);
@@ -75,6 +116,18 @@ class HadithSearchSemanticTest {
 
         assertThatThrownBy(() -> service.publicSearch(request(SearchMode.SEMANTIC)))
                 .isInstanceOf(ServiceUnavailableException.class);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = SearchMode.class, names = {"EXACT", "FLEXIBLE"})
+    void textModesDoNotCallTheEmbeddingService(SearchMode mode) {
+        when(repository.searchPublicIds(anyString(), eq(mode.name()), anyString(), anyBoolean(),
+                isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), any()))
+                .thenAnswer(invocation -> new PageImpl<>(List.of(), invocation.getArgument(10), 0));
+
+        service.publicSearch(request(mode));
+
+        verifyNoInteractions(semantic);
     }
 
     private HadithSearchRequest request(SearchMode mode) {

@@ -20,37 +20,15 @@ services:
       - no-new-privileges:true
     restart: unless-stopped
 
-  embedding-service:
-    build:
-      context: ./embedding-service
-      dockerfile: Dockerfile
-    container_name: ahadith-embedding-service
-    environment:
-      EMBEDDING_MODEL: ${APP_EMBEDDING_MODEL:-BAAI/bge-m3}
-      EMBEDDING_BATCH_SIZE: ${APP_EMBEDDING_BATCH_SIZE:-16}
-      HF_HOME: /models/huggingface
-    ports:
-      - "127.0.0.1:8001:8001"
-    volumes:
-      - huggingface-cache:/models/huggingface
-    security_opt:
-      - no-new-privileges:true
-    restart: unless-stopped
-
   app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: ahadith-app
-    depends_on:
-      postgres:
-        condition: service_healthy
-      embedding-service:
-        condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${LOCAL_POSTGRES_DB:-ahadith}
-      SPRING_DATASOURCE_USERNAME: ${LOCAL_POSTGRES_USERNAME:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${LOCAL_POSTGRES_PASSWORD:-postgres}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:?SPRING_DATASOURCE_URL is required}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:?SPRING_DATASOURCE_USERNAME is required}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD is required}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       PORT: ${PORT:-8080}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
@@ -65,13 +43,16 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:?CLOUDINARY_API_KEY is required}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:?CLOUDINARY_API_SECRET is required}
       APP_SEMANTIC_SEARCH_ENABLED: ${APP_SEMANTIC_SEARCH_ENABLED:-true}
-      APP_EMBEDDING_SERVICE_URL: http://embedding-service:8001
+      APP_EMBEDDING_SERVICE_URL: ${APP_EMBEDDING_SERVICE_URL:?APP_EMBEDDING_SERVICE_URL must point to an external embedding HTTP service}
       APP_EMBEDDING_MODEL: ${APP_EMBEDDING_MODEL:-BAAI/bge-m3}
       APP_EMBEDDING_MODEL_VERSION: ${APP_EMBEDDING_MODEL_VERSION:-1.3.5}
       APP_EMBEDDING_BATCH_SIZE: ${APP_EMBEDDING_BATCH_SIZE:-16}
       APP_SEMANTIC_MIN_SIMILARITY: ${APP_SEMANTIC_MIN_SIMILARITY:-0.45}
       APP_SEMANTIC_CANDIDATE_LIMIT: ${APP_SEMANTIC_CANDIDATE_LIMIT:-100}
+      APP_SEMANTIC_MAX_CANDIDATE_LIMIT: ${APP_SEMANTIC_MAX_CANDIDATE_LIMIT:-1000}
       APP_HYBRID_RRF_K: ${APP_HYBRID_RRF_K:-60}
+      APP_EMBEDDING_CONNECT_TIMEOUT: ${APP_EMBEDDING_CONNECT_TIMEOUT:-10s}
+      APP_EMBEDDING_READ_TIMEOUT: ${APP_EMBEDDING_READ_TIMEOUT:-120s}
     ports:
       - "8080:8080"
     healthcheck:
@@ -91,4 +72,3 @@ services:
 
 volumes:
   postgres-data:
-  huggingface-cache:

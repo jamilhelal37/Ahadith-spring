@@ -17,7 +17,8 @@ public class SemanticSearchProperties {
     private int batchSize = 16;
     private double minSimilarity = 0.45;
     private int candidateLimit = 100;
+    private int maxCandidateLimit = 1000;
     private int hybridRrfK = 60;
-    private Duration connectTimeout = Duration.ofSeconds(3);
-    private Duration readTimeout = Duration.ofSeconds(30);
+    private Duration connectTimeout = Duration.ofSeconds(10);
+    private Duration readTimeout = Duration.ofSeconds(120);
 }
