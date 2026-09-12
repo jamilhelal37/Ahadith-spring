@@ -35,7 +35,7 @@ class PostgresFlywayMigrationIT extends PostgresIntegrationTestBase {
          * A previous integration test may have deleted seed data while the
          * Flyway history still says that all migrations were already applied.
          *
-         * Recreate the public schema and let Flyway apply V1 -> V12 again.
+         * Recreate the public schema and let Flyway apply every migration again.
          */
         jdbc.execute("drop schema if exists public cascade");
         jdbc.execute("create schema public");
@@ -53,7 +53,7 @@ class PostgresFlywayMigrationIT extends PostgresIntegrationTestBase {
                 .toList();
 
         assertThat(migrations)
-                .hasSize(12)
+                .hasSize(13)
                 .allSatisfy(migration ->
                         assertThat(migration.getState())
                                 .isNotEqualTo(MigrationState.FAILED));
@@ -75,7 +75,8 @@ class PostgresFlywayMigrationIT extends PostgresIntegrationTestBase {
                         "9",
                         "10",
                         "11",
-                        "12"
+                        "12",
+                        "13"
                 );
 
         assertThat(jdbc.queryForObject(
@@ -84,9 +85,9 @@ class PostgresFlywayMigrationIT extends PostgresIntegrationTestBase {
                 .isGreaterThanOrEqualTo(160000);
 
         assertThat(jdbc.queryForObject(
-                "select count(*) from pg_extension where extname in ('pg_trgm', 'pgcrypto')",
+                "select count(*) from pg_extension where extname in ('pg_trgm', 'pgcrypto', 'vector')",
                 Integer.class))
-                .isEqualTo(2);
+                .isEqualTo(3);
 
         assertThat(jdbc.queryForObject(
                 """

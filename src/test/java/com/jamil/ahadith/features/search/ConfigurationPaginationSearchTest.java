@@ -13,6 +13,7 @@ import com.jamil.ahadith.features.hadith.repository.HadithRepository;
 import com.jamil.ahadith.core.web.AdminPageService;
 import com.jamil.ahadith.features.search.service.HadithSearchService;
 import com.jamil.ahadith.features.search.service.SearchHistoryService;
+import com.jamil.ahadith.features.search.semantic.service.SemanticSearchService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -48,6 +49,9 @@ class ConfigurationPaginationSearchTest {
 
     @Mock
     private SearchHistoryService searchHistoryService;
+
+    @Mock
+    private SemanticSearchService semanticSearchService;
 
     @Test
     void productionValidatorShouldFailFastForMissingSensitiveConfiguration() {
@@ -223,7 +227,8 @@ class ConfigurationPaginationSearchTest {
         HadithSearchService service = new HadithSearchService(
                 searchHistoryService,
                 hadithRepository,
-                bookRepository
+                bookRepository,
+                semanticSearchService
         );
 
         when(hadithRepository.searchPublicIds(
