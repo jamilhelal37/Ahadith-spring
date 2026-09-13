@@ -7,6 +7,8 @@ import com.jamil.ahadith.core.ratelimit.RateLimitService;
 import com.jamil.ahadith.core.security.RefreshTokenRevoker;
 import com.jamil.ahadith.core.validation.EmailNormalizer;
 import com.jamil.ahadith.core.web.dto.MessageResponseDto;
+import com.jamil.ahadith.features.audit.service.AuditData;
+import com.jamil.ahadith.features.audit.service.AuditEventPublisher;
 import com.jamil.ahadith.features.account.dto.request.ResetPasswordRequestDto;
 import com.jamil.ahadith.features.account.entity.PasswordResetToken;
 import com.jamil.ahadith.features.account.event.AccountEmailEvent;
@@ -31,6 +33,7 @@ public class PasswordResetService {
     private static final String INVALID_PASSWORD_RESET_TOKEN_MESSAGE = "Invalid or expired password reset token";
     private static final String FORGOT_PASSWORD_MESSAGE =
             "If the email is registered, password reset instructions have been sent";
+    private static final String USERS_TABLE_NAME = "users";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -43,6 +46,7 @@ public class PasswordResetService {
     private final RateLimitKeyResolver rateLimitKeyResolver;
     private final OneTimeTokenValidator oneTimeTokenValidator;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditEventPublisher auditEventPublisher;
 
     @Transactional
     public MessageResponseDto forgotPassword(String email) {
@@ -86,6 +90,7 @@ public class PasswordResetService {
 
         User user = resetToken.getUser();
         requireActive(user);
+        var oldData = AuditData.snapshot(user);
 
         String encodedPassword =
                 passwordEncoder.encode(request.getNewPassword());
@@ -98,6 +103,15 @@ public class PasswordResetService {
         refreshTokenRevoker.revokeAllForUser(user);
 
         passwordResetTokenRepository.consumeActiveForUser(user, now);
+
+        auditEventPublisher.publishUpdateAs(
+                user,
+                USERS_TABLE_NAME,
+                user.getId(),
+                oldData,
+                AuditData.snapshot(user),
+                "password reset"
+        );
 
         return new MessageResponseDto(
                 "Password has been reset"
